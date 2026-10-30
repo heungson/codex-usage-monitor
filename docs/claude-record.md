@@ -32,6 +32,13 @@ sees, so it was settled here and recorded in `docs/decisions.md`.
 
 - An input without usable limits, or one that is not JSON, leaves the record unchanged and shows
   nothing (LHS-2 검증 7, 8).
+- Several Claude Code windows write the same record (2026-10-30). Each limit window is decided on its
+  own: with a reset time less than 5 minutes from the record's, a lower `usedPercentage` is an old
+  value and the record keeps its own; an equal or higher one, or a different reset time (a new
+  window), is taken. A window the input does not carry keeps the record's value. If nothing is
+  taken the file is not written and `updatedAt` stays; otherwise `updatedAt` is the new time. With
+  no record, or one that cannot be read, the input is written as it is. Code:
+  `mergeRecord` in `src/shared/claude-record.ts`.
 - The hook writes to a temporary file and renames it over the record, so the reader never sees half
   a file. If the record exists and is not writable, the hook does not replace it: it writes
   `claude-hook-error.json` (`{ at, message }`) instead, which the 연동 안내 screen shows (LHS-2 검증 9).

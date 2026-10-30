@@ -16,7 +16,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 
-import { recordFromStatusLine } from '../shared/claude-record';
+import { mergeRecord, parseRecord, recordFromStatusLine, type ClaudeRecord } from '../shared/claude-record';
 
 const files = {
   record: 'claude-rate-limits.json',
@@ -40,6 +40,15 @@ function writeRecord(dataDir: string, text: string): void {
   renameSync(temp, target);
 }
 
+/** The record on disk, or null when there is none or it cannot be read: then the input is written as it is. */
+function currentRecord(dataDir: string): ClaudeRecord | null {
+  try {
+    return parseRecord(readFileSync(join(dataDir, files.record), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
 function readStdin(): string {
   try {
     return readFileSync(0, 'utf8');
@@ -59,7 +68,11 @@ function main(): number {
     // Not JSON: keep the previous record and say nothing (LHS-2 검증 8).
   }
 
-  const record = recordFromStatusLine(parsed, new Date());
+  const incoming = recordFromStatusLine(parsed, new Date());
+  // Several Claude Code windows share this record: an old, lower value from an idle one is not
+  // written over a newer one, and nothing is written when nothing is newer (LHS-2, owner 2026-10-30).
+  const current = incoming === null ? null : currentRecord(dataDir);
+  const record = incoming === null || current === null ? incoming : mergeRecord(current, incoming);
   if (record !== null) {
     try {
       writeRecord(dataDir, `${JSON.stringify(record, null, 2)}\n`);

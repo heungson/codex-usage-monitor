@@ -1,6 +1,8 @@
 // The local record the status line hook writes and the Claude Code reader reads (FC-F003 → FC-F004).
 // Format and rules: docs/claude-record.md.
 
+import { sameResetWindow } from './windows';
+
 export interface ClaudeRecordWindow {
   usedPercentage: number;
   /** Epoch milliseconds, or null when Claude Code sent none. */
@@ -67,4 +69,37 @@ export function parseRecord(text: string): ClaudeRecord {
     fiveHour: check(value.fiveHour),
     sevenDay: check(value.sevenDay),
   };
+}
+
+/**
+ * Merges a new status line input into the record already on disk (LHS-2, owner 2026-10-30). Each
+ * Claude Code window writes the limits it last received, so one that has been idle can write old,
+ * lower values over newer ones. Per limit window:
+ * - same reset time (less than 5 minutes apart) and a lower used percentage: an old value, the
+ *   record keeps its own;
+ * - same reset time and an equal or higher percentage, or a different reset time (a new window):
+ *   the new value is taken;
+ * - a window the input does not carry keeps the record's value.
+ * Returns null when no window takes a new value: the file is not written, so «마지막 갱신» does not
+ * move for old values. Otherwise the result carries the input's update time.
+ */
+export function mergeRecord(current: ClaudeRecord, incoming: ClaudeRecord): ClaudeRecord | null {
+  let taken = false;
+  const pick = (
+    now: ClaudeRecordWindow | null,
+    next: ClaudeRecordWindow | null,
+  ): ClaudeRecordWindow | null => {
+    if (next === null) return now;
+    if (
+      now !== null &&
+      sameResetWindow(now.resetsAt, next.resetsAt) &&
+      next.usedPercentage < now.usedPercentage
+    )
+      return now;
+    taken = true;
+    return next;
+  };
+  const fiveHour = pick(current.fiveHour, incoming.fiveHour);
+  const sevenDay = pick(current.sevenDay, incoming.sevenDay);
+  return taken ? { version: 1, updatedAt: incoming.updatedAt, fiveHour, sevenDay } : null;
 }

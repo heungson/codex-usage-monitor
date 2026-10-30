@@ -117,6 +117,28 @@ Asked of the developer, 이흥선, on 2026-10-30; the first two the planner then
   table above). Its own timer's re-read is automatic, so a failed area shows «자동 재시도 중» on it too,
   as on the 30-second background re-read.
 
+### Several Claude Code windows, one record (2026-10-30)
+
+Seen by the developer, 이흥선, in use: with several Claude Code windows open the screen showed 5시간
+57% («마지막 갱신 1분 전») for a while, then jumped to 75%. Each window's status line hook writes the
+limits that window last received to the same record, stamped with the time of writing, so an idle
+window wrote old, lower values over newer ones. Rule from the developer (also a comment on LHS-2):
+
+- Each limit window (5시간, 7일) is decided on its own. With the same reset time as the record, a lower
+  used percentage is an old value: that window keeps the record's value. Equal or higher: taken.
+- A different reset time is a new window: taken as it is. «The same reset time» means less than 5
+  minutes apart, the tolerance the limit alerts use; both now read it from `src/shared/windows.ts`.
+  (The alerts had compared «5 minutes or less»; it is now strictly less than 5, as written below.)
+- When no window takes a new value, the file is not written, so «마지막 갱신» does not move for old
+  values. When any window does, the record gets the new update time.
+- With no record, or one that cannot be read, the input is written as it is. Running the previous
+  status line command and the error marker are unchanged.
+- Settled here, to confirm with the developer: a window the input does not carry keeps the record's
+  value (before, it was written as null). An input with no window at all still leaves the record
+  untouched (LHS-2 검증 7).
+- If no window has made a request lately, every value may be old; the status line cannot tell. The app
+  says so as before: «Claude Code가 실행 중일 때만 갱신돼요».
+
 Settled here without asking, because no person sees them:
 
 - The record format between the status line hook and the Claude Code reader: `docs/claude-record.md`.
@@ -124,7 +146,8 @@ Settled here without asking, because no person sees them:
   their limits have reset since; and one old unreadable file would otherwise hold Codex in an error
   state forever.
 - Claude Code windows count as the same window for limit alerts while the reset time moves by less
-  than 5 minutes, since the sources round it.
+  than 5 minutes, since the sources round it (`src/shared/windows.ts`, also used by the status line
+  hook since 2026-10-30).
 - The menu bar shows `CC <highest %> · CX <highest %>`; `–` is no record, `?` a value that is not
   current.
 

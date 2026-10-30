@@ -15,20 +15,14 @@ import { dirname } from 'node:path';
 import type { CliId, CliUsage, UsageWindow } from '../shared/types';
 import { describeReset, formatDateTime, windowLabel } from '../shared/format';
 import { limitAlertPercent } from '../shared/limits';
+import { sameResetWindow as sameWindow } from '../shared/windows';
 import type { Notifier } from './notifier';
 
 export const alertThresholdPercent = limitAlertPercent;
-const sameWindowToleranceMs = 5 * 60 * 1000;
 
 const cliNames: Record<CliId, string> = { claude: 'Claude Code', codex: 'Codex' };
 
 type Sent = Record<string, { resetsAt: number | null; at: number }>;
-
-/** The two reset times name the same window: equal, or a few minutes apart. */
-function sameWindow(a: number | null, b: number | null): boolean {
-  if (a === null || b === null) return a === b;
-  return Math.abs(a - b) <= sameWindowToleranceMs;
-}
 
 export class LimitAlerts {
   private sent: Sent;

@@ -1,5 +1,14 @@
 # Verification
 
+## Several Claude Code windows, one record (2026-10-30)
+
+On the working tree after af45e7d (LHS-2, revision 4).
+
+| Run        | Command                                                                            | Result on 2026-10-30                                                                                                                                                                                                                        |
+| ---------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Hook cases | `npm test` (`test/statusline-hook.test.ts`, the built hook run as a process)       | lower ignored, file unchanged; equal or higher taken with a new time; new reset time taken; 4 min 59 s apart is the same window, 5 min a new one; one window old beside a newer one; previous command still runs; no record; damaged record |
+| Real hook  | this Mac's npm Electron with `ELECTRON_RUN_AS_NODE=1`, `--home` a temporary folder | 75% / 40%, then 57% / 38% with the same reset times: same SHA-1 and modification time; then 57% / 45%: 5-hour kept at 75%, 7-day 45%, new `updatedAt`                                                                                       |
+
 ## Local notification identity (2026-10-30)
 
 The owner reported that the warning pointed to an absent «Electron» entry. Diagnosis:
