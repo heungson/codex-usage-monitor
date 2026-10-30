@@ -6,6 +6,24 @@ also the developer) decided to build version 3. Nothing is committed yet. The pl
 stage and no design system (`get_design_system` v3: `designSystem: null`), so the screens follow
 the wireframe's layout and elements, with the app's own CSS described under «Look».
 
+## Local notification identity (2026-10-30)
+
+Owner: Codex, correcting the owner's report that the warning names an app missing from macOS
+Notification settings (FC-F014, FC-F015). This is a runtime fix, with no change to alert timing.
+
+The running npm Electron bundle had only a linker ad-hoc signature (`Info.plist=not bound`, no
+sealed resources). Its notification attempts returned `UNErrorDomain error 1`, which the app
+interpreted as notifications being switched off. Electron 42+ requires a signed bundle for the
+UNNotification API. A copied bundle with its own identifier and a full local ad-hoc signature
+accepted a real notification on this machine (`show` event), whereas the original did not.
+
+`npm start` now builds the code and uses a separate signed runtime in
+`tmp/runtime/Usage Limit Monitor.app`, identifier `local.usage-limit-monitor`. The runtime is cached
+and verified before reuse, and recreated when the Electron source changes. It supplies its display
+name to both notification notices. It needs no signing certificate and is for local use; it does
+not provide distribution signing or notarization. The npm Electron binary and existing Claude Code
+settings are untouched. The once-per-window rule (FC-F014) still applies to earlier failed alerts.
+
 ## Framework: Electron + TypeScript
 
 The plan allows Electron or Tauri (PR-P019). The owner chose «Electron / Tauri» when asked on

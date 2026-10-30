@@ -1,5 +1,5 @@
 // macOS notifications (FC-F014, FC-F015). The result tells the caller whether macOS showed it,
-// refused it (notifications turned off for the app) or failed for another reason.
+// refused it or failed for another reason.
 
 import { appendFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -18,7 +18,8 @@ export interface Notifier {
 }
 
 // UNErrorDomain error 1 is UNErrorCodeNotificationsNotAllowed: macOS reports it, in exactly these
-// words, when the app's notifications are turned off (seen on macOS with Electron 44, 2026-10-28).
+// words, for a permission refusal, but also with an unregistered development bundle. npm start
+// uses a locally signed bundle so the user can find its identity in Notification settings.
 const deniedPattern = /not allowed|denied|authori[sz]|permission|UNErrorDomain error 1\b/i;
 
 export function classifyFailure(error: string): SendResult {

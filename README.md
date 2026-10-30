@@ -39,9 +39,23 @@ npm test             # unit tests
 npm run test:e2e     # drives the built app with Playwright; captures in tmp/e2e-shots/ and tmp/screens/
 ```
 
-There is no packaged `.app` yet; `npm start` runs it from this folder. The status line hook command
-points at this folder's Electron and `dist/hook/statusline-hook.js`, so keep both in place while the
-integration is applied.
+`npm start` creates a locally signed runtime at `tmp/runtime/Usage Limit Monitor.app` and runs the
+code from this folder. It reuses the runtime until Electron changes or its signature fails verification.
+Newly applied status line integrations point at that runtime and `dist/hook/statusline-hook.js`, so
+keep this folder (including `tmp/runtime/`) in place while the integration is applied. Existing
+integrations keep their previous runtime path. This is a local development bundle, not a notarized
+distribution build.
+
+## macOS notifications
+
+Run with `npm start`, rather than `npx electron .`. Electron 42 and newer require a signed macOS
+app bundle for notifications. The npm Electron binary's linker signature does not bind its bundle
+identity, which can cause `UNErrorDomain error 1` before an entry appears in Notification settings.
+`npm start` signs a separate copy with a stable bundle identifier; it leaves the npm binary alone.
+
+After the first notification request, look for **Usage Limit Monitor** in **System Settings ›
+Notifications** and allow notifications if macOS asks. An alert already attempted for the current
+usage window is not replayed; alerts resume for subsequent windows, as usual (FC-F014).
 
 ## Undoing the Claude Code integration
 
@@ -55,20 +69,21 @@ The app saves your previous status line in
 
 Used by the checks to point the app at temporary folders. Normal use needs none.
 
-| Variable               | Meaning                                                                                                |
-| ---------------------- | ------------------------------------------------------------------------------------------------------ |
-| `ULM_HOME`             | App data folder (default `~/Library/Application Support/usage-limit-monitor`)                          |
-| `ULM_CLAUDE_SETTINGS`  | Claude Code settings file (default `~/.claude/settings.json`)                                          |
-| `ULM_CODEX_SESSIONS`   | Codex sessions folder (default `~/.codex/sessions`)                                                    |
-| `ULM_RESETS_BASE_URL`  | Reset API origin (default `https://codex-resets.com`)                                                  |
-| `ULM_SHOW_WINDOW=1`    | Show the popover as an ordinary window at start                                                        |
-| `ULM_READ_INTERVAL_MS` | Local re-read interval (default 30000)                                                                 |
-| `ULM_READ_DELAY_MS`    | Hold every local read this long (shows the loading state)                                              |
-| `ULM_RESET_CHECK_MS`   | Background reset check interval (default 900000)                                                       |
-| `ULM_RESET_RETRY_MS`   | Reset API retry delays, comma separated (default `10000,20000,40000`)                                  |
-| `ULM_FAKE_NOTIFY`      | `shown`, `denied` or `failed`: log notifications to `<data>/notifications.log` instead of showing them |
-| `ULM_FAKE_NOTIFY_FILE` | A file whose content overrides `ULM_FAKE_NOTIFY` on every notification                                 |
-| `ULM_SHOTS_DIR`        | Folder for the captures of `e2e/look.spec.ts` (default `tmp/screens`, e.g. `tmp/screens-before`)       |
+| Variable                    | Meaning                                                                                                |
+| --------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `ULM_HOME`                  | App data folder (default `~/Library/Application Support/usage-limit-monitor`)                          |
+| `ULM_CLAUDE_SETTINGS`       | Claude Code settings file (default `~/.claude/settings.json`)                                          |
+| `ULM_CODEX_SESSIONS`        | Codex sessions folder (default `~/.codex/sessions`)                                                    |
+| `ULM_RESETS_BASE_URL`       | Reset API origin (default `https://codex-resets.com`)                                                  |
+| `ULM_SHOW_WINDOW=1`         | Show the popover as an ordinary window at start                                                        |
+| `ULM_READ_INTERVAL_MS`      | Local re-read interval (default 30000)                                                                 |
+| `ULM_READ_DELAY_MS`         | Hold every local read this long (shows the loading state)                                              |
+| `ULM_RESET_CHECK_MS`        | Background reset check interval (default 900000)                                                       |
+| `ULM_RESET_RETRY_MS`        | Reset API retry delays, comma separated (default `10000,20000,40000`)                                  |
+| `ULM_FAKE_NOTIFY`           | `shown`, `denied` or `failed`: log notifications to `<data>/notifications.log` instead of showing them |
+| `ULM_FAKE_NOTIFY_FILE`      | A file whose content overrides `ULM_FAKE_NOTIFY` on every notification                                 |
+| `ULM_NOTIFICATION_APP_NAME` | Notification settings display name; `npm start` sets it to `Usage Limit Monitor`                       |
+| `ULM_SHOTS_DIR`             | Folder for the captures of `e2e/look.spec.ts` (default `tmp/screens`, e.g. `tmp/screens-before`)       |
 
 ## Layout
 

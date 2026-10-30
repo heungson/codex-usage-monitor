@@ -406,7 +406,10 @@ test('«창 항상 위에 표시» is one switch on all three screens, off at fi
 test('limit alerts: 80% notifies once per window; a refusal is explained (LHS-9 검증 1–4)', async () => {
   writeClaude(fixture, 79, 10);
   writeCodex(fixture, 20);
-  const { app, page } = await launch(fixture, server.url, { ULM_READ_INTERVAL_MS: '1500' });
+  const { app, page } = await launch(fixture, server.url, {
+    ULM_READ_INTERVAL_MS: '1500',
+    ULM_NOTIFICATION_APP_NAME: 'Usage Limit Monitor',
+  });
   await expect(card(page, 'claude')).toContainText('79% 사용');
   const log = () => {
     try {
@@ -433,6 +436,7 @@ test('limit alerts: 80% notifies once per window; a refusal is explained (LHS-9 
   writeFileSync(fixture.notifyFile, 'denied');
   writeCodex(fixture, 85);
   await expect(page.getByText('macOS 알림이 꺼져 있어')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText('시스템 설정 › 알림 › Usage Limit Monitor')).toBeVisible();
   await capture(page, 'usage-alert-denied');
   await page.waitForTimeout(4000);
   expect(log().filter((n) => n.title.startsWith('Codex'))).toHaveLength(1);

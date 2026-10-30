@@ -1,5 +1,40 @@
 # Verification
 
+## Local notification identity (2026-10-30)
+
+The owner reported that the warning pointed to an absent «Electron» entry. Diagnosis:
+
+- `codesign -dv --verbose=2 node_modules/electron/dist/Electron.app`: linker ad-hoc signature,
+  `Info.plist=not bound`, no sealed resources.
+- The running app's notification log recorded `UNErrorDomain error 1` at 16:18 and 17:04 KST.
+- `ditto` copied the npm runtime to `tmp/notification-probe/Usage Limit Monitor.app`; PlistBuddy
+  gave it a separate probe identifier and display name; `codesign --force --deep --sign -` signed
+  the copy and `codesign --verify --deep --strict` passed.
+- Running `tmp/notification-probe/probe.cjs` with the signed runtime emitted `PROBE: shown` for a
+  real notification. This confirms acceptance by macOS; the banner was not visually checked.
+
+Implementation checks:
+
+| Command / check                                                                                                                                | Result                                                                                                                                                                    |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`, `npm run lint`, `npm run format:check`                                                                                    | Passed                                                                                                                                                                    |
+| `npm test`                                                                                                                                     | 90 passed                                                                                                                                                                 |
+| `npm run test:e2e`                                                                                                                             | 28 passed, 1 skipped, 2 failed: light/dark usage screen exceeds the 600 px test viewport                                                                                  |
+| Unchanged `af45e7d`, extracted into `tmp/notification-baseline/`; build, then `playwright test e2e/look.spec.ts --grep 'three screens, light'` | Same viewport assertion failed at `e2e/look.spec.ts:61`; unrelated layout failure left unchanged                                                                          |
+| `node --input-type=module -e 'import { prepareRuntime } from "./scripts/macos-runtime.mjs"; console.log(prepareRuntime());'`                   | Created the runtime; subsequent `npm start` reused it                                                                                                                     |
+| `codesign -dv --verbose=2 'tmp/runtime/Usage Limit Monitor.app'`                                                                               | Identifier `local.usage-limit-monitor`, bound Info.plist, sealed resources                                                                                                |
+| Final runtime running `tmp/notification-probe/probe.cjs`                                                                                       | `PROBE: shown`; request accepted, banner not verified                                                                                                                     |
+| System Settings › Notifications, inspected through computer use                                                                                | «Usage Limit Monitor» exists; opened its controls and confirmed notification switch is off; left the switch unchanged                                                     |
+| `node tmp/signed-runtime-check.cjs`                                                                                                            | Passed: signed runtime renders usage, loads preload, reads the isolated fixture, and reports the expected executable path                                                 |
+| `npm start > tmp/start-signed.log 2>&1` after stopping the old monitor                                                                         | Running from the signed runtime; renderer subprocess present. A sandbox-extension diagnostic about the helper's Resources path was logged; the renderer smoke test passed |
+
+Inspected `tmp/signed-runtime-window.png`, the updated `usage-alert-denied-1.png` naming
+«Usage Limit Monitor», and the capture contact sheets `tmp/notification-qa-1.jpg` through `-6.jpg`.
+The two viewport failures prevent an all-green suite; this change does not claim otherwise.
+The live API check remains skipped, and a visible notification banner remains unverified while
+notification permission is off. No Claude Code settings, alert history or other app preferences
+were edited. The app must wait for subsequent limit windows rather than replaying old attempts.
+
 ## Look revised (2026-10-30)
 
 The design changes in `docs/decisions.md` «Look», on the working tree after 2ae8ca4. Captures before:

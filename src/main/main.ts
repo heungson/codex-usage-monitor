@@ -59,10 +59,10 @@ const send = (channel: string, payload: unknown) => {
 };
 
 /**
- * The name macOS lists this app under in 시스템 설정 › 알림, for the notices that ask the person to turn notifications
- * on: run from source it is Electron's own bundle, «Electron» (2026-10-28: «이 앱» named nothing they could find).
+ * FC-F014, FC-F015: npm start supplies the signed runtime's display name. Direct Electron
+ * launches (including test fixtures) still use Electron's bundle identity.
  */
-const appName = app.isPackaged ? app.getName() : 'Electron';
+const appName = env.ULM_NOTIFICATION_APP_NAME ?? (app.isPackaged ? app.getName() : 'Electron');
 
 const limitAlerts = new LimitAlerts(
   join(paths.dataDir, dataFiles.limitAlerts),
