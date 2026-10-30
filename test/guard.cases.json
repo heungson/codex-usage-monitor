@@ -1,0 +1,48 @@
+[
+  {
+    "expect": "block",
+    "input": { "tool_name": "Bash", "tool_input": { "command": "git push --force origin main" } }
+  },
+  {
+    "expect": "block",
+    "input": { "tool_name": "Bash", "tool_input": { "command": "git push -f origin main" } }
+  },
+  {
+    "expect": "allow",
+    "input": { "tool_name": "Bash", "tool_input": { "command": "git push --force-with-lease origin main" } }
+  },
+  {
+    "expect": "allow",
+    "input": { "tool_name": "Bash", "tool_input": { "command": "git push origin main" } }
+  },
+  {
+    "expect": "allow",
+    "input": { "tool_name": "Bash", "tool_input": { "command": "rm -rf dist node_modules coverage" } }
+  },
+  { "expect": "block", "input": { "tool_name": "Bash", "tool_input": { "command": "rm -rf src" } } },
+  { "expect": "block", "input": { "tool_name": "Bash", "tool_input": { "command": "rm -fr ~/" } } },
+  { "expect": "block", "input": { "tool_name": "Bash", "tool_input": { "command": "echo A=1 > .env" } } },
+  {
+    "expect": "block",
+    "input": { "tool_name": "Bash", "tool_input": { "command": "echo A=1 >> config/.env.local" } }
+  },
+  {
+    "expect": "allow",
+    "input": { "tool_name": "Bash", "tool_input": { "command": "echo A=1 > .env.example" } }
+  },
+  { "expect": "block", "input": { "tool_name": "Write", "tool_input": { "file_path": "/repo/.env" } } },
+  {
+    "expect": "block",
+    "input": { "tool_name": "Edit", "tool_input": { "file_path": "/repo/.env.production" } }
+  },
+  {
+    "expect": "allow",
+    "input": { "tool_name": "Write", "tool_input": { "file_path": "/repo/.env.example" } }
+  },
+  {
+    "expect": "allow",
+    "input": { "tool_name": "Write", "tool_input": { "file_path": "/repo/src/main.ts" } }
+  },
+  { "expect": "block", "raw": "not json" },
+  { "expect": "block", "raw": "" }
+]

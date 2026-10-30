@@ -1,0 +1,168 @@
+// LHS-7 (FC-F011) and LHS-8 (FC-F012): the reset screen areas, backoff and the API parsing.
+
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { resetsApi, type ResetsApi } from '../src/main/resets-api';
+import { ResetsService } from '../src/main/resets-service';
+import type { ResetEntry, ResetStatus } from '../src/shared/types';
+
+const entry = (id: string, at: string): ResetEntry => ({
+  id,
+  type: 'regular',
+  announcedAt: Date.parse(at),
+  text: 'Codex usage limits have been reset.',
+  sourceUrl: 'https://x.com/a/status/1',
+});
+const status = (latest: ResetEntry | null): ResetStatus => ({
+  latest,
+  scheduled: null,
+  avgIntervalDays: 6,
+  daysSinceLast: 1.8,
+  total: latest ? 68 : 0,
+});
+
+function fakeApi(): ResetsApi & { statusFails: boolean; historyFails: boolean; calls: string[] } {
+  const api = {
+    statusFails: false,
+    historyFails: false,
+    calls: [] as string[],
+    async status() {
+      api.calls.push('status');
+      if (api.statusFails) throw new Error('codex-resets.com에 연결하지 못했어요');
+      return status(entry('r1', '2026-10-26T07:00:00Z'));
+    },
+    async history(cursor: string | null) {
+      api.calls.push(`history:${cursor}`);
+      if (api.historyFails) throw new Error('codex-resets.com이 500 오류로 응답했어요');
+      return cursor === null
+        ? { entries: [entry('r1', '2026-10-26T07:00:00Z')], nextCursor: 'c2' }
+        : { entries: [entry('r0', '2026-10-20T07:00:00Z')], nextCursor: null };
+    },
+  };
+  return api;
+}
+
+describe('ResetsService', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('fetches both areas on open and does not poll while open (LHS-7 검증 1, LHS-8 검증 1)', async () => {
+    vi.useFakeTimers();
+    const api = fakeApi();
+    const service = new ResetsService(api, () => undefined);
+    const snapshot = await service.open();
+    expect(snapshot.status.kind).toBe('ok');
+    expect(snapshot.history.kind).toBe('ok');
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    expect(api.calls).toEqual(['status', 'history:null']);
+  });
+
+  it('pages history with the cursor (LHS-8 검증 2)', async () => {
+    const api = fakeApi();
+    const service = new ResetsService(api, () => undefined);
+    await service.open();
+    const snapshot = await service.loadMore();
+    expect(api.calls).toContain('history:c2');
+    expect(snapshot.history.kind === 'ok' && snapshot.history.value.entries.map((e) => e.id)).toEqual([
+      'r1',
+      'r0',
+    ]);
+    expect(snapshot.history.kind === 'ok' && snapshot.history.value.nextCursor).toBeNull();
+  });
+
+  it('keeps the last good value of the failed area only, and backs off 10s, 20s, 40s then stops (LHS-7 검증 5, 6)', async () => {
+    vi.useFakeTimers();
+    const api = fakeApi();
+    const service = new ResetsService(api, () => undefined);
+    await service.open();
+    api.statusFails = true;
+    let snapshot = await service.open();
+    expect(snapshot.history.kind).toBe('ok');
+    expect(snapshot.status.kind).toBe('error');
+    const error = snapshot.status.kind === 'error' ? snapshot.status : null;
+    expect(error?.lastGood?.latest?.id).toBe('r1');
+    expect(error?.retry).toMatchObject({ attempt: 1, of: 3 });
+
+    const statusCalls = () => api.calls.filter((c) => c === 'status').length;
+    const before = statusCalls();
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(statusCalls()).toBe(before);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(statusCalls()).toBe(before + 1);
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(statusCalls()).toBe(before + 2);
+    await vi.advanceTimersByTimeAsync(40_000);
+    expect(statusCalls()).toBe(before + 3);
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    expect(statusCalls()).toBe(before + 3);
+    snapshot = service.snapshot();
+    expect(snapshot.status.kind === 'error' && snapshot.status.retry).toBeNull();
+
+    api.statusFails = false;
+    snapshot = await service.retry('status');
+    expect(snapshot.status.kind).toBe('ok');
+  });
+
+  it('shows a first failure without a value (LHS-8 검증 5)', async () => {
+    vi.useFakeTimers();
+    const api = fakeApi();
+    api.historyFails = true;
+    const service = new ResetsService(api, () => undefined);
+    const snapshot = await service.open();
+    expect(snapshot.history.kind === 'error' && snapshot.history.lastGood).toBeNull();
+    api.historyFails = false;
+    expect((await service.retry('history')).history.kind).toBe('ok');
+  });
+});
+
+describe('resetsApi', () => {
+  const respond = (body: unknown, status = 200) =>
+    vi.fn(async (_url: URL | RequestInfo) => new Response(JSON.stringify(body), { status }));
+
+  it('reads the status fields and sends no credentials (LHS-7 검증 2)', async () => {
+    const fetchImpl = respond({
+      data: {
+        latest_reset: {
+          id: 'x1',
+          reset_type: 'regular',
+          announced_at: '2026-10-26T07:00:00.000Z',
+          text: 'reset',
+          source: { url: 'https://x.com/s/1' },
+        },
+        scheduled_reset: null,
+        stats: { total: 68, days_since_last: 1.8, avg_interval_days: 6 },
+      },
+    });
+    const value = await resetsApi('https://codex-resets.com', fetchImpl as unknown as typeof fetch).status();
+    expect(value.latest?.id).toBe('x1');
+    expect(value.avgIntervalDays).toBe(6);
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [URL, RequestInit];
+    expect(String(url)).toBe('https://codex-resets.com/api/v1/status');
+    const headers = init.headers as Record<string, string>;
+    expect(Object.keys(headers).map((k) => k.toLowerCase())).not.toContain('authorization');
+    expect(Object.keys(headers).map((k) => k.toLowerCase())).not.toContain('cookie');
+  });
+
+  it('reports an empty result and a server error', async () => {
+    const empty = await resetsApi(
+      'https://codex-resets.com',
+      respond({
+        data: { latest_reset: null, scheduled_reset: null, stats: { total: 0 } },
+      }) as unknown as typeof fetch,
+    ).status();
+    expect(empty.latest).toBeNull();
+    await expect(
+      resetsApi('https://codex-resets.com', respond({}, 500) as unknown as typeof fetch).status(),
+    ).rejects.toThrow('500');
+  });
+
+  it('passes the cursor and reads the next cursor', async () => {
+    const fetchImpl = respond({ data: [], pagination: { has_more: true, next_cursor: 'n2' } });
+    const page = await resetsApi('https://codex-resets.com', fetchImpl as unknown as typeof fetch).history(
+      'c1',
+    );
+    expect(page.nextCursor).toBe('n2');
+    expect(String(fetchImpl.mock.calls[0]![0])).toContain('cursor=c1');
+  });
+});

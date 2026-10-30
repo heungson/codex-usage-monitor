@@ -1,0 +1,36 @@
+{
+  "name": "usage-limit-monitor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "macOS menu bar app that shows Claude Code and Codex CLI usage limits and Codex reset news",
+  "main": "dist/main/main.js",
+  "type": "commonjs",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "node scripts/build.mjs && electron .",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "pretest": "node scripts/build.mjs",
+    "test": "vitest run",
+    "test:e2e": "node scripts/build.mjs && playwright test",
+    "postinstall": "install-electron"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.64.1",
+    "@types/node": "26.6.5",
+    "electron": "44.10.0",
+    "esbuild": "0.28.2",
+    "eslint": "10.13.0",
+    "globals": "17.13.0",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.1",
+    "vitest": "5.0.5"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}
