@@ -1,5 +1,17 @@
 # Verification
 
+## Look revised (2026-10-30)
+
+The design changes in `docs/decisions.md` «Look», on the working tree after 2ae8ca4. Captures before:
+`ULM_SHOTS_DIR=tmp/screens-before npx playwright test e2e/look.spec.ts` on the unchanged code (the
+usage screen did not fit 600 px in either theme); after: `tmp/screens/`, same states, 38 files each.
+
+| Run                 | Command                                                     | Result on 2026-10-30                                                                                           |
+| ------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Types, lint, format | `npm run typecheck`, `npm run lint`, `npm run format:check` | clean                                                                                                          |
+| Unit tests          | `npm test`                                                  | 82 passed (new: the warning colour's 80% boundary is the alert threshold)                                      |
+| App checks          | `npm run test:e2e`                                          | 30 passed, 1 skipped (new: usage screen fits 600 px in light and dark; only 84% is coloured; 5시간 before 7일) |
+
 ## Version 4 (2026-10-30)
 
 LHS-5 revision 5, LHS-7 revision 7 and LHS-8 revision 8 (plan v4), on the working tree after

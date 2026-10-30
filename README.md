@@ -68,6 +68,7 @@ Used by the checks to point the app at temporary folders. Normal use needs none.
 | `ULM_RESET_RETRY_MS`   | Reset API retry delays, comma separated (default `10000,20000,40000`)                                  |
 | `ULM_FAKE_NOTIFY`      | `shown`, `denied` or `failed`: log notifications to `<data>/notifications.log` instead of showing them |
 | `ULM_FAKE_NOTIFY_FILE` | A file whose content overrides `ULM_FAKE_NOTIFY` on every notification                                 |
+| `ULM_SHOTS_DIR`        | Folder for the captures of `e2e/look.spec.ts` (default `tmp/screens`, e.g. `tmp/screens-before`)       |
 
 ## Layout
 

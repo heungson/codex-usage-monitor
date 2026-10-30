@@ -14,9 +14,10 @@ import { dirname } from 'node:path';
 
 import type { CliId, CliUsage, UsageWindow } from '../shared/types';
 import { describeReset, formatDateTime, windowLabel } from '../shared/format';
+import { limitAlertPercent } from '../shared/limits';
 import type { Notifier } from './notifier';
 
-export const alertThresholdPercent = 80;
+export const alertThresholdPercent = limitAlertPercent;
 const sameWindowToleranceMs = 5 * 60 * 1000;
 
 const cliNames: Record<CliId, string> = { claude: 'Claude Code', codex: 'Codex' };

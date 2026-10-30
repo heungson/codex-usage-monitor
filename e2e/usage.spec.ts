@@ -77,6 +77,9 @@ test('both CLIs show their windows, reset times and the Claude Code update time 
   await expect(card(page, 'codex')).toContainText('44% 사용');
   await expect(card(page, 'codex')).toContainText('5시간 한도');
   await expect(card(page, 'codex')).toContainText('요금제 prolite');
+  // Both CLIs list the shorter window first: 5시간, then 7일 (owner, 2026-10-30).
+  await expect(card(page, 'claude').locator('.window-name')).toHaveText(['5시간 한도', '7일 한도']);
+  await expect(card(page, 'codex').locator('.window-name')).toHaveText(['5시간 한도', '7일 한도']);
   await capture(page, 'usage-both-ok');
   await app.close();
 });

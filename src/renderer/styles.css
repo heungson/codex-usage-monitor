@@ -10,7 +10,7 @@
   --fs-small: 12px;
   --fs-body: 13px;
   --fs-title: 15px;
-  --fs-figure: 18px;
+  --fs-figure: 16px;
 
   /* Space: a 4-pixel grid. */
   --s1: 4px;
@@ -33,8 +33,9 @@
   --accent-fill: #0a6cdf;
   --track: rgba(0, 0, 0, 0.08);
   --bar: #0a7aff;
-  --bar-high: #f08c00;
-  --bar-full: #e5322d;
+  /* Bars are graphics: at least 3:1 on --surface (#c76a00: 3.8:1; the earlier #f08c00 was 2.5:1). */
+  --bar-high: #c76a00;
+  --bar-stale: #9a9aa0;
   --ok: #1f7a35;
   --ok-bg: rgba(52, 199, 89, 0.14);
   --warn: #8f4c00;
@@ -44,7 +45,6 @@
   --switch-off: rgba(120, 120, 128, 0.32);
   --card-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.06);
   --control-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.14), 0 0.5px 1px rgba(0, 0, 0, 0.12);
-  --stale: 0.55;
   color-scheme: light;
 }
 
@@ -63,7 +63,7 @@
     --track: rgba(255, 255, 255, 0.1);
     --bar: #0a84ff;
     --bar-high: #ff9f0a;
-    --bar-full: #ff453a;
+    --bar-stale: #6e6e73;
     --ok: #4cd472;
     --ok-bg: rgba(48, 209, 88, 0.16);
     --warn: #ffb340;
@@ -96,6 +96,8 @@ body {
   /* Korean wraps between words, not inside them; long paths still break (see .notice, code). */
   word-break: keep-all;
   overflow-wrap: break-word;
+  /* Figures line up: percentages, times, dates (owner, 2026-10-30). */
+  font-variant-numeric: tabular-nums;
 }
 
 /* A thin scrollbar like macOS's overlay one, for when the page is taller than the screen. */
@@ -125,8 +127,8 @@ p {
   display: flex;
   align-items: center;
   gap: var(--s2);
-  min-height: 44px;
-  padding: var(--s2) var(--s4);
+  min-height: 40px;
+  padding: 6px var(--s3) 6px var(--s4);
   background: var(--window);
   border-bottom: 0.5px solid var(--separator);
 }
@@ -219,15 +221,15 @@ body.pinned .topbar label {
 main {
   display: flex;
   flex-direction: column;
-  gap: var(--s3);
-  padding: var(--s3) var(--s3) var(--s4);
+  gap: var(--s2);
+  padding: var(--s2) 10px var(--s3);
 }
 
 .card {
   background: var(--surface);
   border-radius: var(--radius-card);
   box-shadow: var(--card-shadow);
-  padding: var(--s3) 14px;
+  padding: 10px var(--s3);
 }
 
 .card-head {
@@ -235,8 +237,8 @@ main {
   align-items: center;
   justify-content: space-between;
   gap: var(--s2);
-  min-height: 22px;
-  margin-bottom: var(--s2);
+  min-height: 20px;
+  margin-bottom: 6px;
 }
 
 .card-head h2 {
@@ -299,9 +301,23 @@ main {
   white-space: nowrap;
 }
 
+/* 정상 is the usual state: said quietly, a small dot and grey text (LHS-6 keeps the label). */
 .chip.ok {
-  background: var(--ok-bg);
-  color: var(--ok);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  background: none;
+  color: var(--text-2);
+  font-weight: 400;
+}
+
+.chip.ok::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ok);
 }
 
 .chip.warn {
@@ -317,7 +333,7 @@ main {
 /* ---------- usage windows ---------- */
 
 .window + .window {
-  margin-top: 10px;
+  margin-top: var(--s2);
 }
 
 .window-top {
@@ -341,22 +357,18 @@ main {
   color: var(--text);
   font-size: var(--fs-figure);
   font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
 }
 
+/* From the limit alert threshold (80%, LHS-9) up: one warning colour for the figure and the bar. */
 .window-percent.high .num {
   color: var(--warn);
 }
 
-.window-percent.full .num {
-  color: var(--error);
-}
-
 .track {
-  height: 6px;
-  margin: 3px 0;
+  height: 5px;
+  margin: 3px 0 2px;
   border-radius: 3px;
   background: var(--track);
   overflow: hidden;
@@ -372,13 +384,9 @@ main {
   background: var(--bar-high);
 }
 
-.fill.full {
-  background: var(--bar-full);
-}
-
 .meta {
-  margin-top: 10px;
-  padding-top: var(--s2);
+  margin-top: var(--s2);
+  padding-top: 6px;
   border-top: 0.5px solid var(--separator);
   color: var(--text-2);
   font-size: var(--fs-small);
@@ -394,8 +402,19 @@ main {
   font-size: var(--fs-caption);
 }
 
-.stale {
-  opacity: var(--stale);
+/*
+ * Values that are not current: the text keeps its contrast (dimming it to 55% left 2.4:1); the bars
+ * and figures turn grey, beside the «최신 정보 아님» chip and the notice.
+ */
+.stale .fill,
+.stale .fill.high {
+  background: var(--bar-stale);
+}
+
+.stale .num,
+.stale .window-percent.high .num,
+.stale .upcoming-main {
+  color: var(--text-2);
 }
 
 /* ---------- Codex 예정 리셋 ---------- */
@@ -441,12 +460,20 @@ main {
 }
 
 .upcoming-main {
-  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s2);
   font-weight: 600;
 }
 
-.upcoming-main + .sub {
-  margin-top: 2px;
+.upcoming-main .due {
+  font-weight: 500;
+}
+
+.one-line {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .upcoming .notice + .stale {
@@ -454,7 +481,7 @@ main {
 }
 
 .source {
-  margin-top: var(--s2);
+  margin-top: var(--s1);
   color: var(--text-2);
   font-size: var(--fs-caption);
 }

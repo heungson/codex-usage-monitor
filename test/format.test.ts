@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { trayTitle } from '../src/main/tray-title';
+import { alertThresholdPercent } from '../src/main/limit-alerts';
+import { nearLimit } from '../src/shared/limits';
 import { describeReset, formatDuration, windowLabel } from '../src/shared/format';
 
 describe('format', () => {
@@ -41,5 +43,14 @@ describe('trayTitle', () => {
         resetNotice: null,
       }),
     ).toBe('CC 42% · CX –');
+  });
+});
+
+describe('nearLimit', () => {
+  it('draws the warning colour from the limit alert threshold, on the raw percentage (LHS-9: 80%)', () => {
+    expect(alertThresholdPercent).toBe(80);
+    expect(nearLimit(79.9)).toBe(false);
+    expect(nearLimit(80)).toBe(true);
+    expect(nearLimit(100)).toBe(true);
   });
 });

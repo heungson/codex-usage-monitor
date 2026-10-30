@@ -118,33 +118,51 @@ Settled here without asking, because no person sees them:
 - v3: the window settings file is `window-settings.json` in the data folder; a missing or unreadable
   file reads as off.
 
-## Look (v3, 2026-10-30)
+## Look (v3, revised 2026-10-30)
 
-The developer found the v1 screens too plain and asked for a macOS menu bar look with the
-wireframe's layout and elements unchanged. Chosen by the coding agent; the developer has not reviewed
-it yet.
+The plan stops at the wireframe; the look is ours. First chosen by the coding agent when the developer
+found the v1 screens too plain (a macOS menu bar look, the wireframe's layout and elements unchanged).
+Revised the same day after the developer read the captures and named six problems (below). Before
+and after: `tmp/screens-before/` and `tmp/screens/` (`e2e/look.spec.ts`).
 
-- **Font**: the macOS system font (SF Pro; Apple SD Gothic Neo for Korean), so it reads like the
-  menu bar and system popovers. Korean wraps between words (`word-break: keep-all`); file paths
-  still break anywhere.
-- **Sizes**: 15 px semibold screen title, 13 px semibold card titles and body, 12 px secondary, 11 px
-  captions and chips, 18 px semibold figures for the used percentage, the one number the person
-  looks for first.
-- **Spacing**: a 4-pixel grid (4, 8, 12, 16); cards 10 px radius, controls 6 px, as macOS uses.
-- **Colour**: macOS system colours, light and dark following the system setting
-  (`prefers-color-scheme`; the window background follows `nativeTheme`). Blue `#0a7aff` / `#0a84ff`
-  for bars and the switch, orange from 80% and red at 100% (the alert threshold). Text colours were
-  picked for at least 4.5:1 contrast on their background; the link blue is a darker `#0068da` in
-  light mode because the system blue is 4.0:1 on white.
-- **Cards and tables**: white (dark: `#2c2c2e`) cards with a hairline edge instead of borders; the
+- **Fit (revised).** With the usual data (both CLIs with both windows, a scheduled reset) the usage
+  screen fits the popover's 600-pixel test height with no scrollbar; `e2e/look.spec.ts` checks it.
+  Done by spacing, not by a larger window: 40 px top bar, 8 px between cards, cards padded 10×12 px,
+  16 px figures, 5 px bars, the scheduled reset's due time on the same line as its type and the
+  announcement on one line cut with «…» (the full text is in its tooltip). The reset screen with 5
+  history rows fits too, so its source line at the bottom is never cut.
+- **Order (revised).** Every CLI lists the shorter window first: 5시간, then 7일. The issues do not
+  fix an order (LHS-5 lists Claude Code as «5시간·7일»; Codex as «각 시간 창»), so this one was free.
+- **Warning colour (revised).** Two colours only: from the limit alert threshold (80%, LHS-9) up the
+  figure and the bar take the warning colour, below it the usual one. The screen and the alerts share
+  the same rule on the raw percentage (`src/shared/limits.ts`), so a window shown as «80%» after
+  rounding but at 79.6% is not coloured, as it is not alerted. The red step at 100% is gone.
+- **Less repetition (revised).** In the reset status, a row named «최근 전체 리셋» or «예정된 전체 리셋»
+  no longer repeats «전체 리셋» beside its date; another type («적립형 리셋») is still shown. History
+  rows keep their type chip: LHS-8 requires the type on every row. The usual «정상» status is a small
+  green dot and grey text instead of a green chip; the label stays (LHS-6).
+- **Font.** The macOS system font (SF Pro; Apple SD Gothic Neo for Korean). Korean wraps between
+  words (`word-break: keep-all`); file paths still break anywhere. All figures use tabular numbers
+  (revised: the whole page, not only the percentage), so times and percentages line up.
+- **Sizes.** 15 px semibold screen title, 13 px semibold card titles and body, 12 px secondary, 11 px
+  captions and chips, 16 px semibold figures (was 18 px) for the used percentage.
+- **Spacing.** A 4-pixel grid; cards 10 px radius, controls 6 px, as macOS uses.
+- **Colour and contrast.** macOS system colours, light and dark following the system setting
+  (`prefers-color-scheme`; the window background follows `nativeTheme`). Text at least 4.5:1 on its
+  background (light secondary text `#5f5f64`: 6.2:1; dark `#a1a1a6`: 6.0:1); the link blue is a darker
+  `#0068da` in light mode because the system blue is 4.0:1 on white. Bars, as graphics, at least 3:1
+  (revised): the light warning bar is `#c76a00` (3.8:1; the earlier `#f08c00` was 2.5:1); dark keeps
+  `#ff9f0a` (6.8:1).
+- **Cards and tables.** White (dark: `#2c2c2e`) cards with a hairline edge instead of borders; the
   reset status is a label/value list with hairline separators; history rows put the type and
   «원문 공지» on the date line to keep each entry to two lines.
-- **Controls**: macOS push buttons (24 px, hairline shadow), one filled button per screen
+- **Controls.** macOS push buttons (24 px, hairline shadow), one filled button per screen
   («연동 적용»), a 26×15 macOS-style switch with its short label «항상 위» (screen readers hear
-  «창 항상 위에 표시»), chevron icon buttons for back and «자세히 보기».
-- **States**: a shimmer skeleton for 불러오는 중 (still when the system reduces motion), tinted notices
-  for warnings and errors, values not current at 55% opacity with a «최신 정보 아님» chip, and a
-  «새로 고치는 중» chip while known values are fetched again.
+  «창 항상 위에 표시»), a chevron icon button for back; the 예정 리셋 area is one button with › as a sign.
+- **States (revised).** A shimmer skeleton for 불러오는 중 (still when the system reduces motion),
+  tinted notices for warnings and errors, and «새로 고치는 중» while known values are fetched again.
+  Values not current keep their text at full contrast (dimming them to 55% left 2.4:1); their bars
+  and figures turn grey, beside the «최신 정보 아님» chip and the notice.
 
 ## Found while building
 

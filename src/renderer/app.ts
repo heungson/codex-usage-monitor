@@ -9,6 +9,7 @@ import {
   formatDuration,
   windowLabel,
 } from '../shared/format';
+import { nearLimit } from '../shared/limits';
 import type {
   AreaState,
   CliId,
@@ -21,6 +22,7 @@ import type {
   ResetsSnapshot,
   SourceState,
   UsageSnapshot,
+  UsageWindow,
   View,
   WindowSettings,
 } from '../shared/types';
@@ -74,12 +76,18 @@ const skeleton = '<div class="skeleton"></div><div class="skeleton short"></div>
 
 // ---------- 사용량 현황 ----------
 
+/** Shorter window first, the same for both CLIs: 5시간 then 7일 (owner, 2026-10-30). */
+const byLength = (a: UsageWindow, b: UsageWindow) =>
+  (a.windowMinutes ?? Number.MAX_SAFE_INTEGER) - (b.windowMinutes ?? Number.MAX_SAFE_INTEGER);
+
 function windowsHtml(usage: CliUsage): string {
   if (usage.windows.length === 0) return '<p class="empty">기록에 한도 값이 없어요.</p>';
-  return usage.windows
+  return [...usage.windows]
+    .sort(byLength)
     .map((w) => {
       const percent = Math.max(0, Math.min(100, w.usedPercent));
-      const tone = percent >= 100 ? 'full' : percent >= 80 ? 'high' : '';
+      // Two colours only: the warning colour from the limit alert threshold (LHS-9, 80%), else the usual one.
+      const tone = nearLimit(w.usedPercent) ? 'high' : '';
       return `
         <div class="window">
           <div class="window-top">
@@ -179,9 +187,11 @@ function upcomingBody(value: ResetStatus): string {
     return `<p class="upcoming-main">예정 리셋 없음</p>
       <p class="sub">새 리셋이 공지되면 알림으로 알려 드려요.</p>`;
   // The due time when the announcement gives one, the same time the menu bar counts down to (LHS-5 검증 16).
-  const due = next.scheduledFor === null ? '' : `${formatDateTime(next.scheduledFor)} · `;
-  return `<p class="upcoming-main">${escapeHtml(typeName(next.type))} 예정</p>
-    <p class="sub">${due}${formatDateTime(next.announcedAt)} 공지${next.text ? ` · ${escapeHtml(firstLine(next.text))}` : ''}</p>`;
+  const due =
+    next.scheduledFor === null ? '' : `<span class="due">${formatDateTime(next.scheduledFor)}</span>`;
+  const line = `${formatDateTime(next.announcedAt)} 공지${next.text ? ` · ${escapeHtml(firstLine(next.text))}` : ''}`;
+  return `<p class="upcoming-main"><span>${escapeHtml(typeName(next.type))} 예정</span>${due}</p>
+    <p class="sub one-line" title="${line}">${line}</p>`;
 }
 
 /**
@@ -329,12 +339,15 @@ function areaError<T>(
     </div>`;
 }
 
+/** The type beside a date only when it is not what the row's name already says («전체 리셋»). */
+const otherType = (type: string) => (type === 'regular' ? '' : `<span class="type">${typeName(type)}</span>`);
+
 function statusBody(value: ResetStatus): string {
   const latest = value.latest
-    ? `${formatDateTime(value.latest.announcedAt)}<span class="type">${typeName(value.latest.type)}</span>`
+    ? `${formatDateTime(value.latest.announcedAt)}${otherType(value.latest.type)}`
     : '기록 없음';
   const scheduled = value.scheduled
-    ? `${formatDateTime(value.scheduled.scheduledFor ?? value.scheduled.announcedAt)}${value.scheduled.scheduledFor === null ? ' 공지' : ''}<span class="type">${typeName(value.scheduled.type)}</span>`
+    ? `${formatDateTime(value.scheduled.scheduledFor ?? value.scheduled.announcedAt)}${value.scheduled.scheduledFor === null ? ' 공지' : ''}${otherType(value.scheduled.type)}`
     : '<span class="muted">예정된 리셋 없음</span>';
   const average = value.avgIntervalDays === null ? '알 수 없음' : `약 ${value.avgIntervalDays.toFixed(1)}일`;
   const since =
