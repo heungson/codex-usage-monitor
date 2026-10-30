@@ -89,7 +89,7 @@ describe('ResetsService', () => {
     expect(api.calls.filter((c) => c === 'status')).toHaveLength(2);
   });
 
-  it('the usage screen fetches the status only when the last success is 5 minutes old (owner 2026-10-30)', async () => {
+  it('the usage screen fetches the status only when the last success is more than 5 minutes old (owner 2026-10-30, PR-P028)', async () => {
     let now = Date.parse('2026-10-30T10:00:00Z');
     const api = fakeApi();
     const service = new ResetsService(
@@ -101,6 +101,9 @@ describe('ResetsService', () => {
     await service.freshenStatus();
     expect(api.calls).toEqual(['status']);
     now += statusFreshMs - 1;
+    await service.freshenStatus();
+    expect(api.calls).toEqual(['status']);
+    now += 1; // exactly 5 minutes: not yet
     await service.freshenStatus();
     expect(api.calls).toEqual(['status']);
     now += 1;
@@ -182,6 +185,72 @@ describe('ResetsService', () => {
     release();
     await vi.advanceTimersByTimeAsync(0);
     expect(service.snapshot().status.kind).toBe('ok');
+  });
+
+  it('a failing «다시 시도» starts the retries over from 10 s (LHS-7 검증 6)', async () => {
+    vi.useFakeTimers();
+    const api = fakeApi();
+    api.statusFails = true;
+    const service = new ResetsService(api, () => undefined);
+    await service.open();
+    await vi.advanceTimersByTimeAsync(70_000);
+    const statusCalls = () => api.calls.filter((c) => c === 'status').length;
+    expect(statusCalls()).toBe(4);
+    let snapshot = await service.retry('status');
+    expect(snapshot.status.kind === 'error' && snapshot.status.retry).toMatchObject({ attempt: 1, of: 3 });
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(statusCalls()).toBe(5);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(statusCalls()).toBe(6);
+    api.statusFails = false;
+    snapshot = await service.retry('status');
+    expect(snapshot.status.kind).toBe('ok');
+    service.stop();
+  });
+
+  it('a failing history retries after 10 s, 20 s, 40 s and stops, with the status kept (LHS-8 검증 4)', async () => {
+    vi.useFakeTimers();
+    const api = fakeApi();
+    const service = new ResetsService(api, () => undefined);
+    await service.open();
+    api.historyFails = true;
+    const snapshot = await service.open();
+    expect(snapshot.status.kind).toBe('ok');
+    expect(snapshot.history.kind === 'error' && snapshot.history.lastGood?.entries).toHaveLength(1);
+    const historyCalls = () => api.calls.filter((c) => c.startsWith('history:null')).length;
+    const before = historyCalls();
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(historyCalls()).toBe(before);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(historyCalls()).toBe(before + 1);
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(historyCalls()).toBe(before + 2);
+    await vi.advanceTimersByTimeAsync(40_000);
+    expect(historyCalls()).toBe(before + 3);
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    expect(historyCalls()).toBe(before + 3);
+    const final = service.snapshot().history;
+    expect(final.kind === 'error' && final.retry).toBeNull();
+  });
+
+  it('a known value under an error stays on screen while it is fetched again (PR-P027)', async () => {
+    const api = fakeApi();
+    const service = new ResetsService(api, () => undefined, [60_000]);
+    await service.open();
+    api.statusFails = true;
+    await service.retry('status');
+    let release!: () => void;
+    api.gate = new Promise((resolve) => (release = resolve));
+    const reopened = service.open();
+    await Promise.resolve();
+    const during = service.snapshot();
+    expect(during.status.kind).toBe('error');
+    expect(during.refreshing.status).toBe(true);
+    api.gate = null;
+    api.statusFails = false;
+    release();
+    expect((await reopened).status.kind).toBe('ok');
+    service.stop();
   });
 
   it('shows a first failure without a value (LHS-8 검증 5)', async () => {

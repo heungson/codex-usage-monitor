@@ -94,3 +94,24 @@ export async function capture(page: Page, name: string, dir = join('tmp', 'e2e-s
 export async function clickUpcomingArea(page: Page): Promise<void> {
   await page.locator('section[data-area="upcoming"]').click({ position: { x: 24, y: 18 } });
 }
+
+/**
+ * Records the menu bar item's title. The app's Tray is patched after launch, so the next title it sets
+ * hands over the item; `trayTitle` then reads the title back from macOS with Tray.getTitle().
+ */
+export async function watchTray(app: ElectronApplication, page: Page): Promise<void> {
+  await app.evaluate(({ Tray }) => {
+    const g = globalThis as unknown as { tray?: Electron.Tray };
+    const setTitle = Tray.prototype.setTitle;
+    Tray.prototype.setTitle = function (this: Electron.Tray, ...args: Parameters<Electron.Tray['setTitle']>) {
+      g.tray = this;
+      return setTitle.apply(this, args);
+    };
+  });
+  // Any status change sets the title again.
+  await page.evaluate(() => window.monitor.retryResets('status'));
+}
+
+export function trayTitle(app: ElectronApplication): Promise<string | null> {
+  return app.evaluate(() => (globalThis as unknown as { tray?: Electron.Tray }).tray?.getTitle() ?? null);
+}

@@ -12,7 +12,7 @@ function subscribe<T>(channel: string, listener: (payload: T) => void): () => vo
 
 const api: MonitorApi = {
   getUsage: () => ipcRenderer.invoke('usage:get'),
-  refreshUsage: () => ipcRenderer.invoke('usage:refresh'),
+  refreshUsage: (automatic) => ipcRenderer.invoke('usage:refresh', automatic === true),
   retry: (cli) => ipcRenderer.invoke('usage:retry', cli),
   onUsage: (listener) => subscribe('usage', listener),
   dismissAlertNotice: () => ipcRenderer.invoke('alerts:dismiss'),

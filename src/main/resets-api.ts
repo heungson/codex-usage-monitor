@@ -1,7 +1,7 @@
 // The codex-resets.com public API (PR-P018): no key, nothing about the person is sent.
 // Data from it is shown with a link back to https://codex-resets.com, as the API terms ask.
 
-import type { ResetEntry, ResetStatus } from '../shared/types';
+import type { ResetEntry, ResetStatus, ScheduledReset } from '../shared/types';
 
 export const resetsSite = 'https://codex-resets.com';
 
@@ -37,6 +37,18 @@ function entryFrom(raw: unknown): ResetEntry | null {
   };
 }
 
+/**
+ * `scheduled_reset` carries `scheduled_for` (date-time or null) besides the reset fields, as the API's
+ * own schema says (https://codex-resets.com/api/openapi.json, read 2026-10-30).
+ */
+function scheduledFrom(raw: unknown): ScheduledReset | null {
+  const entry = entryFrom(raw);
+  if (!entry) return null;
+  const at = (raw as { scheduled_for?: unknown }).scheduled_for;
+  const scheduledFor = typeof at === 'string' ? Date.parse(at) : NaN;
+  return { ...entry, scheduledFor: Number.isNaN(scheduledFor) ? null : scheduledFor };
+}
+
 export function resetsApi(baseUrl: string, fetchImpl: typeof fetch = fetch): ResetsApi {
   async function get(path: string): Promise<unknown> {
     let response: Response;
@@ -64,7 +76,7 @@ export function resetsApi(baseUrl: string, fetchImpl: typeof fetch = fetch): Res
       const stats = (data.stats ?? {}) as Record<string, unknown>;
       return {
         latest: entryFrom(data.latest_reset),
-        scheduled: entryFrom(data.scheduled_reset),
+        scheduled: scheduledFrom(data.scheduled_reset),
         avgIntervalDays: typeof stats.avg_interval_days === 'number' ? stats.avg_interval_days : null,
         daysSinceLast: typeof stats.days_since_last === 'number' ? stats.days_since_last : null,
         total: typeof stats.total === 'number' ? stats.total : 0,

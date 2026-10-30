@@ -34,8 +34,8 @@ declare global {
 const monitor = window.monitor;
 const root = document.getElementById('app')!;
 
-/** While the popover is open the usage screen re-reads every 60 seconds (owner decision 2026-10-28). */
-const usageRefreshMs = 60_000;
+/** While the popover is open the usage screen re-reads every 30 seconds (LHS-5 개발 항목 1; owner 2026-10-30). */
+const usageRefreshMs = 30_000;
 const resetsSite = 'https://codex-resets.com';
 
 const state: {
@@ -178,8 +178,10 @@ function upcomingBody(value: ResetStatus): string {
   if (!next)
     return `<p class="upcoming-main">예정 리셋 없음</p>
       <p class="sub">새 리셋이 공지되면 알림으로 알려 드려요.</p>`;
+  // The due time when the announcement gives one, the same time the menu bar counts down to (LHS-5 검증 16).
+  const due = next.scheduledFor === null ? '' : `${formatDateTime(next.scheduledFor)} · `;
   return `<p class="upcoming-main">${escapeHtml(typeName(next.type))} 예정</p>
-    <p class="sub">${formatDateTime(next.announcedAt)} 공지${next.text ? ` · ${escapeHtml(firstLine(next.text))}` : ''}</p>`;
+    <p class="sub">${due}${formatDateTime(next.announcedAt)} 공지${next.text ? ` · ${escapeHtml(firstLine(next.text))}` : ''}</p>`;
 }
 
 /**
@@ -205,7 +207,7 @@ function upcomingCard(): string {
     badge = refreshing ? chip('새로 고치는 중') : chip('결과 없음');
     content = '<p class="upcoming-main muted">예정 리셋 정보 없음</p>';
   } else {
-    badge = errorChip(s);
+    badge = refreshing ? chip('새로 고치는 중') : errorChip(s);
     content =
       areaError('status', s, '예정 리셋') +
       (s.lastGood ? `<div class="stale">${upcomingBody(s.lastGood)}</div>` : '');
@@ -332,7 +334,7 @@ function statusBody(value: ResetStatus): string {
     ? `${formatDateTime(value.latest.announcedAt)}<span class="type">${typeName(value.latest.type)}</span>`
     : '기록 없음';
   const scheduled = value.scheduled
-    ? `${formatDateTime(value.scheduled.announcedAt)} 공지<span class="type">${typeName(value.scheduled.type)}</span>`
+    ? `${formatDateTime(value.scheduled.scheduledFor ?? value.scheduled.announcedAt)}${value.scheduled.scheduledFor === null ? ' 공지' : ''}<span class="type">${typeName(value.scheduled.type)}</span>`
     : '<span class="muted">예정된 리셋 없음</span>';
   const average = value.avgIntervalDays === null ? '알 수 없음' : `약 ${value.avgIntervalDays.toFixed(1)}일`;
   const since =
@@ -390,7 +392,7 @@ function areaCard<T>(
     badge ||= chip('결과 없음');
     content = `<p class="empty">${emptyText}</p>`;
   } else {
-    badge = errorChip(s);
+    badge = refreshing ? chip('새로 고치는 중') : errorChip(s);
     content = areaError(area, s, label) + (s.lastGood ? `<div class="stale">${body(s.lastGood)}</div>` : '');
   }
   return `<section class="card" data-area="${area}" aria-label="${title}">
@@ -448,11 +450,12 @@ function render(): void {
   requestAnimationFrame(() => monitor.reportHeight(Math.ceil(root.getBoundingClientRect().height)));
 }
 
-async function refreshUsage(): Promise<void> {
+/** `automatic`: the open screen's own timer, which also retries a failed area (자동 재시도 중). */
+async function refreshUsage(automatic = false): Promise<void> {
   state.refreshing = true;
   render();
   try {
-    state.usage = await monitor.refreshUsage();
+    state.usage = await monitor.refreshUsage(automatic);
   } finally {
     state.refreshing = false;
     render();
@@ -550,7 +553,7 @@ let refreshTimer: number | null = null;
 function syncRefreshTimer(): void {
   if (document.visibilityState === 'visible' && refreshTimer === null)
     refreshTimer = window.setInterval(() => {
-      if (state.view === 'usage') void refreshUsage();
+      if (state.view === 'usage') void refreshUsage(true);
     }, usageRefreshMs);
   if (document.visibilityState !== 'visible' && refreshTimer !== null) {
     window.clearInterval(refreshTimer);

@@ -18,7 +18,7 @@ export const defaultRetryDelaysMs = [10_000, 20_000, 40_000];
 /** The history shows 5 entries first and 10 more per «이력 더 보기» (owner decision 2026-10-30 on PR-Q004). */
 export const historyFirstPage = 5;
 export const historyMorePage = 10;
-/** The usage screen fetches the status again when the last success is this old. */
+/** The usage screen fetches the status again when the last success is older than this; at exactly 5 minutes it does not (PR-P028). */
 export const statusFreshMs = 5 * 60_000;
 
 type Area = 'status' | 'history';
@@ -83,7 +83,7 @@ export class ResetsService {
   /** The usage screen opened: fetch the status unless a recent success, a request or a retry covers it. */
   async freshenStatus(): Promise<ResetsSnapshot> {
     const status = this.areas.status;
-    const stale = status.lastGoodAt === null || this.now() - status.lastGoodAt >= statusFreshMs;
+    const stale = status.lastGoodAt === null || this.now() - status.lastGoodAt > statusFreshMs;
     if (stale && !status.inFlight && !status.timer) await this.request('status');
     return this.snapshot();
   }
@@ -175,8 +175,13 @@ export class ResetsService {
     if (automatic && slot.state.kind === 'error' && slot.state.retry) {
       slot.state = { ...slot.state, retry: { ...slot.state.retry, running: true } };
     } else if (!automatic) {
-      // A shown result stays while it is fetched again; anything else shows 불러오는 중.
-      if (slot.state.kind === 'ok' || slot.state.kind === 'empty') slot.refreshing = true;
+      // A known result stays while it is fetched again, also a last good value under an error
+      // (PR-P027); only an area with nothing known shows 불러오는 중.
+      const known =
+        slot.state.kind === 'ok' ||
+        slot.state.kind === 'empty' ||
+        (slot.state.kind === 'error' && slot.state.lastGood !== null);
+      if (known) slot.refreshing = true;
       else slot.state = { kind: 'loading' };
     }
     this.onChange(this.snapshot());

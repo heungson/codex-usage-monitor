@@ -20,13 +20,13 @@ Electron support.
 Asked of the owner (the planner) in the coding session on 2026-10-28, because the plan marked them
 undecided. Recorded here because the PRS developer MCP cannot post issue comments.
 
-| Question                                                                                    | Issue         | Answer                                                                                                                                                                        |
-| ------------------------------------------------------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| How often the open popover refreshes, and how often a failed area retries                   | LHS-5         | Every 60 seconds while the popover is open. The local files are still re-read every 30 seconds in the background (LHS-3, LHS-4 say so).                                       |
-| codex-resets.com retry backoff                                                              | LHS-7, LHS-8  | 10 s, 20 s, 40 s, then stop (3 automatic tries). «다시 시도» starts over. In PRS since LHS-7 revision 6 and LHS-8 revision 7 (2026-10-30).                                    |
-| What a history row shows                                                                    | LHS-8         | Local date and time, the type (전체 리셋 / 적립형 리셋), the first line of the announcement, and a link to the original post.                                                 |
-| New-reset notifications depend on a status that is only fetched when the reset screen opens | LHS-7, LHS-10 | Check `/api/v1/status` in the background every 15 minutes for notifications. The reset screen does not poll while open. (v3: see below; the check now feeds the screens too.) |
-| A remote repository for LHS-1                                                               | LHS-1         | `origin` is git@github.com:heungson/codex-usage-monitor.git (owner, 2026-10-30). Not registered in PRS yet.                                                                   |
+| Question                                                                                    | Issue         | Answer                                                                                                                                                                                           |
+| ------------------------------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| How often the open popover refreshes, and how often a failed area retries                   | LHS-5         | Every 30 seconds while the popover is open (60 s until 2026-10-30, changed by the developer to match LHS-5). The local files are also re-read every 30 seconds in the background (LHS-3, LHS-4). |
+| codex-resets.com retry backoff                                                              | LHS-7, LHS-8  | 10 s, 20 s, 40 s, then stop (3 automatic tries). «다시 시도» starts over. In PRS since LHS-7 revision 6 and LHS-8 revision 7 (2026-10-30).                                                       |
+| What a history row shows                                                                    | LHS-8         | Local date and time, the type (전체 리셋 / 적립형 리셋), the first line of the announcement, and a link to the original post.                                                                    |
+| New-reset notifications depend on a status that is only fetched when the reset screen opens | LHS-7, LHS-10 | Check `/api/v1/status` in the background every 15 minutes for notifications. The reset screen does not poll while open. (v3: see below; the check now feeds the screens too.)                    |
+| A remote repository for LHS-1                                                               | LHS-1         | `origin` is git@github.com:heungson/codex-usage-monitor.git (owner, 2026-10-30). Not registered in PRS yet.                                                                                      |
 
 ### Version 3
 
@@ -70,6 +70,35 @@ Answered by the developer, 이흥선, on 2026-10-30, the second from the planner
   a button's content is read as one label, so «다시 시도» and the source link inside the area would
   have been lost to screen readers. Text in the card lets the pointer through to that button.
 
+### Version 4 (2026-10-30)
+
+The plan was published as v4; the planner rewrote LHS-5 (revision 5), LHS-7 (revision 7) and LHS-8
+(revision 8). Built from them:
+
+- **Menu bar title (LHS-5 개발 항목 5, PR-P026, WF-P005).** «CC 73% · CX 26% · ↻ 2일» while the shared
+  status has a scheduled reset with a time still ahead: days, else hours, else minutes, rounded
+  down; under a minute «↻ 1분 미만». Worked out again every minute without a request, and removed at
+  the reset time by a timer, without waiting for a request. A failed status removes it even with a
+  last good value; a status being fetched again keeps it.
+- **Exactly 5 minutes does not refetch (LHS-5 검증 17, LHS-7 검증 9).** This file already said «older
+  than 5 minutes»; the code fetched at exactly 5 minutes. Fixed to match both.
+- **A last good value under an error also stays while fetched again (PR-P027, LHS-7 개발 항목 2).**
+  Before, only a loaded or empty area did; one that had failed with a last value showed 불러오는 중.
+
+Asked of the developer, 이흥선, on 2026-10-30; the first two the planner then wrote into the issues:
+
+- **«다시 시도» sends a new request.** Written by the planner in PRS (LHS-7 revision 8, 개발 항목 1):
+  every path joins a status request already running, except «다시 시도» in an error area, which
+  sends a new one because the person who pressed it needs a new result (see «Found while building
+  v3»: it had shown an old failure). A late answer from the older request is dropped and does not
+  overwrite the newer one.
+- **A scheduled reset with no time (`scheduled_for` null).** Written by the planner in PRS (LHS-5
+  revision 6, 개발 항목 5): no suffix in the menu bar, since there is no time to count down to; the
+  reset is shown only in the usage screen's 예정 리셋 area.
+- **The open popover refreshes every 30 s** (developer, following LHS-5 개발 항목 1; it was 60 s, see the
+  table above). Its own timer's re-read is automatic, so a failed area shows «자동 재시도 중» on it too,
+  as on the 30-second background re-read.
+
 Settled here without asking, because no person sees them:
 
 - The record format between the status line hook and the Claude Code reader: `docs/claude-record.md`.
@@ -83,7 +112,9 @@ Settled here without asking, because no person sees them:
 
 - v3: the scheduled reset's own fields could not be seen: the live API had `scheduled_reset: null` on
   2026-10-30. The 예정 리셋 area shows the type, the announcement time and its first line, the fields
-  every reset entry has.
+  every reset entry has. v4: the API's own schema (`https://codex-resets.com/api/openapi.json`, read
+  2026-10-30) gives `scheduled_for` (date-time or null); the area and the reset screen now show it
+  when it is there, and the menu bar counts down to it.
 - v3: the window settings file is `window-settings.json` in the data folder; a missing or unreadable
   file reads as off.
 

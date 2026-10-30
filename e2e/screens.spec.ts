@@ -155,14 +155,18 @@ test('status and history load on open, without polling, from the keyless API (LH
   await page.waitForTimeout(5000);
   expect(server.requests.length).toBe(before);
 
+  // «이력 더 보기» asks for the next 10 by the cursor and adds them (LHS-8 검증 2).
   await historyCard(page).getByRole('button', { name: '이력 더 보기' }).click();
-  await expect(historyCard(page).locator('li')).toHaveCount(14);
-  await expect(historyCard(page)).toContainText('이력을 끝까지 불러왔어요');
+  await expect(historyCard(page).locator('li')).toHaveCount(15);
   expect(
     server.requests.some(
       (r) => r.includes('/api/v1/resets?') && r.includes('cursor=5') && r.includes('limit=10'),
     ),
   ).toBe(true);
+  await historyCard(page).getByRole('button', { name: '이력 더 보기' }).click();
+  await expect(historyCard(page).locator('li')).toHaveCount(18);
+  await expect(historyCard(page)).toContainText('이력을 끝까지 불러왔어요');
+  expect(server.requests.some((r) => r.includes('cursor=15') && r.includes('limit=10'))).toBe(true);
   for (const r of server.requests) expect(r).toContain('auth=- cookie=-');
   await capture(page, 'resets-more');
 
@@ -178,11 +182,16 @@ test('status and history load on open, without polling, from the keyless API (LH
 
   // Reopening shows the known values at once, asks again and shows what the server says now
   // (LHS-7 검증 1, LHS-8 검증 1; PR-Q003 answered 2026-10-30).
+  // (LHS-8 검증 7: the history kept on screen while a new request goes out.)
+  const historyRequests = () => server.requests.filter((r) => r.startsWith('GET /api/v1/resets')).length;
+  const historyBefore = historyRequests();
   mode({ status: 'empty', history: 'empty', delayMs: 1500 });
   await openResets(page);
   await expect(statusCard(page)).toContainText('새로 고치는 중');
   await expect(statusCard(page)).toContainText('최근 전체 리셋');
-  await expect(historyCard(page).locator('li')).toHaveCount(14);
+  await expect(historyCard(page)).toContainText('새로 고치는 중');
+  await expect(historyCard(page).locator('li')).toHaveCount(18);
+  await expect.poll(historyRequests).toBe(historyBefore + 1);
   await capture(page, 'resets-refreshing');
   await expect(statusCard(page)).toContainText('결과 없음');
   await expect(historyCard(page)).toContainText('표시할 리셋 이력이 없어요');

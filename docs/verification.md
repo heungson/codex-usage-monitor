@@ -1,5 +1,33 @@
 # Verification
 
+## Version 4 (2026-10-30)
+
+LHS-5 revision 5, LHS-7 revision 7 and LHS-8 revision 8 (plan v4), on the working tree after
+95f1ba5. Recorded in PRS for the checks that are new or changed: LHS-5 검증 12–18, LHS-7 검증 3, 6,
+8–11, LHS-8 검증 1, 2, 4, 7.
+
+| Run                    | Command                                                     | Result on 2026-10-30                                                                                                                           |
+| ---------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Types, lint, format    | `npm run typecheck`, `npm run lint`, `npm run format:check` | clean                                                                                                                                          |
+| Unit tests             | `npm test`                                                  | 81 passed (new `test/menu-bar-title.test.ts`: wording, no suffix, held check, reset time, new time, 5-minute boundary, shared request, 15 min) |
+| App checks             | `npm run test:e2e`                                          | 27 passed, 1 skipped (new: the menu bar title read back from the real Tray with `getTitle()`; 18 history entries, 5 + 10 + 3)                  |
+| Live data              | `ULM_LIVE=1 npx playwright test e2e/live.spec.ts`           | passed; the live API had no scheduled reset                                                                                                    |
+| The menu bar, captured | `tmp/probe/menubar.pw.ts` then `screencapture`              | the menu bar item read «CC 73% · CX 26% · ↻ 2일» (`tmp/menubar.png`)                                                                           |
+
+Not verified: the minute-by-minute recompute and the removal at the reset time were checked with fake
+timers and, in the app, with a reset 6 s away; a whole day was not waited out.
+
+Then (same day, LHS-5 revision 6, LHS-7 revision 8): the open popover's own refresh went from 60 s to
+30 s. A new app check pushes the background re-read out to an hour, so only that timer can read: a
+changed record, a read failure and the recovery each showed within 35 s with no click. Both issues
+were recorded again in full on their new revisions, from the run below.
+
+| Run                 | Command                                                     | Result on 2026-10-30 |
+| ------------------- | ----------------------------------------------------------- | -------------------- |
+| Types, lint, format | `npm run typecheck`, `npm run lint`, `npm run format:check` | clean                |
+| Unit tests          | `npm test`                                                  | 81 passed            |
+| App checks          | `npm run test:e2e`                                          | 28 passed, 1 skipped |
+
 ## Version 3, issues rewritten (2026-10-30)
 
 The planner rewrote LHS-2 to LHS-8 for v3, then corrected LHS-7 (revision 6) and LHS-8 (revision 7)

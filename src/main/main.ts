@@ -25,7 +25,7 @@ import { dataFiles, resolvePaths } from './paths';
 import { ResetAlerts, resetCheckIntervalMs } from './reset-alerts';
 import { resetsApi, resetsSite } from './resets-api';
 import { ResetsService } from './resets-service';
-import { trayTitle } from './tray-title';
+import { MenuBarTitle } from './tray-title';
 import { WindowSettingsStore } from './window-settings';
 
 const env = process.env;
@@ -51,6 +51,8 @@ const notifier: Notifier = env.ULM_FAKE_NOTIFY
 
 let tray: Tray | null = null;
 let popover: BrowserWindow | null = null;
+/** The menu bar text: usage, and the time left to a scheduled Codex reset (LHS-5 개발 항목 5). */
+const menuBarTitle = new MenuBarTitle((title) => tray?.setTitle(title));
 
 const send = (channel: string, payload: unknown) => {
   if (popover && !popover.isDestroyed()) popover.webContents.send(channel, payload);
@@ -99,7 +101,7 @@ function usageSnapshot(): UsageSnapshot {
 
 function publishUsage(): void {
   const snapshot = usageSnapshot();
-  tray?.setTitle(trayTitle(snapshot));
+  menuBarTitle.setUsage(snapshot);
   send('usage', snapshot);
 }
 
@@ -110,7 +112,15 @@ const integration = new Integration(paths, {
 
 const api = resetsApi(env.ULM_RESETS_BASE_URL ?? resetsSite);
 const retryDelays = env.ULM_RESET_RETRY_MS ? env.ULM_RESET_RETRY_MS.split(',').map(Number) : undefined;
-const resets = new ResetsService(api, (snapshot) => send('resets', snapshot), retryDelays);
+// One status for the whole app: the screens, the menu bar title and the notifications (PR-P018, PR-P028).
+const resets = new ResetsService(
+  api,
+  (snapshot) => {
+    menuBarTitle.setStatus(snapshot.status);
+    send('resets', snapshot);
+  },
+  retryDelays,
+);
 // The notification check asks through the shared status, so the usage screen's 예정 리셋 follows it.
 const resetAlerts = new ResetAlerts(
   join(paths.dataDir, dataFiles.resetAlerts),
@@ -225,8 +235,9 @@ function applyWindowSettings(): void {
 }
 
 ipcMain.handle('usage:get', () => usageSnapshot());
-ipcMain.handle('usage:refresh', async () => {
-  await Promise.all([collectors.claude.refresh(), collectors.codex.refresh()]);
+ipcMain.handle('usage:refresh', async (_event, automatic: unknown) => {
+  const auto = automatic === true;
+  await Promise.all([collectors.claude.refresh(auto), collectors.codex.refresh(auto)]);
   return usageSnapshot();
 });
 ipcMain.handle('usage:retry', async (_event, cli: CliId) => {
@@ -288,6 +299,7 @@ app.whenReady().then(() => {
   collectors.claude.start();
   collectors.codex.start();
   watchCodexSessions();
+  menuBarTitle.start();
   resetAlerts.start(numberEnv('ULM_RESET_CHECK_MS', resetCheckIntervalMs));
   publishUsage();
 
@@ -300,6 +312,7 @@ app.on('before-quit', () => {
   codexWatcher?.close();
   resets.stop();
   resetAlerts.stop();
+  menuBarTitle.stop();
 });
 
 // The app lives in the menu bar; closing the popover window does not quit it.

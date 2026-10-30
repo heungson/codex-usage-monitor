@@ -7,7 +7,16 @@ import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 
 import { codexLine } from '../test/helpers';
-import { capture, clickUpcomingArea, launch, makeFixture, openedLinks, type Fixture } from './app';
+import {
+  capture,
+  clickUpcomingArea,
+  launch,
+  makeFixture,
+  openedLinks,
+  trayTitle,
+  watchTray,
+  type Fixture,
+} from './app';
 import { startFakeResets, type FakeServer } from './fake-resets-server';
 
 const hour = 3_600_000;
@@ -177,6 +186,25 @@ test('the automatic re-read after a failure shows 자동 재시도 중, like the
   await app.close();
 });
 
+test('the open screen re-reads every 30 s by its own timer, and retries a failed area (LHS-5 검증 8, 10)', async () => {
+  test.setTimeout(180_000);
+  writeClaude(fixture, 23, 61);
+  writeCodex(fixture, 44);
+  // The background re-read is pushed out to an hour: only the screen's 30-second timer can read now.
+  const { app, page } = await launch(fixture, server.url, { ULM_READ_INTERVAL_MS: '3600000' });
+  await expect(card(page, 'claude')).toContainText('23% 사용');
+  writeClaude(fixture, 35, 63);
+  await expect(card(page, 'claude')).toContainText('35% 사용', { timeout: 35_000 });
+  const record = join(fixture.dataDir, 'claude-rate-limits.json');
+  chmodSync(record, 0o000);
+  await expect(card(page, 'claude')).toContainText('최신 정보 아님', { timeout: 35_000 });
+  chmodSync(record, 0o644);
+  writeClaude(fixture, 40, 63);
+  await expect(card(page, 'claude')).toContainText('40% 사용', { timeout: 35_000 });
+  await expect(card(page, 'claude').locator('.chip')).toHaveText('정상');
+  await app.close();
+});
+
 test('a first failure shows 확인 불가 without values (LHS-5 검증 9, LHS-6 검증 9, LHS-3 검증 9)', async () => {
   writeFileSync(join(fixture.dataDir, 'claude-rate-limits.json'), '{"version":1,');
   writeCodex(fixture, 44);
@@ -219,8 +247,12 @@ test('the two entries open their screens; no separate reset button (LHS-5 검증
   await expect(page.locator('h1')).toHaveText('사용량 현황');
   await expect(page.locator('nav, button:text-is("Codex 전체 리셋")')).toHaveCount(0);
   await expect(upcoming(page)).toContainText('예정 리셋 없음');
+  // Opening the reset screen checks the status again (LHS-7 검증 8).
+  const statusCalls = () => server.requests.filter((r) => r.startsWith('GET /api/v1/status')).length;
+  const before = statusCalls();
   await clickUpcomingArea(page);
   await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
+  await expect.poll(statusCalls).toBe(before + 1);
   await app.close();
 });
 
@@ -266,8 +298,11 @@ test('the 예정 리셋 area shows the scheduled reset only, and opens the reset
   await expect(page.getByRole('button', { name: 'Codex 전체 리셋 자세히 보기' })).toHaveCount(1);
   for (const word of ['최근 전체 리셋', '평균', '이력'])
     await expect(page.locator('main')).not.toContainText(word);
+  const statusCalls = () => server.requests.filter((r) => r.startsWith('GET /api/v1/status')).length;
+  const before = statusCalls();
   await clickUpcomingArea(page);
   await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
+  await expect.poll(statusCalls).toBe(before + 1);
   await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
   await expect(upcoming(page)).toContainText('예정 리셋을 불러오지 못했어요');
   mode({ status: 'scheduled' });
@@ -398,5 +433,51 @@ test('limit alerts: 80% notifies once per window; a refusal is explained (LHS-9 
   await capture(page, 'usage-alert-denied');
   await page.waitForTimeout(4000);
   expect(log().filter((n) => n.title.startsWith('Codex'))).toHaveLength(1);
+  await app.close();
+});
+
+test('the menu bar title counts down to a scheduled reset from the shared status (LHS-5 검증 12, 13, 15, 16, LHS-7 검증 9)', async () => {
+  writeClaude(fixture, 73, 20);
+  writeCodex(fixture, 26);
+  const { app, page } = await launch(fixture, server.url, { ULM_RESET_CHECK_MS: '1500' });
+  await expect(card(page, 'codex')).toContainText('26% 사용');
+  await watchTray(app, page);
+  await expect.poll(() => trayTitle(app)).toBe('CC 73% · CX 26%');
+
+  // The background check alone brings the scheduled reset: no screen is opened (LHS-7 검증 9).
+  mode({ status: 'scheduled' });
+  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 73% · CX 26% · ↻ 2일');
+  await expect(upcoming(page)).toContainText('전체 리셋 예정');
+  const dueText = (scheduledInMs: number) => {
+    const due = new Date(Date.now() + scheduledInMs);
+    return `${due.getMonth() + 1}월 ${due.getDate()}일`;
+  };
+  await expect(upcoming(page)).toContainText(dueText((2 * 24 + 23.5) * hour));
+  await capture(page, 'usage-upcoming-due');
+
+  // A new scheduled time reaches the title and the screen together (LHS-5 검증 16).
+  mode({ status: 'scheduled', scheduledInMs: 5 * hour + 30 * 60_000 });
+  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 73% · CX 26% · ↻ 5시간');
+  // The screen shows the due time the title counts to (within the minute the check ran in).
+  const clocks = [0, -60_000].map((off) => {
+    const due = new Date(Date.now() + 5 * hour + 30 * 60_000 + off);
+    return `${String(due.getHours()).padStart(2, '0')}:${String(due.getMinutes()).padStart(2, '0')}`;
+  });
+  await expect(upcoming(page)).toContainText(new RegExp(clocks.join('|')));
+
+  // No scheduled reset, then a failed check with a last good value: no suffix (LHS-5 검증 13).
+  mode({ status: 'ok' });
+  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 73% · CX 26%');
+  mode({ status: 'scheduled' });
+  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 73% · CX 26% · ↻ 2일');
+  mode({ status: 'fail' });
+  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 73% · CX 26%');
+  await expect(upcoming(page)).toContainText('최신 정보 아님');
+
+  // Due in a few seconds while the next check is still on its way: gone at the reset time (LHS-5 검증 15).
+  mode({ status: 'scheduled', scheduledInMs: 6000 });
+  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 73% · CX 26% · ↻ 1분 미만');
+  mode({ status: 'scheduled', scheduledInMs: 6000, delayMs: 20_000 });
+  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 73% · CX 26%');
   await app.close();
 });

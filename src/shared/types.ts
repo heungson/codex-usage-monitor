@@ -71,9 +71,14 @@ export interface ResetEntry {
   sourceUrl: string | null;
 }
 
+/** An announced reset not yet carried out. `scheduledFor` is when it is due, when the announcement says. */
+export interface ScheduledReset extends ResetEntry {
+  scheduledFor: number | null;
+}
+
 export interface ResetStatus {
   latest: ResetEntry | null;
-  scheduled: ResetEntry | null;
+  scheduled: ScheduledReset | null;
   avgIntervalDays: number | null;
   daysSinceLast: number | null;
   total: number;
@@ -122,7 +127,8 @@ export interface WindowSettings {
 /** The API the preload script exposes to the renderer as `window.monitor`. */
 export interface MonitorApi {
   getUsage(): Promise<UsageSnapshot>;
-  refreshUsage(): Promise<UsageSnapshot>;
+  /** `automatic`: the open screen's 30-second timer, shown as 자동 재시도 중 on a failed area. */
+  refreshUsage(automatic?: boolean): Promise<UsageSnapshot>;
   retry(cli: CliId): Promise<UsageSnapshot>;
   onUsage(listener: (snapshot: UsageSnapshot) => void): () => void;
   dismissAlertNotice(): Promise<UsageSnapshot>;

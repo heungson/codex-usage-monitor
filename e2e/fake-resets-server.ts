@@ -1,5 +1,7 @@
 // A stand-in for codex-resets.com, so checks can make the API slow, empty or failing.
-// The mode is read from a JSON file on every request: { status: Mode, history: Mode, delayMs?: number }.
+// The mode is read from a JSON file on every request:
+// { status: Mode, history: Mode, delayMs?: number, scheduledInMs?: number }. `scheduledInMs` is how far
+// ahead the scheduled reset's `scheduled_for` lies (default 2 days 23 hours 30 minutes).
 
 import { readFileSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
@@ -8,18 +10,19 @@ import type { AddressInfo } from 'node:net';
 /** `scheduled` (status only): like `ok`, with a scheduled reset announced. */
 export type Mode = 'ok' | 'empty' | 'fail' | 'scheduled';
 
-const entries = Array.from({ length: 14 }, (_, i) => ({
+const count = 18;
+const entries = Array.from({ length: count }, (_, i) => ({
   id: `r${i}`,
   reset_type: i % 5 === 3 ? 'banked' : 'regular',
   announced_at: new Date(Date.UTC(2026, 9, 26 - i * 3, 7, 0)).toISOString(),
   text:
     i === 0
       ? 'Codex usage limits have been reset. Check your limits.'
-      : `Reset announcement number ${14 - i}: limits are fresh again for all paid users of Codex.`,
+      : `Reset announcement number ${count - i}: limits are fresh again for all paid users of Codex.`,
   // Post ids exceed Number.MAX_SAFE_INTEGER, so they are built as strings.
   source: {
     type: 'x_post',
-    url: `https://x.com/thsottiaux/status/21145881742490711${String(10 - i).padStart(2, '0')}`,
+    url: `https://x.com/thsottiaux/status/21145881742490711${String(10 + i)}`,
   },
 }));
 
@@ -40,6 +43,7 @@ export async function startFakeResets(modeFile: string): Promise<FakeServer> {
       status: Mode;
       history: Mode;
       delayMs?: number;
+      scheduledInMs?: number;
     };
     const reply = (code: number, body: unknown) =>
       setTimeout(() => {
@@ -58,8 +62,12 @@ export async function startFakeResets(modeFile: string): Promise<FakeServer> {
             mode.status === 'scheduled'
               ? {
                   id: 'next',
+                  status: 'scheduled',
                   reset_type: 'regular',
                   announced_at: new Date(Date.now() - 2 * 3_600_000).toISOString(),
+                  scheduled_for: new Date(
+                    Date.now() + (mode.scheduledInMs ?? (2 * 24 + 23.5) * 3_600_000),
+                  ).toISOString(),
                   text: 'We are resetting Codex usage limits for everyone tomorrow.',
                   source: { type: 'x_post', url: 'https://x.com/thsottiaux/status/2115330127886463299' },
                 }
