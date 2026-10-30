@@ -14,9 +14,13 @@ nothing about you anywhere.
   status line looks the same. Values update only while Claude Code runs.
 - **Codex**: read from the `rate_limits` events in `~/.codex/sessions/**/*.jsonl`.
 - **Codex global resets**: `GET /api/v1/status` and `GET /api/v1/resets` on codex-resets.com.
-  Data from codex-resets.com.
+  Data from codex-resets.com. The usage screen shows the next scheduled reset; clicking that area
+  opens the full status and history.
+- **창 항상 위에 표시**: the switch right of every screen's title. On, the popover stays open above
+  other windows and can be dragged by its top bar; the choice is kept in
+  `~/Library/Application Support/usage-limit-monitor/window-settings.json`.
 
-Planned in PRS (plan «사용량 한도 모니터», version 1). Decisions: `docs/decisions.md`.
+Planned in PRS (plan «사용량 한도 모니터», version 3). Decisions: `docs/decisions.md`.
 
 ## Requirements
 
@@ -32,7 +36,7 @@ npm run typecheck
 npm run lint
 npm run format:check
 npm test             # unit tests
-npm run test:e2e     # drives the built app with Playwright; captures in tmp/e2e-shots/
+npm run test:e2e     # drives the built app with Playwright; captures in tmp/e2e-shots/ and tmp/screens/
 ```
 
 There is no packaged `.app` yet; `npm start` runs it from this folder. The status line hook command
@@ -71,9 +75,9 @@ Used by the checks to point the app at temporary folders. Normal use needs none.
 src/main/       Electron main process: collectors, readers, integration, alerts, reset API
 src/hook/       The status line hook Claude Code runs
 src/preload/    The bridge the popover page uses
-src/renderer/   The popover page: 사용량 현황, Claude Code 연동 안내, Codex 전체 리셋
+src/renderer/   The popover page: 사용량 현황, Claude Code 연동 안내, Codex 전체 리셋; styles.css holds the look's tokens
 src/shared/     Types, the Claude record format, Korean time wording
 test/           Unit tests (Vitest)
-e2e/            App checks (Playwright + Electron) and a fake codex-resets.com
+e2e/            App checks (Playwright + Electron), a fake codex-resets.com, light/dark captures (look.spec.ts)
 scripts/        Build and icon scripts
 ```

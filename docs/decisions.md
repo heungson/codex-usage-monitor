@@ -1,9 +1,10 @@
 # Decisions
 
-2026-10-28 · In progress: the first version of every PRS issue (LHS-1 to LHS-10) is implemented;
-nothing is committed yet. Built from PRS plan «사용량 한도 모니터», published version 1. The plan
-has no design stage (the owner chose to build from the wireframe) and no design system, so the
-screens follow the wireframe and macOS conventions.
+2026-10-30 · In progress: built from PRS plan «사용량 한도 모니터», published version 3 (first built
+from version 1 on 2026-10-28). Issues LHS-2 to LHS-10 still say version 1 in PRS; the planner (이흥선,
+also the developer) decided to build version 3. Nothing is committed yet. The plan has no design
+stage and no design system (`get_design_system` v3: `designSystem: null`), so the screens follow
+the wireframe's layout and elements, with the app's own CSS described under «Look».
 
 ## Framework: Electron + TypeScript
 
@@ -19,13 +20,28 @@ Electron support.
 Asked of the owner (the planner) in the coding session on 2026-10-28, because the plan marked them
 undecided. Recorded here because the PRS developer MCP cannot post issue comments.
 
-| Question                                                                                    | Issue         | Answer                                                                                                                                                     |
-| ------------------------------------------------------------------------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| How often the open popover refreshes, and how often a failed area retries                   | LHS-5         | Every 60 seconds while the popover is open. The local files are still re-read every 30 seconds in the background (LHS-3, LHS-4 say so).                    |
-| codex-resets.com retry backoff                                                              | LHS-7, LHS-8  | 10 s, 20 s, 40 s, then stop (3 automatic tries). «다시 시도» starts over.                                                                                  |
-| What a history row shows                                                                    | LHS-8         | Local date and time, the type (전체 리셋 / 적립형 리셋), the first line of the announcement, and a link to the original post.                              |
-| New-reset notifications depend on a status that is only fetched when the reset screen opens | LHS-7, LHS-10 | Check `/api/v1/status` in the background every 15 minutes for notifications. The reset screen still fetches only when opened and does not poll while open. |
-| A remote repository for LHS-1                                                               | LHS-1         | Local only for now: no remote, nothing registered in PRS.                                                                                                  |
+| Question                                                                                    | Issue         | Answer                                                                                                                                                                        |
+| ------------------------------------------------------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| How often the open popover refreshes, and how often a failed area retries                   | LHS-5         | Every 60 seconds while the popover is open. The local files are still re-read every 30 seconds in the background (LHS-3, LHS-4 say so).                                       |
+| codex-resets.com retry backoff                                                              | LHS-7, LHS-8  | 10 s, 20 s, 40 s, then stop (3 automatic tries). «다시 시도» starts over.                                                                                                     |
+| What a history row shows                                                                    | LHS-8         | Local date and time, the type (전체 리셋 / 적립형 리셋), the first line of the announcement, and a link to the original post.                                                 |
+| New-reset notifications depend on a status that is only fetched when the reset screen opens | LHS-7, LHS-10 | Check `/api/v1/status` in the background every 15 minutes for notifications. The reset screen does not poll while open. (v3: see below; the check now feeds the screens too.) |
+| A remote repository for LHS-1                                                               | LHS-1         | `origin` is git@github.com:heungson/codex-usage-monitor.git (owner, 2026-10-30). Not registered in PRS yet.                                                                   |
+
+### Version 3
+
+Asked of the developer, 이흥선, in the coding session on 2026-10-30; they answered «1~7 모두 네가
+권한 대로 해». The plan items stay open in PRS until the planner closes them.
+
+| #   | Plan question or gap                                                                                    | Answer                                                                                                                                                                                                                                                                                             |
+| --- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | PR-Q003 / UF-Q004: what the reset screen does when it opens (FC-F011, FC-F012)                          | Show the results already known at once (the status the usage screen has, the history last fetched in this run), fetch both areas again, keep the known values on screen with «새로 고치는 중» while the request runs.                                                                              |
+| 2   | PR-Q004 / UF-Q005: how many history entries first (FC-F012)                                             | 5 first; «이력 더 보기» adds 10. Checked on 2026-10-30 against the live API that a cursor from a 5-entry page continues correctly with `limit=10` (entries 6–15 equal a single 15-entry request).                                                                                                  |
+| 3   | FC-F011 «공개 API 갱신 주기(정하지 않음)»: how often the usage screen's 예정 리셋 is fetched            | One status shared by the usage screen, the reset screen and the new-reset notifications. The 15-minute background check stays; opening the usage screen fetches again when the last success is older than 5 minutes. Failures retry after 10, 20, 40 s with «다시 시도», as decided on 2026-10-28. |
+| 4   | FC-F019: what «창 항상 위에 표시» changes for a menu bar popover                                        | Off: as before, the popover closes when the person clicks elsewhere. On: it stays open above other windows until the menu bar item is clicked again, and can be dragged by its top bar; once dragged it reopens where it was left.                                                                 |
+| 5   | PR-Q002 / FC-Q001 / UF-Q003: keep the separate reset screen?                                            | Keep it (WF-S003), opened from the 예정 리셋 area, back to 사용량 현황.                                                                                                                                                                                                                            |
+| 6   | The «Codex 전체 리셋 보기» button in the usage screen's notice about a reset that could not be notified | Removed, keeping «닫기»: FC-F008 says there is no separate button to the reset screen, and the 예정 리셋 area right below opens it.                                                                                                                                                                |
+| 7   | A design-system paragraph in AGENTS.md                                                                  | Added: no design system; the tokens in `src/renderer/styles.css`.                                                                                                                                                                                                                                  |
 
 Settled here without asking, because no person sees them:
 
@@ -37,6 +53,40 @@ Settled here without asking, because no person sees them:
   than 5 minutes, since the sources round it.
 - The menu bar shows `CC <highest %> · CX <highest %>`; `–` is no record, `?` a value that is not
   current.
+
+- v3: the scheduled reset's own fields could not be seen: the live API had `scheduled_reset: null` on
+  2026-10-30. The 예정 리셋 area shows the type, the announcement time and its first line, the fields
+  every reset entry has.
+- v3: the window settings file is `window-settings.json` in the data folder; a missing or unreadable
+  file reads as off.
+
+## Look (v3, 2026-10-30)
+
+The developer found the v1 screens too plain and asked for a macOS menu bar look with the
+wireframe's layout and elements unchanged. Chosen by the coding agent; the developer has not reviewed
+it yet.
+
+- **Font**: the macOS system font (SF Pro; Apple SD Gothic Neo for Korean), so it reads like the
+  menu bar and system popovers. Korean wraps between words (`word-break: keep-all`); file paths
+  still break anywhere.
+- **Sizes**: 15 px semibold screen title, 13 px semibold card titles and body, 12 px secondary, 11 px
+  captions and chips, 18 px semibold figures for the used percentage, the one number the person
+  looks for first.
+- **Spacing**: a 4-pixel grid (4, 8, 12, 16); cards 10 px radius, controls 6 px, as macOS uses.
+- **Colour**: macOS system colours, light and dark following the system setting
+  (`prefers-color-scheme`; the window background follows `nativeTheme`). Blue `#0a7aff` / `#0a84ff`
+  for bars and the switch, orange from 80% and red at 100% (the alert threshold). Text colours were
+  picked for at least 4.5:1 contrast on their background; the link blue is a darker `#0068da` in
+  light mode because the system blue is 4.0:1 on white.
+- **Cards and tables**: white (dark: `#2c2c2e`) cards with a hairline edge instead of borders; the
+  reset status is a label/value list with hairline separators; history rows put the type and
+  «원문 공지» on the date line to keep each entry to two lines.
+- **Controls**: macOS push buttons (24 px, hairline shadow), one filled button per screen
+  («연동 적용»), a 26×15 macOS-style switch with its short label «항상 위» (screen readers hear
+  «창 항상 위에 표시»), chevron icon buttons for back and «자세히 보기».
+- **States**: a shimmer skeleton for 불러오는 중 (still when the system reduces motion), tinted notices
+  for warnings and errors, values not current at 55% opacity with a «최신 정보 아님» chip, and a
+  «새로 고치는 중» chip while known values are fetched again.
 
 ## Found while building
 
@@ -63,6 +113,16 @@ Found by the owner on the running app, 2026-10-28 («it doesn't even work well»
 - The instance left running after the checks used a temporary Claude Code settings file, so
   «연동 적용» could not have reached `~/.claude/settings.json` and Claude Code showed 수집 대기 for
   good. It was restarted with the real paths.
+
+Found while building v3 (2026-10-30):
+
+- The staged v1 code did not pass `npm run lint` (`e2e/screens.spec.ts`: `prefer-const`), although
+  `docs/verification.md` said it was clean. Fixed with the v3 change to that test.
+- «다시 시도» while an automatic retry was still waiting for its answer joined that retry instead of
+  sending a new request, so it showed the old failure. It now always sends a new request (unit test
+  in `test/resets.test.ts`).
+- The live check first matched the card title «Codex 예정 리셋» and passed while the area was still
+  loading; it now waits for the area's settled content.
 
 ## Not decided, for the planner
 

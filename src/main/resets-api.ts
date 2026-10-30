@@ -7,7 +7,10 @@ export const resetsSite = 'https://codex-resets.com';
 
 export interface ResetsApi {
   status(): Promise<ResetStatus>;
-  history(cursor: string | null): Promise<{ entries: ResetEntry[]; nextCursor: string | null }>;
+  history(
+    cursor: string | null,
+    limit: number,
+  ): Promise<{ entries: ResetEntry[]; nextCursor: string | null }>;
 }
 
 interface RawEntry {
@@ -67,8 +70,8 @@ export function resetsApi(baseUrl: string, fetchImpl: typeof fetch = fetch): Res
         total: typeof stats.total === 'number' ? stats.total : 0,
       };
     },
-    async history(cursor) {
-      const query = new URLSearchParams({ limit: '10', order: 'desc' });
+    async history(cursor, limit) {
+      const query = new URLSearchParams({ limit: String(limit), order: 'desc' });
       if (cursor) query.set('cursor', cursor);
       const body = (await get(`/api/v1/resets?${query}`)) as {
         data?: unknown[];

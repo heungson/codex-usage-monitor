@@ -1,7 +1,8 @@
 // New Codex reset notifications (FC-F015).
 //
-// The app checks /api/v1/status in the background every 15 minutes (owner decision 2026-10-28;
-// the reset screen itself still fetches only when it opens). The first successful check only sets
+// The app checks /api/v1/status in the background every 15 minutes (owner decision 2026-10-28).
+// The check goes through the status the screens share (ResetsService), so the usage screen's
+// 예정 리셋 area is refreshed by it too (v3, owner decision 2026-10-30). The first successful check only sets
 // the baseline: resets announced before it are not notified. Each later reset is notified once,
 // across restarts. One that could not be shown stays pending and is tried again at the next check.
 
@@ -33,7 +34,7 @@ export class ResetAlerts {
 
   constructor(
     private readonly file: string,
-    private readonly api: ResetsApi,
+    private readonly api: Pick<ResetsApi, 'status'>,
     private readonly notifier: Notifier,
     /**
      * Told when a new reset could not be notified and when that is over (2026-10-28: a reset announced at 15:29 was

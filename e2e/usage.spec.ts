@@ -1,12 +1,13 @@
 // 사용량 현황 (WF-S001) in the running app: LHS-5 and LHS-6 checks, LHS-3/4 read paths, LHS-9 alerts.
+// Plan v3: the Codex 예정 리셋 area (FC-F008, FC-F011) and the «창 항상 위에 표시» switch (FC-F019).
 
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
 import { codexLine } from '../test/helpers';
-import { capture, launch, makeFixture, type Fixture } from './app';
+import { capture, launch, makeFixture, openedLinks, type Fixture } from './app';
 import { startFakeResets, type FakeServer } from './fake-resets-server';
 
 const hour = 3_600_000;
@@ -170,14 +171,119 @@ test('values refresh on their own while open, and a failed area recovers without
   await app.close();
 });
 
-test('the two entries open their screens (LHS-5 검증 7)', async () => {
+const mode = (value: object) =>
+  writeFileSync(fixture.modeFile, JSON.stringify({ status: 'ok', history: 'ok', ...value }));
+const upcoming = (page: import('@playwright/test').Page) => page.locator('section[data-area="upcoming"]');
+
+test('the two entries open their screens; no separate reset button (LHS-5 검증 7, v3 WF-S001)', async () => {
   const { app, page } = await launch(fixture, server.url);
   await page.getByRole('button', { name: /Claude Code 연동 안내/ }).click();
   await expect(page.locator('h1')).toHaveText('Claude Code 연동 안내');
   await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
   await expect(page.locator('h1')).toHaveText('사용량 현황');
-  await page.getByRole('button', { name: /Codex 전체 리셋/ }).click();
+  await expect(page.locator('nav, button:text-is("Codex 전체 리셋")')).toHaveCount(0);
+  await upcoming(page).getByText('예정 리셋 없음').click();
   await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
+  await app.close();
+});
+
+test('the 예정 리셋 area shows the scheduled reset only, and opens the reset screen in every state (v3 FC-F008, FC-F011)', async () => {
+  writeCodex(fixture, 44);
+  mode({ status: 'scheduled' });
+  let { app, page } = await launch(fixture, server.url, { ULM_RESET_CHECK_MS: '3600000' });
+  // Right under the Codex card.
+  await expect(page.locator('main > section').nth(2)).toHaveAttribute('data-area', 'upcoming');
+  await expect(upcoming(page)).toContainText('전체 리셋 예정');
+  await expect(upcoming(page)).toContainText('We are resetting Codex usage limits');
+  // Recent reset, average interval and history are for the reset screen only.
+  await expect(upcoming(page)).not.toContainText('평균');
+  await expect(upcoming(page)).not.toContainText('최근');
+  await capture(page, 'usage-upcoming-scheduled');
+  await upcoming(page).getByRole('button', { name: 'codex-resets.com' }).click();
+  expect(await openedLinks(app)).toEqual(['https://codex-resets.com']);
+  await expect(page.locator('h1')).toHaveText('사용량 현황');
+  await upcoming(page).locator('.upcoming-main').click();
+  await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
+  await app.close();
+
+  // 결과 없음 still opens it. (The fake server reads the first fixture's mode file, so it is reused.)
+  mode({ status: 'empty' });
+  ({ app, page } = await launch(fixture, server.url, { ULM_RESET_CHECK_MS: '3600000' }));
+  await expect(upcoming(page)).toContainText('예정 리셋 정보 없음');
+  await upcoming(page).click();
+  await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
+  await app.close();
+
+  // A failure without a value: retries on its own, offers 다시 시도, and still opens the reset screen.
+  mode({ status: 'fail' });
+  ({ app, page } = await launch(fixture, server.url, {
+    ULM_RESET_CHECK_MS: '3600000',
+    ULM_RESET_RETRY_MS: '60000',
+  }));
+  await expect(upcoming(page)).toContainText('예정 리셋을 불러오지 못했어요');
+  await expect(upcoming(page)).toContainText('불러오기 실패');
+  await expect(upcoming(page)).toContainText('자동으로 다시 시도해요 (1번 중 1번째)');
+  await capture(page, 'usage-upcoming-failed');
+  mode({ status: 'scheduled' });
+  await upcoming(page).getByRole('button', { name: '다시 시도' }).click();
+  await expect(page.locator('h1')).toHaveText('사용량 현황');
+  await expect(upcoming(page)).toContainText('전체 리셋 예정');
+  // A failure after a success keeps the last value, marked as not current.
+  mode({ status: 'fail' });
+  await page.evaluate(() => window.monitor.retryResets('status'));
+  await expect(upcoming(page)).toContainText('최신 정보 아님');
+  await expect(upcoming(page)).toContainText('전체 리셋 예정');
+  await capture(page, 'usage-upcoming-stale');
+  await upcoming(page).locator('h2').click();
+  await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
+  await app.close();
+});
+
+test('opening the usage screen asks for the status only when the last success is 5 minutes old (owner 2026-10-30)', async () => {
+  const { app, page } = await launch(fixture, server.url, { ULM_RESET_CHECK_MS: '3600000' });
+  await expect(upcoming(page)).toContainText('예정 리셋 없음');
+  const statusCalls = () => server.requests.filter((r) => r.startsWith('GET /api/v1/status')).length;
+  expect(statusCalls()).toBe(1);
+  await page.getByRole('button', { name: /Claude Code 연동 안내/ }).click();
+  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await page.waitForTimeout(1000);
+  expect(statusCalls()).toBe(1);
+  await app.close();
+});
+
+test('«창 항상 위에 표시» is one switch on all three screens, off at first, kept across restarts (v3 FC-F019)', async () => {
+  const isOnTop = (app: import('@playwright/test').ElectronApplication) =>
+    app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.isAlwaysOnTop());
+  const pin = (page: import('@playwright/test').Page) =>
+    page.getByRole('switch', { name: '창 항상 위에 표시' });
+  let { app, page } = await launch(fixture, server.url);
+  await expect(pin(page)).not.toBeChecked();
+  expect(await isOnTop(app)).toBe(false);
+  await capture(page, 'usage-pin-off');
+  await pin(page).check({ force: true });
+  await expect(pin(page)).toBeChecked();
+  expect(await isOnTop(app)).toBe(true);
+  await capture(page, 'usage-pin-on');
+  await page.getByRole('button', { name: /Claude Code 연동 안내/ }).click();
+  await expect(pin(page)).toBeChecked();
+  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await upcoming(page).locator('h2').click();
+  await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
+  await expect(pin(page)).toBeChecked();
+  await app.close();
+
+  expect(existsSync(join(fixture.dataDir, 'window-settings.json'))).toBe(true);
+  ({ app, page } = await launch(fixture, server.url));
+  await expect(pin(page)).toBeChecked();
+  expect(await isOnTop(app)).toBe(true);
+  // Turned off on another screen, it is off everywhere and after a restart.
+  await upcoming(page).locator('h2').click();
+  await pin(page).uncheck({ force: true });
+  await expect(pin(page)).not.toBeChecked();
+  expect(await isOnTop(app)).toBe(false);
+  await app.close();
+  ({ app, page } = await launch(fixture, server.url));
+  await expect(pin(page)).not.toBeChecked();
   await app.close();
 });
 

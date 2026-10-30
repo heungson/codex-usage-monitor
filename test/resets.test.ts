@@ -1,9 +1,10 @@
-// LHS-7 (FC-F011) and LHS-8 (FC-F012): the reset screen areas, backoff and the API parsing.
+// LHS-7 (FC-F011) and LHS-8 (FC-F012), plan v3: the reset status shared by the usage screen, the reset
+// screen and the notifications, the screen areas, backoff and the API parsing.
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { resetsApi, type ResetsApi } from '../src/main/resets-api';
-import { ResetsService } from '../src/main/resets-service';
+import { ResetsService, statusFreshMs } from '../src/main/resets-service';
 import type { ResetEntry, ResetStatus } from '../src/shared/types';
 
 const entry = (id: string, at: string): ResetEntry => ({
@@ -21,18 +22,27 @@ const status = (latest: ResetEntry | null): ResetStatus => ({
   total: latest ? 68 : 0,
 });
 
-function fakeApi(): ResetsApi & { statusFails: boolean; historyFails: boolean; calls: string[] } {
+function fakeApi(): ResetsApi & {
+  statusFails: boolean;
+  historyFails: boolean;
+  calls: string[];
+  /** Holds every answer until released, to look at the screen while a request runs. */
+  gate: Promise<void> | null;
+} {
   const api = {
     statusFails: false,
     historyFails: false,
     calls: [] as string[],
+    gate: null as Promise<void> | null,
     async status() {
       api.calls.push('status');
+      if (api.gate) await api.gate;
       if (api.statusFails) throw new Error('codex-resets.com에 연결하지 못했어요');
       return status(entry('r1', '2026-10-26T07:00:00Z'));
     },
-    async history(cursor: string | null) {
-      api.calls.push(`history:${cursor}`);
+    async history(cursor: string | null, limit: number) {
+      api.calls.push(`history:${cursor}:${limit}`);
+      if (api.gate) await api.gate;
       if (api.historyFails) throw new Error('codex-resets.com이 500 오류로 응답했어요');
       return cursor === null
         ? { entries: [entry('r1', '2026-10-26T07:00:00Z')], nextCursor: 'c2' }
@@ -47,7 +57,7 @@ describe('ResetsService', () => {
     vi.useRealTimers();
   });
 
-  it('fetches both areas on open and does not poll while open (LHS-7 검증 1, LHS-8 검증 1)', async () => {
+  it('fetches both areas on open, 5 history entries first, and does not poll while open (LHS-7 검증 1, LHS-8 검증 1)', async () => {
     vi.useFakeTimers();
     const api = fakeApi();
     const service = new ResetsService(api, () => undefined);
@@ -55,15 +65,67 @@ describe('ResetsService', () => {
     expect(snapshot.status.kind).toBe('ok');
     expect(snapshot.history.kind).toBe('ok');
     await vi.advanceTimersByTimeAsync(10 * 60_000);
-    expect(api.calls).toEqual(['status', 'history:null']);
+    expect(api.calls).toEqual(['status', 'history:null:5']);
   });
 
-  it('pages history with the cursor (LHS-8 검증 2)', async () => {
+  it('reopening keeps the known values on screen while both areas are fetched again (PR-Q003, owner 2026-10-30)', async () => {
+    const api = fakeApi();
+    const seen: ReturnType<ResetsService['snapshot']>[] = [];
+    const service = new ResetsService(api, (s) => seen.push(s));
+    await service.open();
+    let release!: () => void;
+    api.gate = new Promise((resolve) => (release = resolve));
+    seen.length = 0;
+    const reopened = service.open();
+    await Promise.resolve();
+    const during = service.snapshot();
+    expect(during.status.kind).toBe('ok');
+    expect(during.history.kind).toBe('ok');
+    expect(during.refreshing).toEqual({ status: true, history: true });
+    expect(seen.every((s) => s.status.kind !== 'loading' && s.history.kind !== 'loading')).toBe(true);
+    release();
+    const after = await reopened;
+    expect(after.refreshing).toEqual({ status: false, history: false });
+    expect(api.calls.filter((c) => c === 'status')).toHaveLength(2);
+  });
+
+  it('the usage screen fetches the status only when the last success is 5 minutes old (owner 2026-10-30)', async () => {
+    let now = Date.parse('2026-10-30T10:00:00Z');
+    const api = fakeApi();
+    const service = new ResetsService(
+      api,
+      () => undefined,
+      undefined,
+      () => now,
+    );
+    await service.freshenStatus();
+    expect(api.calls).toEqual(['status']);
+    now += statusFreshMs - 1;
+    await service.freshenStatus();
+    expect(api.calls).toEqual(['status']);
+    now += 1;
+    await service.freshenStatus();
+    expect(api.calls).toEqual(['status', 'status']);
+  });
+
+  it('the notification check and the screens share one status request (FC-F015, FC-F011)', async () => {
+    const api = fakeApi();
+    const service = new ResetsService(api, () => undefined);
+    const [forAlerts, forScreen] = await Promise.all([service.refreshStatus(), service.open()]);
+    expect(forAlerts.latest?.id).toBe('r1');
+    expect(forScreen.status.kind).toBe('ok');
+    expect(api.calls.filter((c) => c === 'status')).toHaveLength(1);
+    api.statusFails = true;
+    await expect(service.refreshStatus()).rejects.toThrow('연결하지 못했어요');
+    service.stop();
+  });
+
+  it('pages history with the cursor, 10 at a time (LHS-8 검증 2)', async () => {
     const api = fakeApi();
     const service = new ResetsService(api, () => undefined);
     await service.open();
     const snapshot = await service.loadMore();
-    expect(api.calls).toContain('history:c2');
+    expect(api.calls).toContain('history:c2:10');
     expect(snapshot.history.kind === 'ok' && snapshot.history.value.entries.map((e) => e.id)).toEqual([
       'r1',
       'r0',
@@ -102,6 +164,24 @@ describe('ResetsService', () => {
     api.statusFails = false;
     snapshot = await service.retry('status');
     expect(snapshot.status.kind).toBe('ok');
+  });
+
+  it('다시 시도 sends a new request while an automatic retry is still waiting for its answer (found 2026-10-30)', async () => {
+    vi.useFakeTimers();
+    const api = fakeApi();
+    api.statusFails = true;
+    const service = new ResetsService(api, () => undefined);
+    await service.open();
+    let release!: () => void;
+    api.gate = new Promise((resolve) => (release = resolve));
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(api.calls.filter((c) => c === 'status')).toHaveLength(2);
+    api.gate = null;
+    api.statusFails = false;
+    expect((await service.retry('status')).status.kind).toBe('ok');
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(service.snapshot().status.kind).toBe('ok');
   });
 
   it('shows a first failure without a value (LHS-8 검증 5)', async () => {
@@ -161,8 +241,10 @@ describe('resetsApi', () => {
     const fetchImpl = respond({ data: [], pagination: { has_more: true, next_cursor: 'n2' } });
     const page = await resetsApi('https://codex-resets.com', fetchImpl as unknown as typeof fetch).history(
       'c1',
+      10,
     );
     expect(page.nextCursor).toBe('n2');
     expect(String(fetchImpl.mock.calls[0]![0])).toContain('cursor=c1');
+    expect(String(fetchImpl.mock.calls[0]![0])).toContain('limit=10');
   });
 });

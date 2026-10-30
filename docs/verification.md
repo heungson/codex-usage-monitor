@@ -1,10 +1,53 @@
 # Verification
 
+## Version 3 (2026-10-30)
+
+Results for PRS plan «사용량 한도 모니터» v3 on the working tree (nothing committed). Issues LHS-2 to
+LHS-10 still carry v1 content in PRS (revision 2); their checks were run against the v3 behaviour,
+and the results are not yet recorded in PRS (the developer records them after committing).
+
+| Run                 | Command                                                     | Result on 2026-10-30                                                                                                   |
+| ------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Before the change   | `npm run lint` on the staged v1 code                        | 1 error (`e2e/screens.spec.ts` `prefer-const`); typecheck, format and 61 unit tests passed                             |
+| Types, lint, format | `npm run typecheck`, `npm run lint`, `npm run format:check` | clean                                                                                                                  |
+| Unit tests          | `npm test`                                                  | 68 passed                                                                                                              |
+| App checks          | `npm run test:e2e`                                          | 23 passed, 1 skipped (the live check)                                                                                  |
+| Live data           | `ULM_LIVE=1 npx playwright test e2e/live.spec.ts`           | passed: real Codex sessions read in about 0.9 s; live 예정 리셋 «예정 리셋 없음»; status, 5 history entries, then 15   |
+| Captures            | `e2e/look.spec.ts` (part of `test:e2e`)                     | `tmp/screens/`: three screens × light/dark × 항상 위 off/on, plus failure states; read, and one round of fixes applied |
+
+### Checks touched by v3
+
+| Issue  | Check                              | Result | How                                                                                                                                                                                                                                                                                                                                                                |
+| ------ | ---------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| LHS-5  | 7 (entries to the two screens)     | O      | App: the small «Claude Code 연동 안내» opens WF-S002; the 예정 리셋 area opens WF-S003 from its title, its text, and in the 결과 없음, failed and not-current states; no separate «Codex 전체 리셋» button is on the screen.                                                                                                                                       |
+| LHS-5  | 1–6, 8–10                          | O      | Same app checks as v1, rerun on the v3 screen: values, loading, 수집 대기, not-current, both failed, 확인 불가, refresh and recovery.                                                                                                                                                                                                                              |
+| LHS-7  | 1 (open, back, reopen, no polling) | O      | App: first open shows 불러오는 중 then the status; 5 s open with no request; reopening shows the known values with «새로 고치는 중» and then the server's new answer (결과 없음).                                                                                                                                                                                  |
+| LHS-7  | 2–7                                | O      | App and unit: keyless `GET /api/v1/status` without Authorization or Cookie; loading; 결과 없음; not-current with the history kept; first failure, «자동 재시도 중», 1/2/4 s back-off stopping after 3 (10/20/40 s in unit tests), «다시 시도»; the codex-resets.com link (recorded, not opened).                                                                   |
+| LHS-7  | v3: 예정 리셋 on the usage screen  | O      | App: scheduled reset shown without recent reset or average; 예정 리셋 없음; 결과 없음; failure with «다시 시도» and automatic retry; not-current after a success; the source link. Status fetched once at start and not again on reopening within 5 minutes (app); the 5-minute rule (unit).                                                                       |
+| LHS-8  | 1 (list, no polling, reopen)       | O      | App: 5 entries after 불러오는 중 (`limit=5`); no request while open; reopening shows the 14 known entries, then the new answer.                                                                                                                                                                                                                                    |
+| LHS-8  | 2 (cursor)                         | O      | App: «이력 더 보기» sent `cursor=5&limit=10` and showed all 14; no credentials. Live API: 5 then 10 continue correctly.                                                                                                                                                                                                                                            |
+| LHS-8  | 3–6                                | O      | Same app checks as v1 with 5 entries: 결과 없음, not-current with status kept, retries stopping, first failure and «다시 시도», source link and back.                                                                                                                                                                                                              |
+| LHS-10 | 3–6                                | O      | App: baseline, once per reset, held while refused; the in-app notice now has only «닫기» and the 예정 리셋 area below opens the reset screen.                                                                                                                                                                                                                      |
+| LHS-10 | 1, 2                               | -      | As in v1: real macOS banners are refused for the unsigned dev build on this Mac.                                                                                                                                                                                                                                                                                   |
+| LHS-2  | 1, 2, 5, 6, 9                      | O      | Same app checks as v1 on the restyled screen.                                                                                                                                                                                                                                                                                                                      |
+| (none) | FC-F019 «창 항상 위에 표시»        | O / -  | App (window mode): off at first; on makes the window always on top; the same switch is on all three screens; kept after restart; off from another screen is off everywhere. Unit: file kept, unreadable file is off. **Not checked**: the popover from the menu bar (stays open on blur, drag, reopening where dragged) — needs a real click on the menu bar item. |
+
+### Not verified in v3
+
+- The menu bar popover itself (`npm start` and a click on the menu bar item): closing on blur with the
+  switch off, staying open and being draggable with it on, reopening where it was dragged. The
+  screens were driven as an ordinary window (`ULM_SHOW_WINDOW=1`).
+- The scheduled reset as codex-resets.com really sends it: the live API had none on 2026-10-30; the
+  fake server's shape is the same as other reset entries.
+- Dark mode was captured with Playwright's colour-scheme emulation, not by switching macOS itself.
+
+## Version 1 (2026-10-28)
+
 2026-10-28 · Results for PRS plan «사용량 한도 모니터» v1, issues LHS-1 to LHS-10 (issue content
 revision 1 for LHS-1, revision 2 for the others). The same results were recorded in PRS with
 `record_verification`. Nothing is committed yet.
 
-## What was run
+### What was run
 
 | Run                     | Command                                                                                         | Result on 2026-10-28                                                                                                                                       |
 | ----------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -21,7 +64,7 @@ App checks drive the built app (`dist/`) in Electron with Playwright, the popove
 (`ULM_SHOW_WINDOW=1`), temporary folders for every file, and `e2e/fake-resets-server.ts` in place of
 codex-resets.com. A capture of every viewport of every state is in `tmp/e2e-shots/` and was read.
 
-## Not verified
+### Not verified
 
 - Opening the popover by clicking the menu bar item, and its position under the item. A script click
   needs macOS Accessibility permission for the terminal, which was not granted. The popover content
@@ -40,7 +83,7 @@ codex-resets.com. A capture of every viewport of every state is in `tmp/e2e-shot
 - Links open through `shell.openExternal`, which the app checks replace with a recorder; a real
   browser opening was not observed.
 
-## Defects found and fixed while checking
+### Defects found and fixed while checking
 
 - A Codex session file made unreadable still showed as current (cache keyed by size and mtime).
 - Long file paths in error notices overflowed the popover; raw `EACCES` messages were shown.

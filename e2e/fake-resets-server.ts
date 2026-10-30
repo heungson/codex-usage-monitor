@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
-export type Mode = 'ok' | 'empty' | 'fail';
+/** `scheduled` (status only): like `ok`, with a scheduled reset announced. */
+export type Mode = 'ok' | 'empty' | 'fail' | 'scheduled';
 
 const entries = Array.from({ length: 14 }, (_, i) => ({
   id: `r${i}`,
@@ -53,7 +54,16 @@ export async function startFakeResets(modeFile: string): Promise<FakeServer> {
       return reply(200, {
         data: {
           latest_reset: entries[0],
-          scheduled_reset: null,
+          scheduled_reset:
+            mode.status === 'scheduled'
+              ? {
+                  id: 'next',
+                  reset_type: 'regular',
+                  announced_at: new Date(Date.now() - 2 * 3_600_000).toISOString(),
+                  text: 'We are resetting Codex usage limits for everyone tomorrow.',
+                  source: { type: 'x_post', url: 'https://x.com/thsottiaux/status/2115330127886463299' },
+                }
+              : null,
           stats: {
             total: 68,
             last_reset_at: entries[0]!.announced_at,
@@ -68,8 +78,9 @@ export async function startFakeResets(modeFile: string): Promise<FakeServer> {
       if (mode.history === 'empty')
         return reply(200, { data: [], pagination: { has_more: false, next_cursor: null } });
       const start = Number(url.searchParams.get('cursor') ?? 0);
-      const page = entries.slice(start, start + 10);
-      const next = start + 10 < entries.length ? String(start + 10) : null;
+      const limit = Number(url.searchParams.get('limit') ?? 10);
+      const page = entries.slice(start, start + limit);
+      const next = start + limit < entries.length ? String(start + limit) : null;
       return reply(200, { data: page, pagination: { has_more: next !== null, next_cursor: next } });
     }
     reply(404, {});

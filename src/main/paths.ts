@@ -31,4 +31,5 @@ export const dataFiles = {
   settingsBackup: 'claude-settings.backup.json',
   limitAlerts: 'limit-alerts.json',
   resetAlerts: 'reset-alerts.json',
+  windowSettings: 'window-settings.json',
 } as const;

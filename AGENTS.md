@@ -3,9 +3,13 @@
 This is the only rules file. `CLAUDE.md` and any other agent's entry file only point here; never
 copy rules into them, because two copies drift apart.
 
-The product is planned in PRS, plan «사용량 한도 모니터» (published version 1). Issues reach a coding
+The product is planned in PRS, plan «사용량 한도 모니터» (published version 3). Issues reach a coding
 agent through the PRS developer MCP (`.mcp.json`, server `prs-developer`). Cite item ids from the
 plan (FC-F…, WF-S…, PR-P…) in code comments where a rule comes from the plan, and in commit messages.
+
+**Design system:** none. PRS plan v3 has no design system (`get_design_system`: `designSystem: null`),
+so the app uses its own CSS. Colours, type sizes and spacing are the tokens at the top of
+`src/renderer/styles.css`; new UI uses only those tokens and follows macOS light/dark mode.
 
 ## Rules
 
@@ -54,8 +58,9 @@ npm run test:e2e    # drives the built Electron app with Playwright
   rollback, the reset API client and backoff, both alert rules, the guard hook.
 - `npm run test:e2e` launches the real app (`ULM_SHOW_WINDOW=1` shows the popover as a window)
   against temporary folders and a local fake of codex-resets.com, clicks through every screen and
-  state, and saves a capture of every viewport in `tmp/e2e-shots/`. Open and read the captures; a
-  passing assertion is not a look at the screen.
+  state, and saves a capture of every viewport in `tmp/e2e-shots/`, plus the three screens in light
+  and dark with «항상 위» off and on in `tmp/screens/` (`e2e/look.spec.ts`). Open and read the
+  captures; a passing assertion is not a look at the screen.
 - `ULM_LIVE=1 npx playwright test e2e/live.spec.ts` reads this machine's `~/.codex/sessions` and the
   live codex-resets.com, without touching `~/.claude/settings.json`.
 - Opening the popover from the menu bar needs a real click on the menu bar item. Check that by hand

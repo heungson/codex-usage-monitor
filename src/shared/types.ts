@@ -96,9 +96,19 @@ export interface ResetHistory {
 export interface ResetsSnapshot {
   status: AreaState<ResetStatus>;
   history: AreaState<ResetHistory>;
+  /**
+   * An area that already shows a result and is being fetched again: the result stays on screen
+   * while the new request runs (owner decision 2026-10-30 on PR-Q003).
+   */
+  refreshing: { status: boolean; history: boolean };
 }
 
 export type View = 'usage' | 'claude-setup' | 'resets';
+
+/** Window settings shared by the three screens and kept across restarts (FC-F019). */
+export interface WindowSettings {
+  alwaysOnTop: boolean;
+}
 
 /** The API the preload script exposes to the renderer as `window.monitor`. */
 export interface MonitorApi {
@@ -112,10 +122,16 @@ export interface MonitorApi {
   reportHeight(height: number): void;
   getIntegration(): Promise<IntegrationStatus>;
   applyIntegration(): Promise<IntegrationStatus>;
+  /** The reset state as it is now, without a request: the usage screen's 예정 리셋 area. */
+  getResets(): Promise<ResetsSnapshot>;
+  /** The usage screen opened: fetch the status again if the last success is older than 5 minutes. */
+  freshenResets(): Promise<ResetsSnapshot>;
   openResets(): Promise<ResetsSnapshot>;
   retryResets(area: 'status' | 'history'): Promise<ResetsSnapshot>;
   loadMoreResets(): Promise<ResetsSnapshot>;
   onResets(listener: (snapshot: ResetsSnapshot) => void): () => void;
+  getWindowSettings(): Promise<WindowSettings>;
+  setAlwaysOnTop(on: boolean): Promise<WindowSettings>;
   openExternal(url: string): Promise<void>;
   onNavigate(listener: (view: View) => void): () => void;
 }

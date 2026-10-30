@@ -1,5 +1,6 @@
 // Claude Code 연동 안내 (WF-S002, LHS-2) and Codex 전체 리셋 (WF-S003, LHS-7, LHS-8) in the running app,
-// plus new-reset notifications (LHS-10).
+// plus new-reset notifications (LHS-10). Plan v3: the reset screen opens from the usage screen's 예정 리셋
+// area, shows what is known at once and fetches again; the history shows 5 entries, then 10 more.
 
 import { spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -136,10 +137,11 @@ test('status and history load on open, without polling, from the keyless API (LH
   await expect(statusCard(page)).toContainText('불러오는 중');
   await expect(historyCard(page)).toContainText('불러오는 중');
   await capture(page, 'resets-loading');
-  await expect(statusCard(page)).toContainText('최근 리셋');
+  await expect(statusCard(page)).toContainText('최근 전체 리셋');
   await expect(statusCard(page)).toContainText('예정된 리셋 없음');
   await expect(statusCard(page)).toContainText('약 6.0일');
-  await expect(historyCard(page).locator('li')).toHaveCount(10);
+  await expect(historyCard(page).locator('li')).toHaveCount(5);
+  expect(server.requests.some((r) => r.includes('/api/v1/resets?') && r.includes('limit=5'))).toBe(true);
   await capture(page, 'resets-ok');
 
   const before = server.requests.length;
@@ -149,7 +151,11 @@ test('status and history load on open, without polling, from the keyless API (LH
   await historyCard(page).getByRole('button', { name: '이력 더 보기' }).click();
   await expect(historyCard(page).locator('li')).toHaveCount(14);
   await expect(historyCard(page)).toContainText('이력을 끝까지 불러왔어요');
-  expect(server.requests.some((r) => r.includes('/api/v1/resets?') && r.includes('cursor=10'))).toBe(true);
+  expect(
+    server.requests.some(
+      (r) => r.includes('/api/v1/resets?') && r.includes('cursor=5') && r.includes('limit=10'),
+    ),
+  ).toBe(true);
   for (const r of server.requests) expect(r).toContain('auth=- cookie=-');
   await capture(page, 'resets-more');
 
@@ -163,9 +169,14 @@ test('status and history load on open, without polling, from the keyless API (LH
   await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
   await expect(page.locator('h1')).toHaveText('사용량 현황');
 
-  // Reopening asks again and shows what the server says now (LHS-7 검증 1, LHS-8 검증 1).
-  mode({ status: 'empty', history: 'empty' });
+  // Reopening shows the known values at once, asks again and shows what the server says now
+  // (LHS-7 검증 1, LHS-8 검증 1; PR-Q003 answered 2026-10-30).
+  mode({ status: 'empty', history: 'empty', delayMs: 1500 });
   await openResets(page);
+  await expect(statusCard(page)).toContainText('새로 고치는 중');
+  await expect(statusCard(page)).toContainText('최근 전체 리셋');
+  await expect(historyCard(page).locator('li')).toHaveCount(14);
+  await capture(page, 'resets-refreshing');
   await expect(statusCard(page)).toContainText('결과 없음');
   await expect(historyCard(page)).toContainText('표시할 리셋 이력이 없어요');
   await app.close();
@@ -177,14 +188,14 @@ test('only the status failing keeps the history area as it is (LHS-7 검증 5)',
     ULM_RESET_RETRY_MS: '60000',
   });
   await openResets(page);
-  await expect(statusCard(page)).toContainText('최근 리셋');
+  await expect(statusCard(page)).toContainText('최근 전체 리셋');
   await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
   mode({ status: 'fail' });
   await openResets(page);
   await expect(statusCard(page)).toContainText('최신 정보 아님');
   await expect(statusCard(page)).toContainText('503 오류');
-  await expect(statusCard(page)).toContainText('최근 리셋');
-  await expect(historyCard(page).locator('li')).toHaveCount(10);
+  await expect(statusCard(page)).toContainText('최근 전체 리셋');
+  await expect(historyCard(page).locator('li')).toHaveCount(5);
   await expect(historyCard(page).locator('.chip.warn')).toHaveCount(0);
   await capture(page, 'resets-status-stale');
   await app.close();
@@ -206,14 +217,14 @@ test('a failing area keeps its last value, retries with growing gaps and stops (
     ULM_RESET_RETRY_MS: '1000,2000,4000',
   });
   await openResets(page);
-  await expect(historyCard(page).locator('li')).toHaveCount(10);
+  await expect(historyCard(page).locator('li')).toHaveCount(5);
   await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
 
   mode({ history: 'fail' });
   await openResets(page);
   await expect(historyCard(page)).toContainText('최신 정보 아님');
   await expect(historyCard(page)).toContainText('500 오류');
-  await expect(statusCard(page)).toContainText('최근 리셋');
+  await expect(statusCard(page)).toContainText('최근 전체 리셋');
   await capture(page, 'resets-history-stale');
   await expect(historyCard(page)).toContainText('자동으로 다시 시도해요 (3번 중 1번째)');
   await expect(historyCard(page)).toContainText('자동 재시도 횟수를 다 써서 멈췄어요', { timeout: 15_000 });
@@ -233,7 +244,7 @@ test('a first failure has no value; 다시 시도 recovers (LHS-7 검증 6, LHS-
   await openResets(page);
   await expect(statusCard(page)).toContainText('불러오기 실패');
   await expect(statusCard(page)).toContainText('현황을 불러오지 못했어요');
-  await expect(statusCard(page)).not.toContainText('최근 리셋');
+  await expect(statusCard(page)).not.toContainText('최근 전체 리셋');
   await capture(page, 'resets-first-failure');
   // Slow failing answers keep the automatic retry in flight long enough to see it.
   mode({ status: 'fail', history: 'fail', delayMs: 2500 });
@@ -241,9 +252,9 @@ test('a first failure has no value; 다시 시도 recovers (LHS-7 검증 6, LHS-
   await capture(page, 'resets-retrying');
   mode({});
   await statusCard(page).getByRole('button', { name: '다시 시도' }).click();
-  await expect(statusCard(page)).toContainText('최근 리셋');
+  await expect(statusCard(page)).toContainText('최근 전체 리셋');
   await historyCard(page).getByRole('button', { name: '다시 시도' }).click();
-  await expect(historyCard(page).locator('li')).toHaveCount(10);
+  await expect(historyCard(page).locator('li')).toHaveCount(5);
   await app.close();
 });
 
@@ -270,16 +281,18 @@ test('new reset notifications: baseline first, then once per reset, held while r
   store.baselineAt -= 1;
   store.delivered = [];
   writeFileSync(join(fixture.dataDir, 'reset-alerts.json'), JSON.stringify(store));
-  let page;
-  ({ app, page } = await launch(fixture, server.url, { ULM_RESET_CHECK_MS: '1500' }));
+  const second = await launch(fixture, server.url, { ULM_RESET_CHECK_MS: '1500' });
+  app = second.app;
+  const page = second.page;
   await expect.poll(() => log().length, { timeout: 10_000 }).toBeGreaterThan(0);
   expect(log().every((n) => n.outcome === 'denied')).toBe(true);
-  // The popover says so, with a way to the reset screen (2026-10-28: refused five times in silence).
-  await expect(page.getByText(/Codex 전체 리셋이 공지됐어요\. macOS 알림이 꺼져 있어/)).toBeVisible({
-    timeout: 10_000,
-  });
+  // The popover says so (2026-10-28: refused five times in silence). v3 has no separate button to the
+  // reset screen (FC-F008): the 예정 리셋 area right below opens it.
+  const notice = page.getByText(/Codex 전체 리셋이 공지됐어요\. macOS 알림이 꺼져 있어/);
+  await expect(notice).toBeVisible({ timeout: 10_000 });
   await capture(page, 'usage-reset-notice');
-  await page.getByRole('button', { name: 'Codex 전체 리셋 보기' }).click();
+  await expect(page.getByRole('button', { name: 'Codex 전체 리셋 보기' })).toHaveCount(0);
+  await page.locator('section[data-area="upcoming"] h2').click();
   await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
   writeFileSync(fixture.notifyFile, 'shown');
   await expect.poll(() => log().filter((n) => n.outcome === 'shown').length, { timeout: 10_000 }).toBe(1);

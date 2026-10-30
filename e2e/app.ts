@@ -74,7 +74,7 @@ export async function openedLinks(app: ElectronApplication): Promise<string[]> {
  * Captures every viewport of the popover from top to bottom (name-1.png, name-2.png, …), as the
  * window shows them. A full-page capture is not used: with a classic scrollbar it crops the page.
  */
-export async function capture(page: Page, name: string): Promise<void> {
+export async function capture(page: Page, name: string, dir = join('tmp', 'e2e-shots')): Promise<void> {
   const { scrollHeight, innerHeight } = await page.evaluate(() => ({
     scrollHeight: document.documentElement.scrollHeight,
     innerHeight: window.innerHeight,
@@ -82,7 +82,7 @@ export async function capture(page: Page, name: string): Promise<void> {
   const steps = Math.max(1, Math.ceil(scrollHeight / innerHeight));
   for (let i = 0; i < steps; i++) {
     await page.evaluate((y) => window.scrollTo(0, y), i * innerHeight);
-    await page.screenshot({ path: join('tmp', 'e2e-shots', `${name}-${i + 1}.png`) });
+    await page.screenshot({ path: join(dir, `${name}-${i + 1}.png`) });
   }
   await page.evaluate(() => window.scrollTo(0, 0));
 }

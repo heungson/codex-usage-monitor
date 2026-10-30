@@ -3,7 +3,16 @@
 import { mkdirSync, watch, type FSWatcher } from 'node:fs';
 import { join } from 'node:path';
 
-import electron, { app, BrowserWindow, ipcMain, nativeImage, screen, shell, Tray } from 'electron';
+import electron, {
+  app,
+  BrowserWindow,
+  ipcMain,
+  nativeImage,
+  nativeTheme,
+  screen,
+  shell,
+  Tray,
+} from 'electron';
 
 import type { CliId, SourceState, UsageSnapshot, View } from '../shared/types';
 import { claudeReader } from './claude-reader';
@@ -17,6 +26,7 @@ import { ResetAlerts, resetCheckIntervalMs } from './reset-alerts';
 import { resetsApi, resetsSite } from './resets-api';
 import { ResetsService } from './resets-service';
 import { trayTitle } from './tray-title';
+import { WindowSettingsStore } from './window-settings';
 
 const env = process.env;
 const numberEnv = (name: string, fallback: number) => (env[name] ? Number(env[name]) : fallback);
@@ -101,13 +111,18 @@ const integration = new Integration(paths, {
 const api = resetsApi(env.ULM_RESETS_BASE_URL ?? resetsSite);
 const retryDelays = env.ULM_RESET_RETRY_MS ? env.ULM_RESET_RETRY_MS.split(',').map(Number) : undefined;
 const resets = new ResetsService(api, (snapshot) => send('resets', snapshot), retryDelays);
+// The notification check asks through the shared status, so the usage screen's 예정 리셋 follows it.
 const resetAlerts = new ResetAlerts(
   join(paths.dataDir, dataFiles.resetAlerts),
-  api,
+  { status: () => resets.refreshStatus() },
   notifier,
   () => publishUsage(),
   appName,
 );
+
+const windowSettings = new WindowSettingsStore(join(paths.dataDir, dataFiles.windowSettings));
+/** The person dragged the pinned window somewhere: it reopens there instead of under the menu bar item. */
+let movedByPerson = false;
 
 let codexWatcher: FSWatcher | null = null;
 let codexDebounce: NodeJS.Timeout | null = null;
@@ -129,6 +144,7 @@ function watchCodexSessions(): void {
 
 function placePopover(): void {
   if (!popover || !tray || showWindowMode) return;
+  if (windowSettings.current.alwaysOnTop && movedByPerson) return;
   const trayBounds = tray.getBounds();
   const { width, height } = popover.getBounds();
   const display = screen.getDisplayNearestPoint({ x: trayBounds.x, y: trayBounds.y });
@@ -165,7 +181,7 @@ function createPopover(): BrowserWindow {
     skipTaskbar: !showWindowMode,
     alwaysOnTop: !showWindowMode,
     title: '사용량 한도 모니터',
-    backgroundColor: '#f6f6f4',
+    backgroundColor: windowBackground(),
     webPreferences: {
       preload: join(__dirname, '..', 'preload', 'preload.js'),
       contextIsolation: true,
@@ -174,12 +190,38 @@ function createPopover(): BrowserWindow {
     },
   });
   window.loadFile(join(__dirname, '..', 'renderer', 'index.html'));
-  if (!showWindowMode) window.on('blur', () => window.hide());
+  // Off, the popover closes when the person clicks elsewhere, as before; on, it stays above other
+  // windows until the menu bar item is clicked again (owner decision 2026-10-30 on FC-F019).
+  window.on('blur', () => {
+    if (!showWindowMode && !windowSettings.current.alwaysOnTop) window.hide();
+  });
+  window.on('will-move', () => {
+    movedByPerson = true;
+  });
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https://')) void shell.openExternal(url);
     return { action: 'deny' };
   });
   return window;
+}
+
+/** Matches the page background so a resize never flashes the wrong colour (styles.css --window). */
+function windowBackground(): string {
+  return nativeTheme.shouldUseDarkColors ? '#1c1c1e' : '#f2f2f4';
+}
+
+/** Applies «창 항상 위에 표시» to the window (FC-F019). */
+function applyWindowSettings(): void {
+  if (!popover) return;
+  const { alwaysOnTop } = windowSettings.current;
+  if (showWindowMode) {
+    popover.setAlwaysOnTop(alwaysOnTop);
+    return;
+  }
+  // The popover is always above other windows while it is open; pinned, it also stays open and can be dragged.
+  popover.setAlwaysOnTop(true, 'floating');
+  popover.setMovable(alwaysOnTop);
+  if (!alwaysOnTop) movedByPerson = false;
 }
 
 ipcMain.handle('usage:get', () => usageSnapshot());
@@ -213,9 +255,18 @@ ipcMain.handle('integration:apply', async () => {
   await collectors.claude.refresh();
   return status;
 });
+ipcMain.handle('resets:get', () => resets.snapshot());
+ipcMain.handle('resets:freshen', () => resets.freshenStatus());
 ipcMain.handle('resets:open', () => resets.open());
 ipcMain.handle('resets:retry', (_event, area: 'status' | 'history') => resets.retry(area));
 ipcMain.handle('resets:more', () => resets.loadMore());
+ipcMain.handle('window:get', () => windowSettings.current);
+ipcMain.handle('window:always-on-top', (_event, on: unknown) => {
+  if (typeof on !== 'boolean') return windowSettings.current;
+  const settings = windowSettings.setAlwaysOnTop(on);
+  applyWindowSettings();
+  return settings;
+});
 ipcMain.handle('external:open', async (_event, url: string) => {
   // Only links the screens show: codex-resets.com and the announcement posts it cites.
   if (/^https:\/\/(codex-resets\.com|x\.com|twitter\.com|t\.me)(\/|$)/.test(url))
@@ -227,6 +278,8 @@ app.on('second-instance', () => showPopover());
 app.whenReady().then(() => {
   if (!showWindowMode) app.dock?.hide();
   popover = createPopover();
+  applyWindowSettings();
+  nativeTheme.on('updated', () => popover?.setBackgroundColor(windowBackground()));
 
   tray = new Tray(nativeImage.createFromPath(join(__dirname, 'assets', 'trayTemplate.png')));
   tray.setToolTip('사용량 한도 모니터');
