@@ -113,11 +113,12 @@ function waitingHtml(cli: CliId): string {
          <p>최근 8일 안에 Codex CLI를 쓴 기록이 생기면 자동으로 보여요.</p></div>`;
 }
 
-function retryLine(cli: CliId, nextRetryAt: number | null): string {
-  const when = nextRetryAt ? ` · 다음 시도 ${formatClock(nextRetryAt)}` : '';
+/** The same words as the reset areas (areaError): 자동 재시도 중 while the automatic re-read runs (LHS-6 검증 10). */
+function retryLine(cli: CliId, source: Extract<SourceState, { kind: 'error' }>): string {
+  const when = source.nextRetryAt ? ` · 다음 시도 ${formatClock(source.nextRetryAt)}` : '';
   return `<div class="row-actions">
       <button class="small" data-action="retry" data-cli="${cli}" data-key="retry-${cli}">다시 시도</button>
-      <span>자동으로 다시 시도해요${when}</span>
+      <span>${source.retrying ? '자동 재시도 중' : `자동으로 다시 시도해요${when}`}</span>
     </div>`;
 }
 
@@ -145,15 +146,15 @@ function sourceCard(cli: CliId, source: SourceState): string {
         body = `
           <div class="notice warn" role="alert">
             <p>${escapeHtml(source.message)}. 아래는 마지막으로 읽은 값이에요.</p>
-            ${retryLine(cli, source.nextRetryAt)}
+            ${retryLine(cli, source)}
           </div>
           <div class="stale">${windowsHtml(source.lastGood)}${metaHtml(cli, source.lastGood)}</div>`;
       } else {
-        badge = chip('확인 불가', 'error');
+        badge = chip(source.retrying ? '자동 재시도 중' : '확인 불가', 'error');
         body = `
           <div class="notice error" role="alert">
             <p>${escapeHtml(source.message)}. 읽은 적이 없어 보여 줄 값이 없어요.</p>
-            ${retryLine(cli, source.nextRetryAt)}
+            ${retryLine(cli, source)}
           </div>`;
       }
       break;
@@ -184,7 +185,10 @@ function upcomingBody(value: ResetStatus): string {
 /**
  * Codex 예정 리셋, right under the Codex card (WF-S001). Anywhere in it opens the reset screen,
  * also when there is no scheduled reset or it could not be loaded (PR-P015); there is no separate
- * button for the reset screen (FC-F008).
+ * button for the reset screen (FC-F008). The area itself takes the keyboard (planner, 2026-10-30):
+ * a button stretched over the whole card is what gets focus, Enter and Space, and the name
+ * «Codex 전체 리셋 자세히 보기». It sits under the card's content rather than around it, so
+ * «다시 시도» and the source link stay buttons of their own for screen readers. › is only a sign.
  */
 function upcomingCard(): string {
   const s = state.resets?.status;
@@ -208,12 +212,11 @@ function upcomingCard(): string {
   }
   return `
     <section class="card upcoming" data-area="upcoming" data-action="go" data-view="resets" aria-label="Codex 예정 리셋">
+      <button class="upcoming-open" data-action="go" data-view="resets" data-key="open-resets"
+              aria-label="Codex 전체 리셋 자세히 보기" title="Codex 전체 리셋 자세히 보기"></button>
       <div class="card-head">
         <h2>Codex 예정 리셋</h2>
-        <span class="head-end">${badge}
-          <button class="icon-button" data-action="go" data-view="resets" data-key="open-resets"
-                  aria-label="Codex 전체 리셋 자세히 보기" title="Codex 전체 리셋 자세히 보기">${chevronRight}</button>
-        </span>
+        <span class="head-end">${badge}<span class="chevron" aria-hidden="true">${chevronRight}</span></span>
       </div>
       ${content}
       <p class="source">출처 <button class="link" data-action="external" data-url="${resetsSite}">codex-resets.com</button></p>

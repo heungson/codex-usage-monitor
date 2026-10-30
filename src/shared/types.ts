@@ -30,8 +30,17 @@ export type SourceState =
   /** No record yet: 수집 대기. Never shown as 0%. */
   | { kind: 'waiting' }
   | { kind: 'ok'; usage: CliUsage; readAt: number }
-  /** A read failed. `lastGood` is the last successful value, shown as not current. */
-  | { kind: 'error'; message: string; lastGood: CliUsage | null; nextRetryAt: number | null };
+  /**
+   * A read failed. `lastGood` is the last successful value, shown as not current. `retrying` is true
+   * while the scheduled automatic re-read runs (자동 재시도 중, LHS-6 검증 10).
+   */
+  | {
+      kind: 'error';
+      message: string;
+      lastGood: CliUsage | null;
+      nextRetryAt: number | null;
+      retrying: boolean;
+    };
 
 export interface UsageSnapshot {
   claude: SourceState;

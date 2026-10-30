@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 
 import { codexLine } from '../test/helpers';
-import { capture, launch, makeFixture, openedLinks, type Fixture } from './app';
+import { capture, clickUpcomingArea, launch, makeFixture, openedLinks, type Fixture } from './app';
 import { startFakeResets, type FakeServer } from './fake-resets-server';
 
 const hour = 3_600_000;
@@ -141,6 +141,42 @@ test('a failed area keeps its last value as not current, and 다시 시도 recov
   await app.close();
 });
 
+test('a Codex first read without permission shows 확인 불가, not 수집 대기 (LHS-4 검증 7, LHS-6 검증 9)', async () => {
+  writeClaude(fixture, 23, 61);
+  writeCodex(fixture, 44);
+  const sessionFile = join(fixture.codexSessions, '2026', '10', '28', 'rollout-a.jsonl');
+  chmodSync(sessionFile, 0o000);
+  const { app, page } = await launch(fixture, server.url);
+  await expect(card(page, 'codex')).toContainText('확인 불가');
+  await expect(card(page, 'codex')).toContainText('세션 기록을 읽을 권한이 없어요');
+  await expect(card(page, 'codex')).not.toContainText('% 사용');
+  await expect(card(page, 'codex')).not.toContainText('수집 대기');
+  await expect(card(page, 'claude')).toContainText('23% 사용');
+  await capture(page, 'usage-codex-unavailable');
+  chmodSync(sessionFile, 0o644);
+  await app.close();
+});
+
+test('the automatic re-read after a failure shows 자동 재시도 중, like the reset areas (LHS-6 검증 10)', async () => {
+  writeClaude(fixture, 23, 61);
+  writeCodex(fixture, 44);
+  const { app, page } = await launch(fixture, server.url, {
+    ULM_READ_INTERVAL_MS: '3000',
+    ULM_READ_DELAY_MS: '2000',
+  });
+  await expect(card(page, 'claude')).toContainText('23% 사용', { timeout: 10_000 });
+  const record = join(fixture.dataDir, 'claude-rate-limits.json');
+  chmodSync(record, 0o000);
+  await expect(card(page, 'claude')).toContainText('자동으로 다시 시도해요 · 다음 시도', { timeout: 10_000 });
+  await expect(card(page, 'claude')).toContainText('자동 재시도 중', { timeout: 10_000 });
+  await expect(card(page, 'claude').locator('.chip')).toHaveText('최신 정보 아님');
+  await expect(card(page, 'codex')).toContainText('44% 사용');
+  await capture(page, 'usage-claude-retrying');
+  chmodSync(record, 0o644);
+  await expect(card(page, 'claude')).toContainText('정상', { timeout: 10_000 });
+  await app.close();
+});
+
 test('a first failure shows 확인 불가 without values (LHS-5 검증 9, LHS-6 검증 9, LHS-3 검증 9)', async () => {
   writeFileSync(join(fixture.dataDir, 'claude-rate-limits.json'), '{"version":1,');
   writeCodex(fixture, 44);
@@ -182,7 +218,8 @@ test('the two entries open their screens; no separate reset button (LHS-5 검증
   await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
   await expect(page.locator('h1')).toHaveText('사용량 현황');
   await expect(page.locator('nav, button:text-is("Codex 전체 리셋")')).toHaveCount(0);
-  await upcoming(page).getByText('예정 리셋 없음').click();
+  await expect(upcoming(page)).toContainText('예정 리셋 없음');
+  await clickUpcomingArea(page);
   await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
   await app.close();
 });
@@ -198,11 +235,12 @@ test('the 예정 리셋 area shows the scheduled reset only, and opens the reset
   // Recent reset, average interval and history are for the reset screen only.
   await expect(upcoming(page)).not.toContainText('평균');
   await expect(upcoming(page)).not.toContainText('최근');
+  await expect(page.locator('main')).not.toContainText('이력');
   await capture(page, 'usage-upcoming-scheduled');
   await upcoming(page).getByRole('button', { name: 'codex-resets.com' }).click();
   expect(await openedLinks(app)).toEqual(['https://codex-resets.com']);
   await expect(page.locator('h1')).toHaveText('사용량 현황');
-  await upcoming(page).locator('.upcoming-main').click();
+  await clickUpcomingArea(page);
   await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
   await app.close();
 
@@ -210,7 +248,7 @@ test('the 예정 리셋 area shows the scheduled reset only, and opens the reset
   mode({ status: 'empty' });
   ({ app, page } = await launch(fixture, server.url, { ULM_RESET_CHECK_MS: '3600000' }));
   await expect(upcoming(page)).toContainText('예정 리셋 정보 없음');
-  await upcoming(page).click();
+  await clickUpcomingArea(page);
   await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
   await app.close();
 
@@ -224,6 +262,14 @@ test('the 예정 리셋 area shows the scheduled reset only, and opens the reset
   await expect(upcoming(page)).toContainText('불러오기 실패');
   await expect(upcoming(page)).toContainText('자동으로 다시 시도해요 (1번 중 1번째)');
   await capture(page, 'usage-upcoming-failed');
+  // Failed with no value: still no separate button and none of the reset screen's data, and the area opens it.
+  await expect(page.getByRole('button', { name: 'Codex 전체 리셋 자세히 보기' })).toHaveCount(1);
+  for (const word of ['최근 전체 리셋', '평균', '이력'])
+    await expect(page.locator('main')).not.toContainText(word);
+  await clickUpcomingArea(page);
+  await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
+  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await expect(upcoming(page)).toContainText('예정 리셋을 불러오지 못했어요');
   mode({ status: 'scheduled' });
   await upcoming(page).getByRole('button', { name: '다시 시도' }).click();
   await expect(page.locator('h1')).toHaveText('사용량 현황');
@@ -234,7 +280,39 @@ test('the 예정 리셋 area shows the scheduled reset only, and opens the reset
   await expect(upcoming(page)).toContainText('최신 정보 아님');
   await expect(upcoming(page)).toContainText('전체 리셋 예정');
   await capture(page, 'usage-upcoming-stale');
-  await upcoming(page).locator('h2').click();
+  await clickUpcomingArea(page);
+  await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
+  await app.close();
+});
+
+test('the 예정 리셋 area itself takes the keyboard; › is only a sign (LHS-5 검증 11, planner 2026-10-30)', async () => {
+  const { app, page } = await launch(fixture, server.url, { ULM_RESET_CHECK_MS: '3600000' });
+  await expect(upcoming(page)).toContainText('예정 리셋 없음');
+  const open = page.getByRole('button', { name: 'Codex 전체 리셋 자세히 보기' });
+  await expect(open).toHaveCount(1);
+  // The button is the area: it covers the whole card.
+  const [area, button] = [await upcoming(page).boundingBox(), await open.boundingBox()];
+  expect(button).toEqual(area);
+  // › is not a control.
+  await expect(upcoming(page).locator('.chevron')).toHaveAttribute('aria-hidden', 'true');
+  expect(
+    await upcoming(page)
+      .locator('.chevron')
+      .evaluate((el) => el.closest('button')),
+  ).toBeNull();
+  // Reached with Tab, opened with Enter, and again with Space.
+  await page.getByRole('switch', { name: '창 항상 위에 표시' }).focus();
+  for (let i = 0; i < 30; i++) {
+    if (await open.evaluate((el) => el === document.activeElement)) break;
+    await page.keyboard.press('Tab');
+  }
+  await expect(open).toBeFocused();
+  await capture(page, 'usage-upcoming-focused');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
+  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await open.focus();
+  await page.keyboard.press('Space');
   await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
   await app.close();
 });
@@ -267,7 +345,7 @@ test('«창 항상 위에 표시» is one switch on all three screens, off at fi
   await page.getByRole('button', { name: /Claude Code 연동 안내/ }).click();
   await expect(pin(page)).toBeChecked();
   await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
-  await upcoming(page).locator('h2').click();
+  await clickUpcomingArea(page);
   await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
   await expect(pin(page)).toBeChecked();
   await app.close();
@@ -277,7 +355,7 @@ test('«창 항상 위에 표시» is one switch on all three screens, off at fi
   await expect(pin(page)).toBeChecked();
   expect(await isOnTop(app)).toBe(true);
   // Turned off on another screen, it is off everywhere and after a restart.
-  await upcoming(page).locator('h2').click();
+  await clickUpcomingArea(page);
   await pin(page).uncheck({ force: true });
   await expect(pin(page)).not.toBeChecked();
   expect(await isOnTop(app)).toBe(false);

@@ -37,7 +37,7 @@ export class Collector {
     this.nextTickAt = this.now() + this.options.intervalMs;
     this.timer = setInterval(() => {
       this.nextTickAt = this.now() + this.options.intervalMs;
-      void this.refresh();
+      void this.refresh(true);
     }, this.options.intervalMs);
     void this.refresh();
   }
@@ -48,8 +48,15 @@ export class Collector {
     this.nextTickAt = null;
   }
 
-  /** Reads now. Concurrent callers share one read. */
-  refresh(): Promise<SourceState> {
+  /**
+   * Reads now. Concurrent callers share one read. `automatic` is the interval's re-read: after a
+   * failure it is the automatic retry, shown as 자동 재시도 중 while it runs (LHS-6 검증 10).
+   */
+  refresh(automatic = false): Promise<SourceState> {
+    if (automatic && !this.inFlight && this.current.kind === 'error' && !this.current.retrying) {
+      this.current = { ...this.current, retrying: true };
+      this.options.onChange(this.current);
+    }
     this.inFlight ??= this.readOnce().finally(() => {
       this.inFlight = null;
     });
@@ -74,6 +81,7 @@ export class Collector {
         message: (error as Error).message,
         lastGood: this.lastGood(),
         nextRetryAt: this.nextTickAt,
+        retrying: false,
       };
     }
     const changed = JSON.stringify(next) !== JSON.stringify(this.current);

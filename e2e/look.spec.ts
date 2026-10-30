@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 
 import { codexLine } from '../test/helpers';
-import { capture, launch, makeFixture } from './app';
+import { capture, clickUpcomingArea, launch, makeFixture } from './app';
 import { startFakeResets } from './fake-resets-server';
 
 const hour = 3_600_000;
@@ -57,7 +57,7 @@ for (const scheme of ['light', 'dark'] as const) {
     await shot('setup-pin-off');
 
     await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
-    await page.locator('section[data-area="upcoming"] h2').click();
+    await clickUpcomingArea(page);
     await expect(page.locator('section[data-area="history"] li')).toHaveCount(5);
     await shot('resets-pin-off');
     await page.getByRole('switch', { name: '창 항상 위에 표시' }).check({ force: true });

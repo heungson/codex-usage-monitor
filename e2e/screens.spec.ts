@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 
 import { statusLineInput } from '../test/helpers';
-import { capture, launch, makeFixture, openedLinks, type Fixture } from './app';
+import { capture, clickUpcomingArea, launch, makeFixture, openedLinks, type Fixture } from './app';
 import { startFakeResets, type FakeServer } from './fake-resets-server';
 
 let server: FakeServer;
@@ -142,6 +142,13 @@ test('status and history load on open, without polling, from the keyless API (LH
   await expect(statusCard(page)).toContainText('약 6.0일');
   await expect(historyCard(page).locator('li')).toHaveCount(5);
   expect(server.requests.some((r) => r.includes('/api/v1/resets?') && r.includes('limit=5'))).toBe(true);
+  // A row: local date and time, the type, the first line of the announcement, the original post (LHS-8 검증 1).
+  const row = historyCard(page).locator('li').first();
+  await expect(row.locator('strong')).toHaveText(/^10월 26일 \(월\) \d\d:00$/);
+  await expect(row.locator('.chip')).toHaveText('전체 리셋');
+  await expect(row.locator('.snippet')).toHaveText('Codex usage limits have been reset. Check your limits.');
+  await expect(row.getByRole('button', { name: '원문 공지' })).toBeVisible();
+  await expect(historyCard(page).locator('.chip', { hasText: '적립형 리셋' })).toHaveCount(1);
   await capture(page, 'resets-ok');
 
   const before = server.requests.length;
@@ -292,7 +299,7 @@ test('new reset notifications: baseline first, then once per reset, held while r
   await expect(notice).toBeVisible({ timeout: 10_000 });
   await capture(page, 'usage-reset-notice');
   await expect(page.getByRole('button', { name: 'Codex 전체 리셋 보기' })).toHaveCount(0);
-  await page.locator('section[data-area="upcoming"] h2').click();
+  await clickUpcomingArea(page);
   await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
   writeFileSync(fixture.notifyFile, 'shown');
   await expect.poll(() => log().filter((n) => n.outcome === 'shown').length, { timeout: 10_000 }).toBe(1);

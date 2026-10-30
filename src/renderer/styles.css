@@ -401,8 +401,39 @@ main {
 /* ---------- Codex 예정 리셋 ---------- */
 
 .upcoming {
+  position: relative;
   cursor: pointer;
   transition: background 0.12s ease;
+}
+
+/* The whole card is one button for the keyboard (planner, 2026-10-30); the content lies above it. */
+.upcoming-open {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border-radius: inherit;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+/* Text lets the pointer through to the button; «다시 시도» and the source link stay their own. */
+.upcoming > :not(.upcoming-open) {
+  position: relative;
+  pointer-events: none;
+}
+
+.upcoming button:not(.upcoming-open) {
+  pointer-events: auto;
+}
+
+.upcoming .chevron {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  color: var(--text-2);
 }
 
 .upcoming:hover {
@@ -503,8 +534,7 @@ button:active:not(:disabled) {
 }
 
 button:focus-visible,
-.link:focus-visible,
-.upcoming:focus-visible {
+.link:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }

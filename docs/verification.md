@@ -1,10 +1,39 @@
 # Verification
 
-## Version 3 (2026-10-30)
+## Version 3, issues rewritten (2026-10-30)
 
-Results for PRS plan «사용량 한도 모니터» v3 on the working tree (nothing committed). Issues LHS-2 to
-LHS-10 still carry v1 content in PRS (revision 2); their checks were run against the v3 behaviour,
-and the results are not yet recorded in PRS (the developer records them after committing).
+The planner rewrote LHS-2 to LHS-8 for v3, then corrected LHS-7 (revision 6) and LHS-8 (revision 7)
+to the values in `docs/decisions.md`. Results are recorded in PRS with `record_verification`.
+
+**Round 1, commit 92122b5** (LHS-2 r4, LHS-3 r3, LHS-4 r3, LHS-5 r4, LHS-6 r3, LHS-7 r4, LHS-8 r4,
+LHS-10 r2): 61 O, 3 X.
+
+- X LHS-7 검증 6: the issue said 30/60/120 s; the app retries after 10/20/40 s. The issue was wrong
+  (revision 6 now says 10/20/40 s).
+- X LHS-8 검증 1: the issue said the API's default page size and «리셋 시각만»; the app asks for 5 and
+  shows time, type, first line, original post. The issue was wrong (revision 7 now says so).
+- X LHS-6 검증 10: the usage cards never showed «자동 재시도 중». Watched for 42 s with the default
+  30 s interval and reads held 8 s. Fixed in round 2.
+
+**Round 2, working tree after 92122b5** (LHS-5 r4 and LHS-6 r3 for the checks this change touches,
+LHS-7 r6 and LHS-8 r7 for every check).
+
+| Run                     | Command                                                     | Result on 2026-10-30                                                                                                                                                                    |
+| ----------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Types, lint, format     | `npm run typecheck`, `npm run lint`, `npm run format:check` | clean                                                                                                                                                                                   |
+| Unit tests              | `npm test`                                                  | 70 passed (new: the automatic re-read shows 자동 재시도 중; LHS-2 검증 5 rollback after the settings file was written, `test/integration-rollback.test.ts`)                             |
+| App checks              | `npm run test:e2e`                                          | 26 passed, 1 skipped (new: 자동 재시도 중 on a card; Codex first read without permission; the 예정 리셋 area by Tab, Enter and Space; history row content)                              |
+| Default intervals, 30 s | `tmp/probe/intervals.pw.ts`, outside the repository         | Claude record changed → shown after 28.1 s; read failure shown after 29.6 s; recovered without a click after 30.1 s; with reads held 8 s, «자동 재시도 중» seen during the 30 s re-read |
+
+Kept out of the repository: the 30-second script (it takes about 3½ minutes) and a probe that wrapped
+`node:fs/promises` and `fetch` around one read of each reader (only the record folders were touched,
+no fetch; LHS-3 검증 6, LHS-4 검증 6, round 1). `tmp/probe/` still holds them: the repository's guard
+refuses `rm -rf` there, so the developer deletes it.
+
+## Version 3, first pass (2026-10-30)
+
+Results for PRS plan «사용량 한도 모니터» v3 on the working tree before 92122b5. Issues LHS-2 to
+LHS-10 still carried v1 content in PRS then (revision 2).
 
 | Run                 | Command                                                     | Result on 2026-10-30                                                                                                   |
 | ------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |

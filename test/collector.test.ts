@@ -69,6 +69,34 @@ describe('Collector', () => {
     collector.stop();
   });
 
+  it('shows 자동 재시도 중 while the automatic re-read after a failure runs (LHS-6 검증 10)', async () => {
+    vi.useFakeTimers();
+    let fail = true;
+    let release: (() => void) | null = null;
+    const seen: SourceState[] = [];
+    const collector = new Collector(
+      async () => {
+        if (release === null && !fail) await new Promise<void>((resolve) => (release = resolve));
+        if (fail) throw new Error('권한');
+        return usage(50);
+      },
+      { intervalMs: 30_000, onChange: (s) => seen.push(s) },
+    );
+    collector.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(collector.state).toMatchObject({ kind: 'error', retrying: false });
+    // A manual retry is not shown as automatic.
+    await collector.refresh();
+    expect(seen.some((s) => s.kind === 'error' && s.retrying)).toBe(false);
+    fail = false;
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(collector.state).toMatchObject({ kind: 'error', retrying: true });
+    release!();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(collector.state.kind).toBe('ok');
+    collector.stop();
+  });
+
   it('notifies only on change', async () => {
     const changes: string[] = [];
     const collector = new Collector(async () => usage(10), {

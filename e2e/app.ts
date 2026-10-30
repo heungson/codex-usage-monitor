@@ -86,3 +86,11 @@ export async function capture(page: Page, name: string, dir = join('tmp', 'e2e-s
   }
   await page.evaluate(() => window.scrollTo(0, 0));
 }
+
+/**
+ * Clicks the usage screen's 예정 리셋 area on its title, as a person would. The click lands on the
+ * button that covers the whole area (planner, 2026-10-30), not on the title text.
+ */
+export async function clickUpcomingArea(page: Page): Promise<void> {
+  await page.locator('section[data-area="upcoming"]').click({ position: { x: 24, y: 18 } });
+}

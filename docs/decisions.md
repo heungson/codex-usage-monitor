@@ -23,7 +23,7 @@ undecided. Recorded here because the PRS developer MCP cannot post issue comment
 | Question                                                                                    | Issue         | Answer                                                                                                                                                                        |
 | ------------------------------------------------------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | How often the open popover refreshes, and how often a failed area retries                   | LHS-5         | Every 60 seconds while the popover is open. The local files are still re-read every 30 seconds in the background (LHS-3, LHS-4 say so).                                       |
-| codex-resets.com retry backoff                                                              | LHS-7, LHS-8  | 10 s, 20 s, 40 s, then stop (3 automatic tries). «다시 시도» starts over.                                                                                                     |
+| codex-resets.com retry backoff                                                              | LHS-7, LHS-8  | 10 s, 20 s, 40 s, then stop (3 automatic tries). «다시 시도» starts over. In PRS since LHS-7 revision 6 and LHS-8 revision 7 (2026-10-30).                                    |
 | What a history row shows                                                                    | LHS-8         | Local date and time, the type (전체 리셋 / 적립형 리셋), the first line of the announcement, and a link to the original post.                                                 |
 | New-reset notifications depend on a status that is only fetched when the reset screen opens | LHS-7, LHS-10 | Check `/api/v1/status` in the background every 15 minutes for notifications. The reset screen does not poll while open. (v3: see below; the check now feeds the screens too.) |
 | A remote repository for LHS-1                                                               | LHS-1         | `origin` is git@github.com:heungson/codex-usage-monitor.git (owner, 2026-10-30). Not registered in PRS yet.                                                                   |
@@ -42,6 +42,33 @@ Asked of the developer, 이흥선, in the coding session on 2026-10-30; they ans
 | 5   | PR-Q002 / FC-Q001 / UF-Q003: keep the separate reset screen?                                            | Keep it (WF-S003), opened from the 예정 리셋 area, back to 사용량 현황.                                                                                                                                                                                                                            |
 | 6   | The «Codex 전체 리셋 보기» button in the usage screen's notice about a reset that could not be notified | Removed, keeping «닫기»: FC-F008 says there is no separate button to the reset screen, and the 예정 리셋 area right below opens it.                                                                                                                                                                |
 | 7   | A design-system paragraph in AGENTS.md                                                                  | Added: no design system; the tokens in `src/renderer/styles.css`.                                                                                                                                                                                                                                  |
+
+### Version 3 issues, rewritten (2026-10-30)
+
+The planner rewrote LHS-2 to LHS-8 for v3. In the rewrite, where this file's answers were not in
+PRS, the values an AI recommended were confirmed instead: retries after 30, 60, 120 s (LHS-7,
+LHS-8); the API's default page size and «리셋 시각만» per history row (LHS-8). The developer, 이흥선,
+commented on both issues, and the planner corrected and confirmed them again: **LHS-7 revision 6**
+and **LHS-8 revision 7** now say 10, 20, 40 s then stop; 5 entries first and 10 per «이력 더 보기»;
+a row shows the local date and time, the type, the first line of the announcement and the original
+post. The app was already so; no code changed for it.
+
+- LHS-8's «화면» section still says «기본 페이지 크기 … 리셋 시각만»: PRS does not let the planner
+  edit that section. Follow the 개발 항목 and 검증 항목; the developer reported the gap to PRS. No
+  issue comment.
+
+Answered by the developer, 이흥선, on 2026-10-30, the second from the planner:
+
+- **«자동 재시도 중» on the usage cards (LHS-6 검증 10).** While the 30-second automatic re-read
+  after a failure runs, a CLI card says «자동 재시도 중», with the same words and look as the reset
+  areas: in the notice's retry line, and as the chip when there is no last value. «다시 시도» and
+  other re-reads are not shown as automatic.
+- **The 예정 리셋 area takes the keyboard itself (LHS-5 검증 11).** The planner's answer: no separate
+  button; the area itself gets focus, opens with Enter or Space, and is announced as
+  «Codex 전체 리셋 자세히 보기»; › stays only as a sign that cannot be pressed. Built as one button
+  stretched over the whole card, under its content, rather than giving the card itself a button role:
+  a button's content is read as one label, so «다시 시도» and the source link inside the area would
+  have been lost to screen readers. Text in the card lets the pointer through to that button.
 
 Settled here without asking, because no person sees them:
 
