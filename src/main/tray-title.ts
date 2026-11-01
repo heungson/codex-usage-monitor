@@ -1,9 +1,12 @@
-// The menu bar text: the highest used window of each CLI, «CC 42% · CX 61%».
-// «–» means no record yet (수집 대기), «…» loading, and a trailing «?» a value that is not current.
-// While the shared reset status has a Codex reset scheduled, the time left follows with the same
-// separator: «CC 73% · CX 26% · ↻ 2일» (PR-P026, WF-P005, LHS-5 개발 항목 5).
+// The menu bar text: every recorded window of each CLI, 5시간/7일, «CC 92/84% · CX 12/44%»; a CLI
+// with one window recorded shows that one, «CX 30%», and a missing window is not shown as 0
+// (LHS-5 개발 항목 5, FC-F008, WF-P005). «–» means no record yet (수집 대기), «…» loading, and a
+// trailing «?» a value that is not current. While the shared reset status has a Codex reset
+// scheduled, the time left follows with the same separator: «… · ↻ 2일» (PR-P026). The title is
+// never shortened for space; macOS hides the item when the menu bar is full (LHS-5 개발 항목 5).
 
-import type { AreaState, ResetStatus, SourceState, UsageSnapshot } from '../shared/types';
+import { shorterFirst } from '../shared/format';
+import type { AreaState, CliUsage, ResetStatus, SourceState, UsageSnapshot } from '../shared/types';
 
 const separator = ' · ';
 const minute = 60_000;
@@ -17,14 +20,16 @@ function part(state: SourceState): string {
     case 'waiting':
       return '–';
     case 'ok':
-      return highest(state.usage.windows.map((w) => w.usedPercent));
+      return percents(state.usage);
     case 'error':
-      return state.lastGood ? `${highest(state.lastGood.windows.map((w) => w.usedPercent))}?` : '!';
+      return state.lastGood ? `${percents(state.lastGood)}?` : '!';
   }
 }
 
-function highest(values: number[]): string {
-  return values.length === 0 ? '–' : `${Math.round(Math.max(...values))}%`;
+/** «92/84%», shorter window first; «30%» with one window. */
+function percents(usage: CliUsage): string {
+  const values = [...usage.windows].sort(shorterFirst).map((w) => Math.round(w.usedPercent));
+  return values.length === 0 ? '–' : `${values.join('/')}%`;
 }
 
 export function trayTitle(snapshot: UsageSnapshot): string {

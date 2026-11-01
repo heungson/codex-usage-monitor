@@ -16,6 +16,10 @@ nothing about you anywhere.
 - **Codex global resets**: `GET /api/v1/status` and `GET /api/v1/resets` on codex-resets.com.
   Data from codex-resets.com. The usage screen shows the next scheduled reset; clicking that area
   opens the full status and history.
+- **Menu bar title**: both windows of each CLI, 5시간/7일, «CC 92/84% · CX 12/44%», and «· ↻ 2일» while
+  a Codex reset is scheduled. A click on the item opens 사용량 현황.
+- **Quitting**: right click or Control-click the menu bar item › «종료», or ⌘Q while 사용량 현황 is
+  open.
 - **창 항상 위에 표시**: the switch right of every screen's title. On, the popover stays open above
   other windows and can be dragged by its top bar; the choice is kept in
   `~/Library/Application Support/usage-limit-monitor/window-settings.json`.
@@ -31,6 +35,7 @@ Planned in PRS (plan «사용량 한도 모니터», version 3). Decisions: `doc
 ```sh
 npm install          # also downloads the Electron binary (install-electron)
 npm start            # builds and runs the app; it appears in the menu bar
+npm run dev          # as npm start, with ULM_DEV_DISPLAY=1 (see «Development» below)
 npm run build        # bundles into dist/
 npm run typecheck
 npm run lint
@@ -45,6 +50,20 @@ Newly applied status line integrations point at that runtime and `dist/hook/stat
 keep this folder (including `tmp/runtime/`) in place while the integration is applied. Existing
 integrations keep their previous runtime path. This is a local development bundle, not a notarized
 distribution build.
+
+## Development
+
+`ULM_DEV_DISPLAY=1` keeps the app's windows off your main display while you work on it. The popover
+and the ordinary window (`ULM_SHOW_WINDOW=1`) open at the top right of the first display that is not
+the main one (the one with the menu bar), and they are shown without taking the keyboard, so the app
+in front stays in front. Click the window to type in it. Until you do, the popover does not close
+when you click elsewhere; click the menu bar item to close it. With no other display, the window
+opens where it always does. The menu bar item itself is on every display and does not move.
+
+`npm run dev` and every app check (`npm run test:e2e`, through `e2e/app.ts`) set it;
+`e2e/dev-display.spec.ts` checks that the window lands on another display and that macOS's front app
+does not change. `npm start` does not set it, and a packaged app ignores it. `npm run dev` uses the
+same data folder and Claude Code settings as `npm start`.
 
 ## macOS notifications
 
@@ -76,6 +95,7 @@ Used by the checks to point the app at temporary folders. Normal use needs none.
 | `ULM_CODEX_SESSIONS`        | Codex sessions folder (default `~/.codex/sessions`)                                                    |
 | `ULM_RESETS_BASE_URL`       | Reset API origin (default `https://codex-resets.com`)                                                  |
 | `ULM_SHOW_WINDOW=1`         | Show the popover as an ordinary window at start                                                        |
+| `ULM_DEV_DISPLAY=1`         | Development: open the windows on a display other than the main one, without taking the keyboard        |
 | `ULM_READ_INTERVAL_MS`      | Local re-read interval (default 30000)                                                                 |
 | `ULM_READ_DELAY_MS`         | Hold every local read this long (shows the loading state)                                              |
 | `ULM_RESET_CHECK_MS`        | Background reset check interval (default 900000)                                                       |

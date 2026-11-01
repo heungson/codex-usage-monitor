@@ -1,5 +1,7 @@
 // Korean wording for windows and times, shared by the popover and the notifications.
 
+import type { UsageWindow } from './types';
+
 const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
 
 export function windowLabel(minutes: number | null): string {
@@ -8,6 +10,13 @@ export function windowLabel(minutes: number | null): string {
   if (minutes % 60 === 0) return `${minutes / 60}시간`;
   return `${minutes}분`;
 }
+
+/**
+ * Shorter window first, the same for both CLIs and in both places: 5시간 then 7일 on the usage screen
+ * (owner, 2026-10-30) and in the menu bar title (LHS-5 개발 항목 5, WF-P005).
+ */
+export const shorterFirst = (a: UsageWindow, b: UsageWindow) =>
+  (a.windowMinutes ?? Number.MAX_SAFE_INTEGER) - (b.windowMinutes ?? Number.MAX_SAFE_INTEGER);
 
 const pad = (n: number) => String(n).padStart(2, '0');
 

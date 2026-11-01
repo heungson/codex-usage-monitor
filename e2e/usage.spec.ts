@@ -443,17 +443,17 @@ test('limit alerts: 80% notifies once per window; a refusal is explained (LHS-9 
   await app.close();
 });
 
-test('the menu bar title counts down to a scheduled reset from the shared status (LHS-5 검증 12, 13, 15, 16, LHS-7 검증 9)', async () => {
-  writeClaude(fixture, 73, 20);
-  writeCodex(fixture, 26);
+test('the menu bar title counts down to a scheduled reset from the shared status (LHS-5 검증 12, 13, 15, 16, 22, LHS-7 검증 9)', async () => {
+  writeClaude(fixture, 92, 84);
+  writeCodex(fixture, 44, 12);
   const { app, page } = await launch(fixture, server.url, { ULM_RESET_CHECK_MS: '1500' });
-  await expect(card(page, 'codex')).toContainText('26% 사용');
+  await expect(card(page, 'codex')).toContainText('44% 사용');
   await watchTray(app, page);
-  await expect.poll(() => trayTitle(app)).toBe('CC 73% · CX 26%');
+  await expect.poll(() => trayTitle(app)).toBe('CC 92/84% · CX 12/44%');
 
   // The background check alone brings the scheduled reset: no screen is opened (LHS-7 검증 9).
   mode({ status: 'scheduled' });
-  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 73% · CX 26% · ↻ 2일');
+  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 92/84% · CX 12/44% · ↻ 2일');
   await expect(upcoming(page)).toContainText('전체 리셋 예정');
   const dueText = (scheduledInMs: number) => {
     const due = new Date(Date.now() + scheduledInMs);
@@ -464,7 +464,7 @@ test('the menu bar title counts down to a scheduled reset from the shared status
 
   // A new scheduled time reaches the title and the screen together (LHS-5 검증 16).
   mode({ status: 'scheduled', scheduledInMs: 5 * hour + 30 * 60_000 });
-  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 73% · CX 26% · ↻ 5시간');
+  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 92/84% · CX 12/44% · ↻ 5시간');
   // The screen shows the due time the title counts to (within the minute the check ran in).
   const clocks = [0, -60_000].map((off) => {
     const due = new Date(Date.now() + 5 * hour + 30 * 60_000 + off);
@@ -474,17 +474,54 @@ test('the menu bar title counts down to a scheduled reset from the shared status
 
   // No scheduled reset, then a failed check with a last good value: no suffix (LHS-5 검증 13).
   mode({ status: 'ok' });
-  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 73% · CX 26%');
+  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 92/84% · CX 12/44%');
   mode({ status: 'scheduled' });
-  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 73% · CX 26% · ↻ 2일');
+  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 92/84% · CX 12/44% · ↻ 2일');
   mode({ status: 'fail' });
-  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 73% · CX 26%');
+  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 92/84% · CX 12/44%');
   await expect(upcoming(page)).toContainText('최신 정보 아님');
+
+  // A scheduled reset with no time: shown in the 예정 리셋 area, no suffix in the title (LHS-5 검증 22).
+  // The area settles first (the title had no suffix already, after the failure); then the title.
+  mode({ status: 'scheduled', scheduledInMs: null });
+  await expect(upcoming(page)).not.toContainText('최신 정보 아님', { timeout: 10_000 });
+  await expect(upcoming(page)).toContainText('전체 리셋 예정');
+  expect(await trayTitle(app)).toBe('CC 92/84% · CX 12/44%');
+  // Two more checks (1.5 s apart) with the same answer still add none.
+  await page.waitForTimeout(3500);
+  expect(await trayTitle(app)).toBe('CC 92/84% · CX 12/44%');
 
   // Due in a few seconds while the next check is still on its way: gone at the reset time (LHS-5 검증 15).
   mode({ status: 'scheduled', scheduledInMs: 6000 });
-  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 73% · CX 26% · ↻ 1분 미만');
+  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 92/84% · CX 12/44% · ↻ 1분 미만');
   mode({ status: 'scheduled', scheduledInMs: 6000, delayMs: 20_000 });
-  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 73% · CX 26%');
+  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 92/84% · CX 12/44%');
+  await app.close();
+});
+
+test('the menu bar title shows both windows of each CLI, one when only one is recorded, and each CLI its own sign (LHS-5 검증 19, 20, 21)', async () => {
+  writeCodex(fixture, 44, 12);
+  const { app, page } = await launch(fixture, server.url, {
+    ULM_READ_INTERVAL_MS: '2000',
+    ULM_RESET_CHECK_MS: '3600000',
+  });
+  await expect(card(page, 'codex')).toContainText('44% 사용');
+  await watchTray(app, page);
+  // No Claude Code record: «–» for it only (검증 21).
+  await expect.poll(() => trayTitle(app)).toBe('CC – · CX 12/44%');
+
+  // With the screen closed the title still follows the records (검증 19, 20).
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.hide());
+  writeClaude(fixture, 92, 84);
+  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 92/84% · CX 12/44%');
+  writeCodex(fixture, 30);
+  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 92/84% · CX 30%');
+
+  // A Claude Code read that fails with a last good value: «?» for it only (검증 21).
+  const record = join(fixture.dataDir, 'claude-rate-limits.json');
+  chmodSync(record, 0o000);
+  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 92/84%? · CX 30%');
+  chmodSync(record, 0o644);
+  await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 92/84% · CX 30%');
   await app.close();
 });

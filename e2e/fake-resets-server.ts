@@ -1,7 +1,8 @@
 // A stand-in for codex-resets.com, so checks can make the API slow, empty or failing.
 // The mode is read from a JSON file on every request:
-// { status: Mode, history: Mode, delayMs?: number, scheduledInMs?: number }. `scheduledInMs` is how far
-// ahead the scheduled reset's `scheduled_for` lies (default 2 days 23 hours 30 minutes).
+// { status: Mode, history: Mode, delayMs?: number, scheduledInMs?: number | null }. `scheduledInMs` is how
+// far ahead the scheduled reset's `scheduled_for` lies (default 2 days 23 hours 30 minutes); null sends
+// a scheduled reset with no time (`scheduled_for: null`).
 
 import { readFileSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
@@ -43,7 +44,7 @@ export async function startFakeResets(modeFile: string): Promise<FakeServer> {
       status: Mode;
       history: Mode;
       delayMs?: number;
-      scheduledInMs?: number;
+      scheduledInMs?: number | null;
     };
     const reply = (code: number, body: unknown) =>
       setTimeout(() => {
@@ -65,9 +66,12 @@ export async function startFakeResets(modeFile: string): Promise<FakeServer> {
                   status: 'scheduled',
                   reset_type: 'regular',
                   announced_at: new Date(Date.now() - 2 * 3_600_000).toISOString(),
-                  scheduled_for: new Date(
-                    Date.now() + (mode.scheduledInMs ?? (2 * 24 + 23.5) * 3_600_000),
-                  ).toISOString(),
+                  scheduled_for:
+                    mode.scheduledInMs === null
+                      ? null
+                      : new Date(
+                          Date.now() + (mode.scheduledInMs ?? (2 * 24 + 23.5) * 3_600_000),
+                        ).toISOString(),
                   text: 'We are resetting Codex usage limits for everyone tomorrow.',
                   source: { type: 'x_post', url: 'https://x.com/thsottiaux/status/2115330127886463299' },
                 }

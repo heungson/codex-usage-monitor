@@ -4,6 +4,7 @@ import { trayTitle } from '../src/main/tray-title';
 import { alertThresholdPercent } from '../src/main/limit-alerts';
 import { nearLimit } from '../src/shared/limits';
 import { describeReset, formatDuration, windowLabel } from '../src/shared/format';
+import type { SourceState, UsageWindow } from '../src/shared/types';
 
 describe('format', () => {
   it('names windows', () => {
@@ -23,26 +24,51 @@ describe('format', () => {
   });
 });
 
+// LHS-5 (plan v5, revision 8) 검증 19–21: both windows per CLI, 5시간/7일, and each CLI's own state sign.
 describe('trayTitle', () => {
-  it('shows each CLI by its highest window', () => {
-    expect(
-      trayTitle({
-        claude: {
-          kind: 'ok',
-          readAt: 0,
-          usage: {
-            updatedAt: 0,
-            windows: [
-              { key: 'a', windowMinutes: 300, usedPercent: 12.4, resetsAt: null },
-              { key: 'b', windowMinutes: 10080, usedPercent: 41.6, resetsAt: null },
-            ],
-          },
-        },
-        codex: { kind: 'waiting' },
-        alertNotice: null,
-        resetNotice: null,
-      }),
-    ).toBe('CC 42% · CX –');
+  const win = (minutes: number, used: number): UsageWindow => ({
+    key: minutes === 300 ? 'five_hour' : 'seven_day',
+    windowMinutes: minutes,
+    usedPercent: used,
+    resetsAt: null,
+  });
+  const ok = (...windows: UsageWindow[]): SourceState => ({
+    kind: 'ok',
+    readAt: 0,
+    usage: { updatedAt: 0, windows },
+  });
+  const title = (claude: SourceState, codex: SourceState) =>
+    trayTitle({ claude, codex, alertNotice: null, resetNotice: null });
+  const bothCc = ok(win(300, 92), win(10080, 84));
+  // The Codex reader lists its windows as the session file does; here the 7-day one comes first.
+  const bothCx = ok(win(10080, 44), win(300, 12));
+
+  it('shows both windows of each CLI, 5시간/7일, not the highest one (LHS-5 검증 19)', () => {
+    expect(title(bothCc, bothCx)).toBe('CC 92/84% · CX 12/44%');
+    expect(title(ok(win(300, 12.4), win(10080, 41.6)), bothCx)).toBe('CC 12/42% · CX 12/44%');
+  });
+
+  it('shows only the window that is recorded, without filling the other with 0 (LHS-5 검증 20)', () => {
+    expect(title(ok(win(300, 92)), bothCx)).toBe('CC 92% · CX 12/44%');
+    expect(title(ok(win(10080, 84)), bothCx)).toBe('CC 84% · CX 12/44%');
+    expect(title(bothCc, ok(win(10080, 30)))).toBe('CC 92/84% · CX 30%');
+  });
+
+  it('gives each CLI its own –, … or ?, and keeps the other CLI as it is (LHS-5 검증 21)', () => {
+    const failed = (lastGood: SourceState): SourceState => ({
+      kind: 'error',
+      message: '읽지 못했어요',
+      lastGood: lastGood.kind === 'ok' ? lastGood.usage : null,
+      nextRetryAt: null,
+      retrying: false,
+    });
+    expect(title({ kind: 'waiting' }, bothCx)).toBe('CC – · CX 12/44%');
+    expect(title(bothCc, { kind: 'waiting' })).toBe('CC 92/84% · CX –');
+    expect(title({ kind: 'loading' }, bothCx)).toBe('CC … · CX 12/44%');
+    expect(title(bothCc, { kind: 'loading' })).toBe('CC 92/84% · CX …');
+    expect(title(failed(bothCc), bothCx)).toBe('CC 92/84%? · CX 12/44%');
+    expect(title(bothCc, failed(bothCx))).toBe('CC 92/84% · CX 12/44%?');
+    expect(title(bothCc, failed(ok(win(10080, 30))))).toBe('CC 92/84% · CX 30%?');
   });
 });
 

@@ -1,5 +1,6 @@
 // Launches the built app (dist/) in Electron against temporary folders, with the popover shown as
-// an ordinary window (ULM_SHOW_WINDOW=1) so it can be driven and captured.
+// an ordinary window (ULM_SHOW_WINDOW=1) so it can be driven and captured, on a display other than
+// the main one and without taking the keyboard (ULM_DEV_DISPLAY=1) when this Mac has one.
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { mkdtempSync } from 'node:fs';
@@ -44,6 +45,7 @@ export async function launch(
     env: {
       ...process.env,
       ULM_SHOW_WINDOW: '1',
+      ULM_DEV_DISPLAY: '1',
       ULM_HOME: fixture.dataDir,
       ULM_CLAUDE_SETTINGS: fixture.claudeSettings,
       ULM_CODEX_SESSIONS: fixture.codexSessions,

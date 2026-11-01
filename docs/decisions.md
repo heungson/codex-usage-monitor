@@ -93,9 +93,9 @@ Answered by the developer, 이흥선, on 2026-10-30, the second from the planner
 The plan was published as v4; the planner rewrote LHS-5 (revision 5), LHS-7 (revision 7) and LHS-8
 (revision 8). Built from them:
 
-- **Menu bar title (LHS-5 개발 항목 5, PR-P026, WF-P005).** «CC 73% · CX 26% · ↻ 2일» while the shared
-  status has a scheduled reset with a time still ahead: days, else hours, else minutes, rounded
-  down; under a minute «↻ 1분 미만». Worked out again every minute without a request, and removed at
+- **Menu bar title (LHS-5 개발 항목 5, PR-P026, WF-P005).** «CC 73% · CX 26% · ↻ 2일» (v5: both
+  windows, «CC 92/84% · CX 12/44% · ↻ 2일») while the shared status has a scheduled reset with a time
+  still ahead: days, else hours, else minutes, rounded down; under a minute «↻ 1분 미만». Worked out again every minute without a request, and removed at
   the reset time by a timer, without waiting for a request. A failed status removes it even with a
   last good value; a status being fetched again keeps it.
 - **Exactly 5 minutes does not refetch (LHS-5 검증 17, LHS-7 검증 9).** This file already said «older
@@ -148,8 +148,8 @@ Settled here without asking, because no person sees them:
 - Claude Code windows count as the same window for limit alerts while the reset time moves by less
   than 5 minutes, since the sources round it (`src/shared/windows.ts`, also used by the status line
   hook since 2026-10-30).
-- The menu bar shows `CC <highest %> · CX <highest %>`; `–` is no record, `?` a value that is not
-  current.
+- Until v5 the menu bar showed `CC <highest %> · CX <highest %>`; since LHS-5 revision 8 it shows both
+  windows (see «Version 5»). `–` is no record, `?` a value that is not current.
 
 - v3: the scheduled reset's own fields could not be seen: the live API had `scheduled_reset: null` on
   2026-10-30. The 예정 리셋 area shows the type, the announcement time and its first line, the fields
@@ -158,6 +158,54 @@ Settled here without asking, because no person sees them:
   when it is there, and the menu bar counts down to it.
 - v3: the window settings file is `window-settings.json` in the data folder; a missing or unreadable
   file reads as off.
+
+## Version 5 (2026-11-02)
+
+LHS-5 revision 8 (plan v5), and two requests from the developer, 이흥선, made on 2026-10-30 and built
+on 2026-11-02 in the worktree on branch `feature/menu-bar-both-windows`.
+
+### Menu bar title with both windows (LHS-5 개발 항목 5, FC-F008, WF-P005)
+
+- **Both windows per CLI, 5시간/7일**: «CC 92/84% · CX 12/44%», each value rounded on its own. This
+  replaces «the highest window of each CLI» (v1, «Settled here without asking» above). The order is
+  the screen's (shorter window first), now one function for both (`shorterFirst` in
+  `src/shared/format.ts`).
+- **One window recorded**: only that one, «CX 30%»; the missing window is never shown as 0.
+- **Signs per CLI, unchanged**: «–» 수집 대기, «…» 불러오는 중, a trailing «?» on the last good values
+  when a read failed («CC 92/84%?»). «!» for a failed read with no last value stays as before; the
+  issue does not name that state.
+- **Never shortened.** The app sets the whole title; when the menu bar is full, macOS hides items.
+  The issue (revision 8) says so; WF-P005 still says the way to keep both windows and the suffix
+  «is decided in WF-Q008» once a shortage is seen. The issue was followed.
+- For the planner, not changed here: PR-P008's example separates the CLIs with «|»
+  («CC 92/84% | CX 12/44%»); the issue, FC-F008 and WF-P005 say U+00B7. The app uses U+00B7.
+
+### Quitting (developer, 2026-10-30, comment on LHS-5)
+
+The app had no way to quit. The plan says nothing about it; this is the usual menu bar app behaviour,
+decided by the developer:
+
+- A right click or Control-click on the menu bar item opens a small menu with only «종료»; a click
+  opens 사용량 현황 as before. The menu is popped up from those clicks (`popUpContextMenu`), not set
+  with `setContextMenu`, with which macOS opens the menu on every click.
+- ⌘Q quits while 사용량 현황 is open: the app menu now has «종료» with ⌘Q. Setting an app menu replaces
+  Electron's default one, so it keeps the Edit menu for copy and paste in the popover.
+- Both items call `app.quit()` instead of Electron's quit role: on macOS that role's item goes through
+  the system and does nothing when clicked from code, so the checks could not drive it.
+
+### Development display (developer, 2026-10-30; no PRS issue)
+
+Test windows covered the developer's main display (the LG with the menu bar) and took the keyboard.
+`ULM_DEV_DISPLAY=1` (development only):
+
+- The popover and the ordinary window (`ULM_SHOW_WINDOW=1`) open at the top right of the first display
+  that is not the main one (here the DELL P2417H), 8 px in from its work area, with `showInactive()`:
+  the app in front stays in front. With one display they open where they always did.
+- Set by `npm run dev` and by every app check (`e2e/app.ts`). `npm start` does not set it, and a
+  packaged app ignores it.
+- A side effect, accepted: a popover that never got the keyboard does not close when the person clicks
+  elsewhere (it closes on blur); a click on the menu bar item closes it.
+- The menu bar item is on every display; macOS places it, and it is left as it is.
 
 ## Look (v3, revised 2026-10-30)
 

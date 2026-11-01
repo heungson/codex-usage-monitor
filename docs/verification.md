@@ -1,5 +1,49 @@
 # Verification
 
+## Version 5: both windows in the title, quitting, development display (2026-11-02)
+
+LHS-5 revision 8 (plan v5) and the developer's two requests in `docs/decisions.md` «Version 5», on
+the working tree before commit, branch `feature/menu-bar-both-windows` from 6d64bce. Recorded in PRS
+for LHS-5 검증 12–16 and 18–23, the checks whose result the title change can affect (17, the 5-minute
+rule, does not touch the title): 10 O, 23 «-».
+
+| Run                 | Command                                                     | Result on 2026-11-02                                                                                                                                                                  |
+| ------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Types, lint, format | `npm run typecheck`, `npm run lint`, `npm run format:check` | clean                                                                                                                                                                                 |
+| Unit tests          | `npm test`                                                  | 92 passed (new: 검증 19–21 in `test/format.test.ts`; `test/menu-bar-title.test.ts` now starts from both windows)                                                                      |
+| App checks          | `npm run test:e2e` (every launch sets `ULM_DEV_DISPLAY=1`)  | 35 passed, 1 skipped (the live check). New: 검증 19–21 and 22 on the real Tray; `e2e/quit.spec.ts`; `e2e/dev-display.spec.ts`. `lsappinfo front` was Ghostty before and after the run |
+| Live data           | `ULM_LIVE=1 npx playwright test e2e/live.spec.ts`           | passed; the live API had no scheduled reset                                                                                                                                           |
+
+**The window on the DELL, without the keyboard.** `e2e/dev-display.spec.ts` asks Electron where the
+window is (`screen.getDisplayMatching`), whether it has the keyboard (`isFocused`,
+`getFocusedWindow`), and macOS which application is in front (`lsappinfo front`) before and after.
+With the variable on: the window on «DELL P2417H» at (3272, 39), not focused, the front application
+unchanged, for the ordinary window and for the popover opened by a click on the item. The same probe
+with `ULM_DEV_DISPLAY=0`, three times: «LG QHD», focused, Electron in front. A capture of the DELL
+showed the usage screen at its top right over the other windows; it was deleted because it also caught
+the developer's chat window. In 1 of 7 early runs with the variable on, the front application changed;
+it did not happen again in the next 4 runs or the 2 full suites, and the cause was not found.
+
+**The real menu bar (LHS-5 검증 23).** `tmp/menubar-probe/` (outside the repository): the app with
+92/84, 12/44 and a scheduled reset; `screencapture` of the menu bar; then another Electron process
+with 8 wide items. With room: «CC 92/84% · CX 12/44% · ↻ 2일», 231 pt. Crowded: macOS hid 6 of the
+other items; ours kept its text, width and size. Started after the other items, ours was still shown
+and macOS hid another. Ours being hidden by macOS was not seen.
+
+**Quitting.** `e2e/quit.spec.ts` records the menu the item would pop up (the native menu cannot be
+clicked from a script): a right click and a Control-click each give one menu with only «종료» and leave
+the popover closed; a plain click opens 사용량 현황 with no menu; «종료» ends the app. The app menu has
+«종료» with `Command+Q`, and clicking it ends the app.
+
+Not verified:
+
+- A real right click or Control-click on the menu bar item, and a real ⌘Q keystroke. A script would
+  have had to click or type on the developer's screen; a mistaken ⌘Q would have quit the app in front.
+- `npm run dev` and `npm start` by hand: both use the real data folder and Claude Code settings. The
+  popover's placement with the variable was checked with a click emitted on the Tray, and that it
+  does not close on a click elsewhere until clicked into was not checked.
+- 검증 14, 18 and the «…» sign of 21 were checked in unit tests only.
+
 ## Several Claude Code windows, one record (2026-10-30)
 
 On the working tree after af45e7d (LHS-2, revision 4).

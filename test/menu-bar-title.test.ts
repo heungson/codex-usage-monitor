@@ -1,4 +1,4 @@
-// LHS-5 (plan v4, revision 5) 검증 12–18 and LHS-7 (revision 7) 검증 9, 10: the menu bar title's time
+// LHS-5 (plan v5, revision 8) 검증 12–18 and LHS-7 (revision 7) 검증 9, 10: the menu bar title's time
 // left to a scheduled Codex reset, read from the one shared status, and when that status is fetched.
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -15,16 +15,29 @@ const minute = 60 * second;
 const hour = 60 * minute;
 const day = 24 * hour;
 
+/** Both CLIs with both windows, as LHS-5 검증 12 asks («두 시간 창의 CC/CX 제목»). */
 const usage: UsageSnapshot = {
   claude: {
     kind: 'ok',
     readAt: 0,
-    usage: { updatedAt: 0, windows: [{ key: 'a', windowMinutes: 300, usedPercent: 73, resetsAt: null }] },
+    usage: {
+      updatedAt: 0,
+      windows: [
+        { key: 'five_hour', windowMinutes: 300, usedPercent: 92, resetsAt: null },
+        { key: 'seven_day', windowMinutes: 10080, usedPercent: 84, resetsAt: null },
+      ],
+    },
   },
   codex: {
     kind: 'ok',
     readAt: 0,
-    usage: { updatedAt: 0, windows: [{ key: 'b', windowMinutes: 10080, usedPercent: 26, resetsAt: null }] },
+    usage: {
+      updatedAt: 0,
+      windows: [
+        { key: 'primary', windowMinutes: 10080, usedPercent: 44, resetsAt: null },
+        { key: 'secondary', windowMinutes: 300, usedPercent: 12, resetsAt: null },
+      ],
+    },
   },
   alertNotice: null,
   resetNotice: null,
@@ -109,13 +122,13 @@ describe('menu bar title', () => {
     expect(timeLeft(59 * second)).toBe('1분 미만');
     const now = Date.parse('2026-10-30T10:00:00Z');
     const title = fullTitle(usage, ok(status(now + 2 * day + 23 * hour)), now);
-    expect(title).toBe('CC 73% · CX 26% · ↻ 2일');
+    expect(title).toBe('CC 92/84% · CX 12/44% · ↻ 2일');
     expect(title).not.toContain('codex-resets');
   });
 
   it('has no suffix without a scheduled reset, nor when the status failed with a last good value (LHS-5 검증 13)', () => {
     const now = Date.parse('2026-10-30T10:00:00Z');
-    expect(fullTitle(usage, ok(status(null, false)), now)).toBe('CC 73% · CX 26%');
+    expect(fullTitle(usage, ok(status(null, false)), now)).toBe('CC 92/84% · CX 12/44%');
     const failed: AreaState<ResetStatus> = {
       kind: 'error',
       message: 'codex-resets.com이 503 오류로 응답했어요',
@@ -123,10 +136,10 @@ describe('menu bar title', () => {
       lastGoodAt: now - hour,
       retry: null,
     };
-    expect(fullTitle(usage, failed, now)).toBe('CC 73% · CX 26%');
+    expect(fullTitle(usage, failed, now)).toBe('CC 92/84% · CX 12/44%');
     // A scheduled reset that names no time, or whose time has passed, has no time left to show.
-    expect(fullTitle(usage, ok(status(null)), now)).toBe('CC 73% · CX 26%');
-    expect(fullTitle(usage, ok(status(now)), now)).toBe('CC 73% · CX 26%');
+    expect(fullTitle(usage, ok(status(null)), now)).toBe('CC 92/84% · CX 12/44%');
+    expect(fullTitle(usage, ok(status(now)), now)).toBe('CC 92/84% · CX 12/44%');
   });
 
   it('keeps the suffix and works the time out again each minute while a check is held, without a request; a failed check removes it (LHS-5 검증 14)', async () => {
@@ -135,19 +148,19 @@ describe('menu bar title', () => {
     api.due = Date.now() + 2 * hour + 30 * second;
     const { service, title, last } = wire(api);
     await service.refreshStatus();
-    expect(last()).toBe('CC 73% · CX 26% · ↻ 2시간');
+    expect(last()).toBe('CC 92/84% · CX 12/44% · ↻ 2시간');
 
     const release = hold(api);
     const check = service.refreshStatus().catch(() => undefined);
     const calls = api.calls;
     await vi.advanceTimersByTimeAsync(minute);
-    expect(last()).toBe('CC 73% · CX 26% · ↻ 1시간');
+    expect(last()).toBe('CC 92/84% · CX 12/44% · ↻ 1시간');
     expect(api.calls).toBe(calls);
 
     api.fails = true;
     release();
     await check;
-    expect(last()).toBe('CC 73% · CX 26%');
+    expect(last()).toBe('CC 92/84% · CX 12/44%');
     service.stop();
     title.stop();
   });
@@ -158,12 +171,12 @@ describe('menu bar title', () => {
     api.due = Date.now() + 30 * second;
     const { service, title, last } = wire(api);
     await service.refreshStatus();
-    expect(last()).toBe('CC 73% · CX 26% · ↻ 1분 미만');
+    expect(last()).toBe('CC 92/84% · CX 12/44% · ↻ 1분 미만');
 
     const release = hold(api);
     void service.refreshStatus();
     await vi.advanceTimersByTimeAsync(30 * second);
-    expect(last()).toBe('CC 73% · CX 26%');
+    expect(last()).toBe('CC 92/84% · CX 12/44%');
     release();
     service.stop();
     title.stop();
@@ -175,11 +188,11 @@ describe('menu bar title', () => {
     api.due = Date.now() + 3 * day;
     const { service, title, last } = wire(api);
     await service.refreshStatus();
-    expect(last()).toBe('CC 73% · CX 26% · ↻ 3일');
+    expect(last()).toBe('CC 92/84% · CX 12/44% · ↻ 3일');
 
     api.due = Date.now() + 5 * hour;
     await service.refreshStatus();
-    expect(last()).toBe('CC 73% · CX 26% · ↻ 5시간');
+    expect(last()).toBe('CC 92/84% · CX 12/44% · ↻ 5시간');
     const shared = service.snapshot().status;
     expect(shared.kind === 'ok' && shared.value.scheduled?.scheduledFor).toBe(api.due);
     service.stop();
@@ -213,7 +226,7 @@ describe('menu bar title', () => {
     const api = fakeApi();
     const { service, title, last } = wire(api);
     await service.refreshStatus();
-    expect(last()).toBe('CC 73% · CX 26%');
+    expect(last()).toBe('CC 92/84% · CX 12/44%');
     vi.setSystemTime(Date.now() + statusFreshMs + minute);
 
     api.due = Date.now() + 2 * day + hour;
@@ -227,7 +240,7 @@ describe('menu bar title', () => {
     expect(api.calls).toBe(2);
     const shared = service.snapshot().status;
     expect(shared.kind === 'ok' && shared.value.scheduled?.scheduledFor).toBe(api.due);
-    expect(last()).toBe('CC 73% · CX 26% · ↻ 2일');
+    expect(last()).toBe('CC 92/84% · CX 12/44% · ↻ 2일');
     service.stop();
     title.stop();
   });

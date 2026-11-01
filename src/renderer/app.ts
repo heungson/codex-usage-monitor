@@ -7,6 +7,7 @@ import {
   formatClock,
   formatDateTime,
   formatDuration,
+  shorterFirst,
   windowLabel,
 } from '../shared/format';
 import { nearLimit } from '../shared/limits';
@@ -22,7 +23,6 @@ import type {
   ResetsSnapshot,
   SourceState,
   UsageSnapshot,
-  UsageWindow,
   View,
   WindowSettings,
 } from '../shared/types';
@@ -76,14 +76,10 @@ const skeleton = '<div class="skeleton"></div><div class="skeleton short"></div>
 
 // ---------- 사용량 현황 ----------
 
-/** Shorter window first, the same for both CLIs: 5시간 then 7일 (owner, 2026-10-30). */
-const byLength = (a: UsageWindow, b: UsageWindow) =>
-  (a.windowMinutes ?? Number.MAX_SAFE_INTEGER) - (b.windowMinutes ?? Number.MAX_SAFE_INTEGER);
-
 function windowsHtml(usage: CliUsage): string {
   if (usage.windows.length === 0) return '<p class="empty">기록에 한도 값이 없어요.</p>';
   return [...usage.windows]
-    .sort(byLength)
+    .sort(shorterFirst)
     .map((w) => {
       const percent = Math.max(0, Math.min(100, w.usedPercent));
       // Two colours only: the warning colour from the limit alert threshold (LHS-9, 80%), else the usual one.

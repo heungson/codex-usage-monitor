@@ -7,6 +7,7 @@ import electron, {
   app,
   BrowserWindow,
   ipcMain,
+  Menu,
   nativeImage,
   nativeTheme,
   screen,
@@ -33,6 +34,12 @@ const numberEnv = (name: string, fallback: number) => (env[name] ? Number(env[na
 
 /** ULM_SHOW_WINDOW=1 opens the popover as an ordinary window at start (checks and screenshots). */
 const showWindowMode = env.ULM_SHOW_WINDOW === '1';
+/**
+ * ULM_DEV_DISPLAY=1 (development only: the checks and `npm run dev`) opens the app's window on a
+ * display other than the main one and never takes the keyboard, so test windows stay off the
+ * developer's main screen (developer's request, 2026-10-30). Ignored by a packaged app.
+ */
+const devDisplayMode = env.ULM_DEV_DISPLAY === '1' && !app.isPackaged;
 const readIntervalMs = numberEnv('ULM_READ_INTERVAL_MS', 30_000);
 
 const paths = resolvePaths();
@@ -51,6 +58,13 @@ const notifier: Notifier = env.ULM_FAKE_NOTIFY
 
 let tray: Tray | null = null;
 let popover: BrowserWindow | null = null;
+/**
+ * «종료», in the menu bar item's right-click menu and the app menu (developer, 2026-10-30, comment on
+ * LHS-5). app.quit() rather than the quit role, whose native item cannot be driven by the checks.
+ */
+const quitItem: Electron.MenuItemConstructorOptions = { label: '종료', click: () => app.quit() };
+/** The menu bar item's right-click menu: only «종료». */
+let quitMenu: Menu;
 /** The menu bar text: usage, and the time left to a scheduled Codex reset (LHS-5 개발 항목 5). */
 const menuBarTitle = new MenuBarTitle((title) => tray?.setTitle(title));
 
@@ -152,9 +166,25 @@ function watchCodexSessions(): void {
   }
 }
 
+/** With ULM_DEV_DISPLAY=1, the first display that is not the main one; null without one. */
+function devDisplay(): Electron.Display | null {
+  if (!devDisplayMode) return null;
+  const main = screen.getPrimaryDisplay().id;
+  return screen.getAllDisplays().find((d) => d.id !== main) ?? null;
+}
+
 function placePopover(): void {
-  if (!popover || !tray || showWindowMode) return;
+  if (!popover) return;
   if (windowSettings.current.alwaysOnTop && movedByPerson) return;
+  const other = devDisplay();
+  if (other) {
+    // The top right of the other display's work area; the menu bar item stays on every screen.
+    const { width, height } = popover.getBounds();
+    const area = other.workArea;
+    popover.setBounds({ x: area.x + area.width - width - 8, y: area.y + 8, width, height });
+    return;
+  }
+  if (!tray || showWindowMode) return;
   const trayBounds = tray.getBounds();
   const { width, height } = popover.getBounds();
   const display = screen.getDisplayNearestPoint({ x: trayBounds.x, y: trayBounds.y });
@@ -171,8 +201,12 @@ function placePopover(): void {
 function showPopover(view: View = 'usage'): void {
   if (!popover) return;
   placePopover();
-  popover.show();
-  popover.focus();
+  if (devDisplayMode) {
+    popover.showInactive();
+  } else {
+    popover.show();
+    popover.focus();
+  }
   send('navigate', view);
   void resetAlerts.deliverPending();
 }
@@ -294,7 +328,23 @@ app.whenReady().then(() => {
 
   tray = new Tray(nativeImage.createFromPath(join(__dirname, 'assets', 'trayTemplate.png')));
   tray.setToolTip('사용량 한도 모니터');
-  tray.on('click', () => (popover?.isVisible() ? popover.hide() : showPopover()));
+  quitMenu = Menu.buildFromTemplate([quitItem]);
+  // A click opens 사용량 현황 as before; a right click or Control-click opens the «종료» menu
+  // (developer, 2026-10-30, comment on LHS-5). Not tray.setContextMenu: macOS would then open the
+  // menu on every click.
+  tray.on('click', (event) => {
+    if (event.ctrlKey) return tray?.popUpContextMenu(quitMenu);
+    return popover?.isVisible() ? popover.hide() : showPopover();
+  });
+  tray.on('right-click', () => tray?.popUpContextMenu(quitMenu));
+  // ⌘Q quits while the popover is open. The Edit menu keeps copy and paste in the popover, which
+  // Electron's default menu gave before this one replaced it.
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      { label: '사용량 한도 모니터', submenu: [{ ...quitItem, accelerator: 'Command+Q' }] },
+      { role: 'editMenu' },
+    ]),
+  );
 
   collectors.claude.start();
   collectors.codex.start();

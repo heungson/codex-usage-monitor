@@ -8,6 +8,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "start": "node scripts/start.mjs",
+    "dev": "ULM_DEV_DISPLAY=1 node scripts/start.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint .",
     "format": "prettier --write .",
