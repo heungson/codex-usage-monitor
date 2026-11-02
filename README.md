@@ -37,6 +37,8 @@ npm install          # also downloads the Electron binary (install-electron)
 npm start            # builds and runs the app; it appears in the menu bar
 npm run dev          # as npm start, with ULM_DEV_DISPLAY=1 (see «Development» below)
 npm run build        # bundles into dist/
+npm run package      # builds a standalone macOS app in tmp/package/
+npm run test:package # checks the packaged app after copying it to a different folder
 npm run typecheck
 npm run lint
 npm run format:check
@@ -50,6 +52,22 @@ Newly applied status line integrations point at that runtime and `dist/hook/stat
 keep this folder (including `tmp/runtime/`) in place while the integration is applied. Existing
 integrations keep their previous runtime path. This is a local development bundle, not a notarized
 distribution build.
+
+## Standalone macOS app
+
+Run `npm run package`, then open `tmp/package/` in Finder and drag **Usage Limit Monitor.app**
+to Applications. Double-click it there; its item appears in the menu bar. Quit any running development
+instance first. The app includes Electron and its code, so launching it needs neither Node.js nor
+this repository. Packaging uses the installed Electron binary's architecture (Apple Silicon or Intel).
+
+The bundle is locally ad-hoc signed, for use on this Mac; it is not a notarized distribution build.
+Each packaging run replaces the generated bundle in `tmp/package/`, not an installed copy.
+To update, quit the installed app, build again, and replace it in Applications.
+
+Move the app to its final location **before** applying Claude Code integration. Open «Claude Code
+연동 안내» and apply it from the installed app so the status line command points inside that bundle.
+If you previously applied integration from `npm start`, apply it again from the installed app before
+removing this repository. After moving the installed app, apply integration again to update the path.
 
 ## Development
 

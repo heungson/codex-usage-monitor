@@ -1,5 +1,16 @@
 # Decisions
 
+## Standalone macOS packaging (2026-11-02)
+
+Owner: developer 이흥선 requested a standalone app in the coding session; Codex selected the
+packaging implementation. `npm run package` copies the existing locally signed Electron runtime,
+embeds the bundled code and a minimal manifest under `Contents/Resources/app`, then signs and verifies
+the completed bundle. This follows Electron's manual packaging layout and adds no dependencies.
+Output is `tmp/package/Usage Limit Monitor.app`; the installed Electron architecture is retained.
+This is local packaging, with no distribution certificate or notarization. The hook stays unpacked
+so Claude Code can run it through the bundled executable (FC-F003). The user installs the bundle
+before applying integration so its absolute paths remain valid. Existing data locations are unchanged.
+
 2026-10-30 · In progress: built from PRS plan «사용량 한도 모니터», published version 3 (first built
 from version 1 on 2026-10-28). Issues LHS-2 to LHS-10 still say version 1 in PRS; the planner (이흥선,
 also the developer) decided to build version 3. Nothing is committed yet. The plan has no design

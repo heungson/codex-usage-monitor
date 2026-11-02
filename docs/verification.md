@@ -1,5 +1,34 @@
 # Verification
 
+## Standalone macOS package (2026-11-02)
+
+Requested directly by the developer, without a supplied PRS issue. The PRS developer MCP is not
+available in this session, so no `record_verification` entry was written.
+
+- `npm run test:package`: passed (1 test). Built the arm64 bundle, copied it to a differently named
+  folder under `tmp/`, verified its signature with `codesign --verify --deep --strict`, launched
+  without a project argument and with a different working directory, and confirmed `app.isPackaged`
+  and the embedded app path. Opened all three screens, applied integration to temporary settings,
+  ran the embedded hook through the saved shell command, and observed 33% on the Claude usage card.
+- `npm run typecheck`, `npm run lint`, `npm run format:check`: passed.
+- `npm test`: 92 passed. Existing Vite configuration warning remains.
+- `npm run test:e2e`: 34 passed, 1 failed, 2 skipped (live data and the separately run package check).
+  The failure is the dark usage screen's no-scroll assertion described below; the full suite is
+  therefore not green. Generated captures in `tmp/screens/` and `tmp/e2e-shots/` were opened and
+  visually reviewed using contact sheets in `tmp/review-*.jpg` and `tmp/review-extra-*.jpg`.
+- `git diff --check`: passed.
+- Initial package checks exposed a missing test input argument and Electron treating its original
+  executable name as development mode. Both were fixed; the executable and `CFBundleExecutable`
+  now use the app's name. A sandboxed attempt could not bind the local fake API (`EPERM`); the
+  successful check ran outside that sandbox.
+
+The packaged usage capture in `tmp/e2e-shots/packaged-usage-1.png` was opened and visually inspected.
+The existing dark usage capture shows its footer wrapping and scrolling at the 360 × 600 test
+viewport; the existing `three screens, dark` no-scroll assertion also failed on a targeted rerun
+(`npx playwright test e2e/look.spec.ts --grep 'three screens, dark'`). No renderer code changed in
+this packaging task. Real notification banners, Finder double-click, and a physical menu-bar click
+were not checked. Real Claude settings were not used by the checks.
+
 ## Version 5: both windows in the title, quitting, development display (2026-11-02)
 
 LHS-5 revision 8 (plan v5) and the developer's two requests in `docs/decisions.md` «Version 5», on
