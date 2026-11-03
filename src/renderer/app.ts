@@ -68,6 +68,8 @@ const cliNames: Record<CliId, string> = { claude: 'Claude Code', codex: 'Codex' 
 
 const chevronRight =
   '<svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" /></svg>';
+const refreshIcon =
+  '<svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.46-3.54" /><path d="M13 2.5v3h-3" /></svg>';
 const chevronLeft =
   '<svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5 5.5 8 10 12.5" /></svg>';
 
@@ -447,10 +449,16 @@ function render(): void {
       ? ''
       : `<button class="icon-button back" data-action="go" data-view="usage" data-key="back"
                  aria-label="사용량 현황으로 돌아가기" title="사용량 현황으로 돌아가기">${chevronLeft}</button>`;
+  // «새로 고침» (developer, 2026-11-03): re-reads both local records and asks for the reset status
+  // at once, the same as the screen's own 30-second timer and «다시 시도». While a read runs it shows
+  // the spinner and cannot be pressed again.
+  // aria-disabled rather than disabled, so a keyboard user's focus stays on it through the read.
   const refreshing =
-    state.view === 'usage' && state.refreshing
-      ? '<span class="spinner" role="status" aria-label="새로 고치는 중"></span>'
-      : '';
+    state.view !== 'usage'
+      ? ''
+      : `<button class="icon-button" data-action="refresh" data-key="refresh" title="새로 고침"
+                 aria-label="${state.refreshing ? '새로 고치는 중' : '새로 고침'}" aria-disabled="${state.refreshing}">
+           ${state.refreshing ? '<span class="spinner"></span>' : refreshIcon}</button>`;
   const body =
     state.view === 'usage' ? usageView() : state.view === 'claude-setup' ? claudeSetupView() : resetsView();
   const focused = (document.activeElement as HTMLElement | null)?.dataset?.key;
@@ -503,6 +511,13 @@ root.addEventListener('click', (event) => {
   if (!target) return;
   const { action } = target.dataset;
   if (action === 'go') void go(target.dataset.view as View);
+  if (action === 'refresh' && !state.refreshing) {
+    void monitor.retryResets('status').then((snapshot) => {
+      state.resets = snapshot;
+      render();
+    });
+    void refreshUsage();
+  }
   if (action === 'retry')
     void monitor.retry(target.dataset.cli as CliId).then((snapshot) => {
       state.usage = snapshot;

@@ -1,5 +1,19 @@
 # Verification
 
+## «새로 고침» button (2026-11-03)
+
+No PRS issue; asked for by the developer. The PRS MCP servers did not connect, so no
+`record_verification` entry was written.
+
+- `npm run typecheck`, `npm run lint`: passed. `npm run format:check`: only the ignored
+  `.claude/settings.local.json` flagged, as before.
+- `npm test`: 94 passed (no unit change; the renderer has no unit tests).
+- `npm run test:e2e`: 37 passed, 2 skipped. New in `e2e/usage.spec.ts`: with hour-long read and
+  check intervals, a click shows new Claude Code and Codex values within 3 s and sends one status
+  request; the setup screen has no such button. `tmp/screens/light-usage-pin-on-1.png` and
+  `dark-usage-pin-off-1.png` were opened: the icon sits left of «항상 위» and reads in both themes.
+- Not checked: the installed app with this change, a physical menu bar click.
+
 ## A hook from a moved install (2026-11-03)
 
 Found by the developer: the menu bar showed «CC 35/100%» from 2026-11-02 15:13 on. The status line

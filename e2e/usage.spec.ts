@@ -238,6 +238,31 @@ test('values refresh on their own while open, and a failed area recovers without
   await app.close();
 });
 
+test('«새로 고침» re-reads both records and asks for the reset status at once (developer 2026-11-03)', async () => {
+  writeClaude(fixture, 23, 61);
+  writeCodex(fixture, 44);
+  // Long intervals, so only the click can explain a change within the short timeouts below.
+  const { app, page } = await launch(fixture, server.url, {
+    ULM_READ_INTERVAL_MS: '3600000',
+    ULM_RESET_CHECK_MS: '3600000',
+  });
+  await expect(card(page, 'claude')).toContainText('23% 사용');
+  const statusCalls = () => server.requests.filter((r) => r.startsWith('GET /api/v1/status')).length;
+  const before = statusCalls();
+  writeClaude(fixture, 35, 63);
+  writeCodex(fixture, 50);
+  await capture(page, 'usage-refresh-button');
+  await page.getByRole('button', { name: '새로 고침', exact: true }).click();
+  await expect(card(page, 'claude')).toContainText('35% 사용', { timeout: 3_000 });
+  await expect(card(page, 'codex')).toContainText('50% 사용', { timeout: 3_000 });
+  await expect.poll(statusCalls, { timeout: 3_000 }).toBe(before + 1);
+  await expect(page.getByRole('button', { name: '새로 고침', exact: true })).toBeVisible();
+  // Only the usage screen has it; the others fetch when they open.
+  await page.getByRole('button', { name: /Claude Code 연동 안내/ }).click();
+  await expect(page.getByRole('button', { name: '새로 고침', exact: true })).toHaveCount(0);
+  await app.close();
+});
+
 const mode = (value: object) =>
   writeFileSync(fixture.modeFile, JSON.stringify({ status: 'ok', history: 'ok', ...value }));
 const upcoming = (page: import('@playwright/test').Page) => page.locator('section[data-area="upcoming"]');

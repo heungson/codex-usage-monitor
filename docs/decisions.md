@@ -44,6 +44,15 @@ old. The renderer is plain TypeScript without a UI framework: three small screen
 Bundled with esbuild; unit tests with Vitest; the app is driven end to end with Playwright's
 Electron support.
 
+## «새로 고침» on the usage screen (developer, 2026-11-03)
+
+Asked for directly by the developer; no PRS issue. A ↻ icon button in the usage screen's top bar
+re-reads both local records and asks codex-resets.com for the status at once, like «다시 시도»;
+the 5-minute rule for opening the screen does not apply to a click. While a read runs it shows the
+spinner that was there before and ignores further clicks (`aria-disabled`, so keyboard focus stays).
+The other screens have none: they fetch when they open. It cannot make Claude Code's numbers newer
+than its last status line draw; only Claude Code writes that record.
+
 ## A hook whose files are gone counts as not applied (developer, 2026-11-03)
 
 FC-F003 asks for the integration to be applied and its failures shown. A status line command that
