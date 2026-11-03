@@ -1,5 +1,32 @@
 # Verification
 
+## A hook from a moved install (2026-11-03)
+
+Found by the developer: the menu bar showed «CC 35/100%» from 2026-11-02 15:13 on. The status line
+command in `~/.claude/settings.json` still named the checkout's old folder
+(`~/Laboratory/usage-limit-monitor`), which no longer exists, so the hook failed on every draw and the
+record stopped changing. The app counted any command containing `statusline-hook.js` and `--home` as
+applied, so it showed «연동됨». No PRS issue; the PRS MCP servers did not connect in this session, so
+no `record_verification` entry was written.
+
+- Before changing the real settings, the installed app's hook was run against a scratch folder with
+  a sample input; it wrote the record (exit 0). With the developer's approval the `statusLine`
+  command was then pointed at `~/Applications/Usage Limit Monitor.app` (only that line changed;
+  backup kept outside the repository). Claude Code's next draw wrote the real record
+  (`updatedAt` 2026-11-03T00:34:51Z).
+- `npm run typecheck`, `npm run lint`: passed. `npm run format:check`: only
+  `.claude/settings.local.json` flagged, a file ignored by the developer's global gitignore and not
+  part of this change.
+- `npm test`: 94 passed (new in `test/integration.test.ts`: missing hook files are named, quotes
+  included; a hook from a moved install is not applied, and applying again replaces it while still
+  chaining the person's own command).
+- `npm run test:e2e`: 36 passed, 2 skipped (live data and the package check). New in
+  `e2e/screens.spec.ts`: the setup screen shows «연동 끊김» and the missing paths, «다시 연동»
+  replaces the hook, and a status line draw then shows on the usage screen.
+  `tmp/e2e-shots/setup-broken-1.png` and `setup-repaired-1.png` were opened and read.
+- Not checked: a physical click on the menu bar item, and the packaged app with this change (the
+  installed copy predates it).
+
 ## Standalone macOS package (2026-11-02)
 
 Requested directly by the developer, without a supplied PRS issue. The PRS developer MCP is not

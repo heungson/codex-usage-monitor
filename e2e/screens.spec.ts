@@ -80,6 +80,30 @@ test('apply without an existing command shows the result on the same screen (LHS
   await app.close();
 });
 
+test('a hook from a moved install shows 연동 끊김 and 다시 연동 replaces it (FC-F003)', async () => {
+  const gone = `ELECTRON_RUN_AS_NODE=1 '/nowhere/old/Electron' '/nowhere/old/dist/hook/statusline-hook.js' --home '${fixture.dataDir}'`;
+  writeFileSync(fixture.claudeSettings, JSON.stringify({ statusLine: { type: 'command', command: gone } }));
+  const { app, page } = await launch(fixture, server.url);
+  await openSetup(page);
+  await expect(page.getByText('연동 끊김')).toBeVisible();
+  await expect(page.getByText('/nowhere/old/dist/hook/statusline-hook.js')).toBeVisible();
+  await capture(page, 'setup-broken');
+  await page.getByRole('button', { name: '다시 연동' }).click();
+  await expect(page.getByText(/다시 연동했어요/)).toBeVisible();
+  await expect(page.getByRole('button', { name: '연동됨' })).toBeDisabled();
+  await capture(page, 'setup-repaired');
+
+  const command = JSON.parse(readFileSync(fixture.claudeSettings, 'utf8')).statusLine.command;
+  expect(command).not.toContain('/nowhere/');
+  runStatusLine(
+    command,
+    statusLineInput({ used_percentage: 21, resets_at: Math.floor(Date.now() / 1000) + 3600 }, null),
+  );
+  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await expect(page.locator('section[data-cli="claude"]')).toContainText('21% 사용', { timeout: 10_000 });
+  await app.close();
+});
+
 test('a failed apply is rolled back and explained, and 돌아가기 works (LHS-2 검증 5, 6)', async () => {
   const original = JSON.stringify({ statusLine: { type: 'command', command: 'echo keep' } });
   writeFileSync(fixture.claudeSettings, original);

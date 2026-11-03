@@ -1,29 +1,40 @@
 // LHS-2 (FC-F003, UF-N006): applying the status line integration and rolling it back (검증 1, 2, 5).
 
-import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { Integration, isHookCommand } from '../src/main/integration';
+import { hookCommandLine, Integration, isHookCommand, missingHookFiles } from '../src/main/integration';
 import type { Paths } from '../src/main/paths';
 import { tempDir } from './helpers';
 
 describe('Integration', () => {
+  let dir: string;
   let paths: Paths;
   let integration: Integration;
 
+  // The hook's runtime and script must exist for the integration to count as applied.
+  const install = (name: string) => {
+    const root = join(dir, name);
+    mkdirSync(join(root, 'dist', 'hook'), { recursive: true });
+    const hook = {
+      runtime: join(root, "it's App"),
+      script: join(root, 'dist', 'hook', 'statusline-hook.js'),
+    };
+    writeFileSync(hook.runtime, '');
+    writeFileSync(hook.script, '');
+    return hook;
+  };
+
   beforeEach(() => {
-    const dir = tempDir();
+    dir = tempDir();
     paths = {
       dataDir: join(dir, 'data'),
       claudeSettings: join(dir, 'settings.json'),
       codexSessions: join(dir, 'codex'),
     };
-    integration = new Integration(paths, {
-      runtime: '/Applications/App',
-      script: '/app/dist/hook/statusline-hook.js',
-    });
+    integration = new Integration(paths, install('app'));
   });
 
   const settings = () => JSON.parse(readFileSync(paths.claudeSettings, 'utf8'));
@@ -91,5 +102,42 @@ describe('Integration', () => {
       JSON.stringify({ at: '2026-10-28T03:00:00.000Z', message: 'EACCES' }),
     );
     expect(integration.status().hookError?.message).toBe('EACCES');
+  });
+
+  it('names the files a hook command points at that are gone, quotes included', () => {
+    const hook = install('present');
+    expect(missingHookFiles(hookCommandLine(hook, paths.dataDir))).toEqual([]);
+    const gone = { runtime: join(dir, "gone's", 'App'), script: join(dir, 'gone', 'statusline-hook.js') };
+    expect(missingHookFiles(hookCommandLine(gone, paths.dataDir))).toEqual([gone.runtime, gone.script]);
+    expect(missingHookFiles('~/bin/line.sh')).toEqual([]);
+  });
+
+  it('reports a hook from a moved install as broken, and re-applies over it (FC-F003)', () => {
+    writeFileSync(
+      paths.claudeSettings,
+      JSON.stringify({ statusLine: { type: 'command', command: '~/bin/line.sh', padding: 2 } }),
+    );
+    const old = new Integration(paths, {
+      runtime: join(dir, 'old', 'App'),
+      script: join(dir, 'old', 'dist', 'hook', 'statusline-hook.js'),
+    });
+    old.apply();
+
+    const broken = integration.status();
+    expect(broken.applied).toBe(false);
+    expect(broken.missingFiles).toHaveLength(2);
+    expect(broken.previousCommand).toBe('~/bin/line.sh');
+    expect(broken.hookError).toBeNull();
+
+    const repaired = integration.apply();
+    expect(repaired.applied).toBe(true);
+    expect(repaired.missingFiles).toEqual([]);
+    expect(repaired.lastApply?.message).toContain('다시 연동');
+    // The person's own command is still the one chained, never the broken hook.
+    expect(repaired.previousCommand).toBe('~/bin/line.sh');
+    expect(settings().statusLine.command).toContain(join(dir, 'app'));
+    expect(settings().statusLine.padding).toBe(2);
+    const saved = JSON.parse(readFileSync(join(paths.dataDir, 'statusline-integration.json'), 'utf8'));
+    expect(saved.previousCommand).toBe('~/bin/line.sh');
   });
 });

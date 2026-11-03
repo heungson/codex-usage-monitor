@@ -273,7 +273,7 @@ function claudeSetupView(): string {
     <main>
       <section class="card">
         <div class="card-head"><h2>상태 표시줄 연동</h2>
-          ${status.applied ? chip('연동됨', 'ok') : chip('연동 안 됨')}
+          ${status.applied ? chip('연동됨', 'ok') : status.missingFiles.length > 0 ? chip('연동 끊김', 'error') : chip('연동 안 됨')}
         </div>
         <div class="prose">
           <p>Claude Code는 상태 표시줄 명령에 5시간·7일 한도의 사용 비율과 리셋 시각을 넘겨 줘요. 연동하면 그 값을 이 컴퓨터의 파일에 남기고, 사용량 현황에서 읽어요.</p>
@@ -282,7 +282,7 @@ function claudeSetupView(): string {
         </div>
         <div class="card-actions">
           <button class="primary" data-action="apply" data-key="apply" ${status.applied || state.applying ? 'disabled' : ''}>
-            ${state.applying ? '적용하는 중…' : status.applied ? '연동됨' : '연동 적용'}
+            ${state.applying ? '적용하는 중…' : status.applied ? '연동됨' : status.missingFiles.length > 0 ? '다시 연동' : '연동 적용'}
           </button>
         </div>
       </section>
@@ -290,6 +290,11 @@ function claudeSetupView(): string {
       ${
         result
           ? `<div class="notice ${result.ok ? 'ok' : 'error'}" role="${result.ok ? 'status' : 'alert'}"><p>${escapeHtml(result.message)}</p></div>`
+          : ''
+      }
+      ${
+        status.missingFiles.length > 0
+          ? `<div class="notice error" role="alert"><p>상태 표시줄 명령이 가리키는 파일이 없어서 Claude Code가 한도를 기록하지 못하고 있어요: ${status.missingFiles.map((path) => `<code>${escapeHtml(path)}</code>`).join(', ')}.</p><p>앱을 옮기거나 지운 뒤에 생겨요. 그동안 사용량 현황에는 마지막으로 남긴 기록이 보여요. «다시 연동»을 누르면 지금 이 앱으로 연결해요.</p></div>`
           : ''
       }
       ${

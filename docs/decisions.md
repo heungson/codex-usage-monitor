@@ -44,6 +44,15 @@ old. The renderer is plain TypeScript without a UI framework: three small screen
 Bundled with esbuild; unit tests with Vitest; the app is driven end to end with Playwright's
 Electron support.
 
+## A hook whose files are gone counts as not applied (developer, 2026-11-03)
+
+FC-F003 asks for the integration to be applied and its failures shown. A status line command that
+names this app's hook but whose runtime or script is missing (the app or checkout was moved or
+deleted) cannot run, so nothing is recorded and no hook error can be written either. The app now
+reports it as not applied, names the missing paths on the setup screen («연동 끊김»), and «다시 연동»
+replaces it with the running app's hook. The command chained after the hook stays the one saved when
+the integration was first applied. Code: `missingHookFiles` in `src/main/integration.ts`.
+
 ## Answers to what the plan left open
 
 Asked of the owner (the planner) in the coding session on 2026-10-28, because the plan marked them
@@ -301,6 +310,12 @@ Found while building v3 (2026-10-30):
   loading; it now waits for the area's settled content.
 
 ## Not decided, for the planner
+
+- When the last Claude Code record is older than a window's reset time, the menu bar and usage card
+  still show the old percentage as if current (seen 2026-11-03: «CC 35/100%» after both windows had
+  reset at 17:10 and 21:00 the day before). The plan does not say what to show then: «?», «–», 0%, or
+  the value with a note. Asked by the developer on 2026-11-03 to be raised with the planner as an
+  issue comment. Not implemented.
 
 - After a Codex global reset is announced, the Codex card still shows the last session record, which
   can predate the reset (seen on 2026-10-28: 44% from a record 22 hours old, after a reset announced

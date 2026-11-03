@@ -60,6 +60,23 @@ export function isHookCommand(command: unknown): boolean {
   return typeof command === 'string' && command.includes('statusline-hook.js') && command.includes('--home');
 }
 
+/** The single-quoted arguments of a command written by `hookCommandLine`, unquoted. */
+function quotedArgs(command: string): string[] {
+  return [...command.matchAll(/'((?:[^']|'\\'')*)'/g)].map((m) => (m[1] ?? '').replace(/'\\''/g, "'"));
+}
+
+/**
+ * The runtime and script a hook command names that are not on disk. A hook written by an install
+ * that was moved or deleted fails every time Claude Code draws its status line, so the record stops
+ * changing while the app keeps showing its last values (FC-F003; seen 2026-11-03 after the checkout
+ * was renamed). Empty when both are there, or when the command is not one `hookCommandLine` wrote.
+ */
+export function missingHookFiles(command: string): string[] {
+  const [runtime, script] = quotedArgs(command);
+  if (!runtime || !script?.endsWith('statusline-hook.js')) return [];
+  return [runtime, script].filter((path) => !existsSync(path));
+}
+
 function readJson<T>(path: string): T | null {
   if (!existsSync(path)) return null;
   return JSON.parse(readFileSync(path, 'utf8')) as T;
@@ -79,12 +96,15 @@ export class Integration {
 
   status(): IntegrationStatus {
     let applied: boolean;
+    let missingFiles: string[] = [];
     try {
-      const settings = readJson<{ statusLine?: StatusLine }>(this.paths.claudeSettings);
-      applied = isHookCommand(settings?.statusLine?.command);
+      const command = readJson<{ statusLine?: StatusLine }>(this.paths.claudeSettings)?.statusLine?.command;
+      applied = isHookCommand(command);
+      if (applied) missingFiles = missingHookFiles(command as string);
     } catch {
       applied = false;
     }
+    if (missingFiles.length > 0) applied = false;
     let previousCommand: string | null;
     try {
       previousCommand = readJson<SavedIntegration>(this.savedPath)?.previousCommand ?? null;
@@ -103,9 +123,11 @@ export class Integration {
     return {
       settingsPath: this.paths.claudeSettings,
       applied,
-      previousCommand: applied ? previousCommand : this.currentCommand(),
+      // A broken hook still chains the command saved when it was applied; it is not the person's own.
+      previousCommand: applied || missingFiles.length > 0 ? previousCommand : this.currentCommand(),
       lastApply: this.lastApply,
       hookError: applied ? hookError : null,
+      missingFiles,
     };
   }
 
@@ -137,10 +159,21 @@ export class Integration {
       } catch {
         throw new Error(`${settingsPath}을(를) JSON으로 읽을 수 없어 바꾸지 않았어요`);
       }
-      const previous = (settings.statusLine ?? null) as StatusLine | null;
-      if (isHookCommand(previous?.command)) {
+      const current = (settings.statusLine ?? null) as StatusLine | null;
+      const repairing = isHookCommand(current?.command);
+      if (repairing && missingHookFiles(current?.command as string).length === 0) {
         this.lastApply = { ok: true, message: '이미 연동되어 있어요', at: now.getTime() };
         return this.status();
+      }
+      // Replacing a broken hook: what ran before it is in the saved state, not in the settings file.
+      let previous = current;
+      if (repairing) {
+        try {
+          previous =
+            savedBefore === null ? null : (JSON.parse(savedBefore) as SavedIntegration).previousStatusLine;
+        } catch {
+          previous = null;
+        }
       }
 
       // Refuse early rather than half-write a settings file the person made read-only.
@@ -160,7 +193,7 @@ export class Integration {
       const next = {
         ...settings,
         statusLine: {
-          ...(previous ?? {}),
+          ...(current ?? {}),
           type: 'command',
           command: hookCommandLine(this.hook, this.paths.dataDir),
         },
@@ -174,9 +207,11 @@ export class Integration {
 
       this.lastApply = {
         ok: true,
-        message: saved.previousCommand
-          ? '연동했어요. 기존 상태 표시줄 명령도 이어서 실행돼요.'
-          : '연동했어요. Claude Code가 다음에 상태 표시줄을 그릴 때부터 기록돼요.',
+        message: repairing
+          ? '다시 연동했어요. Claude Code가 다음에 상태 표시줄을 그릴 때부터 다시 기록돼요.'
+          : saved.previousCommand
+            ? '연동했어요. 기존 상태 표시줄 명령도 이어서 실행돼요.'
+            : '연동했어요. Claude Code가 다음에 상태 표시줄을 그릴 때부터 기록돼요.',
         at: now.getTime(),
       };
     } catch (error) {

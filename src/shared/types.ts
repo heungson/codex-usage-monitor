@@ -61,6 +61,12 @@ export interface IntegrationStatus {
   lastApply: { ok: boolean; message: string; at: number } | null;
   /** The hook could not write the local record after the integration was applied (FC-F003). */
   hookError: { message: string; at: number } | null;
+  /**
+   * The hook in the settings file names a runtime or script that is not on disk (the install was
+   * moved or deleted), so Claude Code cannot run it and the record stops changing. `applied` is
+   * false then, and applying again replaces it (FC-F003).
+   */
+  missingFiles: string[];
 }
 
 export interface ResetEntry {
