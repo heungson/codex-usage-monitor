@@ -1,5 +1,27 @@
 # Verification
 
+## 설정 › «로그인 시 자동 실행» (2026-11-04)
+
+No PRS issue; asked for by the developer. The PRS MCP servers did not connect, so no
+`record_verification` entry was written.
+
+- `npm run typecheck`, `npm run lint`: passed. `npm run format:check`: only the ignored
+  `.claude/settings.local.json` flagged, as before.
+- `npm test`: 100 passed. New `test/login-item.test.ts` (6): not offered from source; off at
+  first, on and off; re-read from macOS each time; approval wait is not an error; a change macOS
+  ignores or throws on is reported, and cleared by the next success.
+- `npm run test:e2e`: 39 passed, 2 skipped, 1 failed. New `e2e/settings.spec.ts` (3) passed: the
+  gear opens 설정, the switch turns on and off and is read back after a restart; the approval
+  notice opens `x-apple.systempreferences:com.apple.LoginItems-Settings.extension`; with no
+  backend the switch is disabled. The failure is `e2e/look.spec.ts` «three screens»: the usage
+  screen is a few pixels over 600 px at some times of day, so `fitsWithoutScrolling` fails. It fails
+  without this change too (unchanged code, light: 2 of 3 runs failed; with it: 1 of 3).
+- Captures opened: `tmp/screens/dark-settings-pin-off-1.png`, `tmp/e2e-shots/settings-on-1.png`,
+  `settings-approval-1.png`, `settings-unsupported-1.png`, `tmp/screens/*-usage-pin-off-1.png`
+  (gear left of «항상 위», readable in both themes).
+- Not checked: the real macOS login item from an installed app (`npm run package`, turn it on,
+  sign out and in), a physical menu bar click.
+
 ## «새로 고침» button (2026-11-03)
 
 No PRS issue; asked for by the developer. The PRS MCP servers did not connect, so no

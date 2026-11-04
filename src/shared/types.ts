@@ -123,11 +123,22 @@ export interface ResetsSnapshot {
   refreshing: { status: boolean; history: boolean };
 }
 
-export type View = 'usage' | 'claude-setup' | 'resets';
+export type View = 'usage' | 'claude-setup' | 'resets' | 'settings';
 
 /** Window settings shared by the three screens and kept across restarts (FC-F019). */
 export interface WindowSettings {
   alwaysOnTop: boolean;
+}
+
+/** «로그인 시 자동 실행» on the 설정 screen, as macOS reports it (developer, 2026-11-04). */
+export interface LoginItemStatus {
+  /** False when run from the source folder (npm start): only an installed app can be a login item. */
+  supported: boolean;
+  openAtLogin: boolean;
+  /** macOS 13+ holds the item until it is allowed in System Settings › General › Login Items. */
+  needsApproval: boolean;
+  /** The last change macOS refused, or null. */
+  error: string | null;
 }
 
 /** The API the preload script exposes to the renderer as `window.monitor`. */
@@ -153,6 +164,10 @@ export interface MonitorApi {
   onResets(listener: (snapshot: ResetsSnapshot) => void): () => void;
   getWindowSettings(): Promise<WindowSettings>;
   setAlwaysOnTop(on: boolean): Promise<WindowSettings>;
+  getLoginItem(): Promise<LoginItemStatus>;
+  setOpenAtLogin(on: boolean): Promise<LoginItemStatus>;
+  /** System Settings › General › Login Items, where macOS asks to allow the item. */
+  openLoginItemSettings(): Promise<void>;
   openExternal(url: string): Promise<void>;
   onNavigate(listener: (view: View) => void): () => void;
 }

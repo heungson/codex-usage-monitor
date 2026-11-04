@@ -832,3 +832,21 @@ code {
     transition: none;
   }
 }
+
+/* ---------- 설정 ---------- */
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: 2px 0 6px;
+}
+
+.switch input:disabled + .switch-track {
+  opacity: 0.5;
+}
+
+.switch:has(input:disabled) {
+  cursor: default;
+}

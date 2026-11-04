@@ -21,6 +21,7 @@ import { codexReader } from './codex-reader';
 import { Collector } from './collector';
 import { Integration } from './integration';
 import { LimitAlerts } from './limit-alerts';
+import { electronLoginItem, fakeLoginItem, LoginItem } from './login-item';
 import { electronNotifier, fakeNotifier, type Notifier, type SendResult } from './notifier';
 import { dataFiles, resolvePaths } from './paths';
 import { ResetAlerts, resetCheckIntervalMs } from './reset-alerts';
@@ -145,6 +146,15 @@ const resetAlerts = new ResetAlerts(
 );
 
 const windowSettings = new WindowSettingsStore(join(paths.dataDir, dataFiles.windowSettings));
+// «로그인 시 자동 실행» (developer, 2026-11-04): only an installed app registers itself; the checks
+// use a file (ULM_FAKE_LOGIN_ITEM) so they never touch the developer's real login items.
+const loginItem = new LoginItem(
+  env.ULM_FAKE_LOGIN_ITEM
+    ? fakeLoginItem(env.ULM_FAKE_LOGIN_ITEM)
+    : app.isPackaged
+      ? electronLoginItem(app)
+      : null,
+);
 /** The person dragged the pinned window somewhere: it reopens there instead of under the menu bar item. */
 let movedByPerson = false;
 
@@ -312,6 +322,13 @@ ipcMain.handle('window:always-on-top', (_event, on: unknown) => {
   applyWindowSettings();
   return settings;
 });
+ipcMain.handle('login-item:get', () => loginItem.status());
+ipcMain.handle('login-item:set', (_event, on: unknown) =>
+  typeof on === 'boolean' ? loginItem.set(on) : loginItem.status(),
+);
+ipcMain.handle('login-item:open-settings', () =>
+  shell.openExternal('x-apple.systempreferences:com.apple.LoginItems-Settings.extension'),
+);
 ipcMain.handle('external:open', async (_event, url: string) => {
   // Only links the screens show: codex-resets.com and the announcement posts it cites.
   if (/^https:\/\/(codex-resets\.com|x\.com|twitter\.com|t\.me)(\/|$)/.test(url))

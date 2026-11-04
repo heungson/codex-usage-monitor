@@ -16,6 +16,8 @@ export interface Fixture {
   codexSessions: string;
   modeFile: string;
   notifyFile: string;
+  /** Stands in for macOS's login items (ULM_FAKE_LOGIN_ITEM), so no check registers Electron. */
+  loginItemFile: string;
 }
 
 export function makeFixture(): Fixture {
@@ -27,6 +29,7 @@ export function makeFixture(): Fixture {
     codexSessions: join(root, 'codex', 'sessions'),
     modeFile: join(root, 'resets-mode.json'),
     notifyFile: join(root, 'notify-result'),
+    loginItemFile: join(root, 'login-item.json'),
   };
   mkdirSync(fixture.dataDir, { recursive: true });
   mkdirSync(join(root, 'claude'), { recursive: true });
@@ -52,6 +55,7 @@ export async function launch(
       ULM_RESETS_BASE_URL: resetsUrl,
       ULM_FAKE_NOTIFY: 'shown',
       ULM_FAKE_NOTIFY_FILE: fixture.notifyFile,
+      ULM_FAKE_LOGIN_ITEM: fixture.loginItemFile,
       ...extraEnv,
     },
   });

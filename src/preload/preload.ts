@@ -28,6 +28,9 @@ const api: MonitorApi = {
   onResets: (listener) => subscribe('resets', listener),
   getWindowSettings: () => ipcRenderer.invoke('window:get'),
   setAlwaysOnTop: (on) => ipcRenderer.invoke('window:always-on-top', on),
+  getLoginItem: () => ipcRenderer.invoke('login-item:get'),
+  setOpenAtLogin: (on) => ipcRenderer.invoke('login-item:set', on),
+  openLoginItemSettings: () => ipcRenderer.invoke('login-item:open-settings'),
   openExternal: (url) => ipcRenderer.invoke('external:open', url),
   onNavigate: (listener) => subscribe('navigate', listener),
 };

@@ -44,6 +44,22 @@ old. The renderer is plain TypeScript without a UI framework: three small screen
 Bundled with esbuild; unit tests with Vitest; the app is driven end to end with Playwright's
 Electron support.
 
+## 설정 › «로그인 시 자동 실행» (developer, 2026-11-04)
+
+Asked for directly by the developer 이흥선 in the coding session; no PRS item. A 설정 screen, opened
+by a gear icon in 사용량 현황's top bar beside «새로 고침», with one switch, «로그인 시 자동 실행».
+The placement, the wording and the default (off) were chosen by Claude Code; the developer can
+change them. Not put in the menu bar item's right-click menu, which the developer asked to hold only
+«종료» (2026-10-30).
+
+macOS holds the setting: the app calls Electron's `app.setLoginItemSettings` (SMAppService on
+macOS 13+) and reads the state back from macOS each time the screen opens, so a change made in
+System Settings › General › Login Items shows. Nothing is stored in the data folder. If macOS holds
+the item for approval, the screen says so and opens that pane; if macOS ignores a change, it says
+that too. Only a packaged app (`app.isPackaged`) offers the switch: from `npm start` the runtime in
+`tmp/runtime/` would be registered and start at login without this code. The checks use
+`ULM_FAKE_LOGIN_ITEM`, a file in place of macOS, so they never add a login item.
+
 ## «새로 고침» on the usage screen (developer, 2026-11-03)
 
 Asked for directly by the developer; no PRS issue. A ↻ icon button in the usage screen's top bar

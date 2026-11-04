@@ -1,4 +1,4 @@
-// Captures of the three screens (WF-S001–S003) in light and dark, with «창 항상 위에 표시» off and on,
+// Captures of the three screens (WF-S001–S003) and 설정 in light and dark, with «창 항상 위에 표시» off and on,
 // and the failure and 수집 대기 states, for looking at the result. Saved in tmp/screens/ (or the folder
 // in ULM_SHOTS_DIR, e.g. tmp/screens-before); nothing is asserted beyond the screen being there.
 // The usage screen with the default data (both CLIs with both windows, a scheduled reset) must fit
@@ -70,6 +70,11 @@ for (const scheme of ['light', 'dark'] as const) {
     await shot('setup-pin-on');
     await page.getByRole('switch', { name: '창 항상 위에 표시' }).uncheck({ force: true });
     await shot('setup-pin-off');
+
+    await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+    await page.getByRole('button', { name: '설정' }).click();
+    await expect(page.getByRole('switch', { name: '로그인 시 자동 실행' })).toBeVisible();
+    await shot('settings-pin-off');
 
     await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
     await clickUpcomingArea(page);

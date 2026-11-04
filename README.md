@@ -23,6 +23,10 @@ nothing about you anywhere.
 - **창 항상 위에 표시**: the switch right of every screen's title. On, the popover stays open above
   other windows and can be dragged by its top bar; the choice is kept in
   `~/Library/Application Support/usage-limit-monitor/window-settings.json`.
+- **설정 › 로그인 시 자동 실행**: the gear in 사용량 현황's top bar opens 설정. On, macOS opens the app
+  at login (a login item; macOS keeps the setting, and it also shows in System Settings › General ›
+  Login Items). Off until turned on. Only the installed app can turn it on; run from this folder
+  (`npm start`) the switch is greyed out, since macOS would start a bare Electron without this code.
 
 Planned in PRS (plan «사용량 한도 모니터», version 3). Decisions: `docs/decisions.md`.
 
@@ -120,6 +124,7 @@ Used by the checks to point the app at temporary folders. Normal use needs none.
 | `ULM_RESET_RETRY_MS`        | Reset API retry delays, comma separated (default `10000,20000,40000`)                                  |
 | `ULM_FAKE_NOTIFY`           | `shown`, `denied` or `failed`: log notifications to `<data>/notifications.log` instead of showing them |
 | `ULM_FAKE_NOTIFY_FILE`      | A file whose content overrides `ULM_FAKE_NOTIFY` on every notification                                 |
+| `ULM_FAKE_LOGIN_ITEM`       | A JSON file that stands in for macOS's login items, so checks never register Electron at login         |
 | `ULM_NOTIFICATION_APP_NAME` | Notification settings display name; `npm start` sets it to `Usage Limit Monitor`                       |
 | `ULM_SHOTS_DIR`             | Folder for the captures of `e2e/look.spec.ts` (default `tmp/screens`, e.g. `tmp/screens-before`)       |
 
@@ -129,7 +134,7 @@ Used by the checks to point the app at temporary folders. Normal use needs none.
 src/main/       Electron main process: collectors, readers, integration, alerts, reset API
 src/hook/       The status line hook Claude Code runs
 src/preload/    The bridge the popover page uses
-src/renderer/   The popover page: 사용량 현황, Claude Code 연동 안내, Codex 전체 리셋; styles.css holds the look's tokens
+src/renderer/   The popover page: 사용량 현황, Claude Code 연동 안내, Codex 전체 리셋, 설정; styles.css holds the look's tokens
 src/shared/     Types, the Claude record format, Korean time wording
 test/           Unit tests (Vitest)
 e2e/            App checks (Playwright + Electron), a fake codex-resets.com, light/dark captures (look.spec.ts)

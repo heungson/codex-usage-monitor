@@ -1,4 +1,5 @@
-// The popover page: 사용량 현황 (WF-S001), Claude Code 연동 안내 (WF-S002), Codex 전체 리셋 (WF-S003).
+// The popover page: 사용량 현황 (WF-S001), Claude Code 연동 안내 (WF-S002), Codex 전체 리셋 (WF-S003),
+// and 설정 (developer, 2026-11-04; no PRS screen).
 // Built from plan v3: the layout and elements follow the wireframe; the look is the app's own CSS.
 
 import {
@@ -16,6 +17,7 @@ import type {
   CliId,
   CliUsage,
   IntegrationStatus,
+  LoginItemStatus,
   MonitorApi,
   ResetEntry,
   ResetHistory,
@@ -48,6 +50,9 @@ const state: {
   applying: boolean;
   resets: ResetsSnapshot | null;
   window: WindowSettings;
+  loginItem: LoginItemStatus | null;
+  /** A login item change is being asked of macOS; the switch waits for the answer. */
+  savingLoginItem: boolean;
 } = {
   view: 'usage',
   usage: null,
@@ -56,6 +61,8 @@ const state: {
   applying: false,
   resets: null,
   window: { alwaysOnTop: false },
+  loginItem: null,
+  savingLoginItem: false,
 };
 
 const escapeHtml = (value: string) =>
@@ -70,6 +77,8 @@ const chevronRight =
   '<svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" /></svg>';
 const refreshIcon =
   '<svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.46-3.54" /><path d="M13 2.5v3h-3" /></svg>';
+const gearIcon =
+  '<svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2" /><path d="M8 1.75v1.5M8 12.75v1.5M1.75 8h1.5M12.75 8h1.5M3.58 3.58l1.06 1.06M11.36 11.36l1.06 1.06M3.58 12.42l1.06-1.06M11.36 4.64l1.06-1.06" /><circle cx="8" cy="8" r="4.75" /></svg>';
 const chevronLeft =
   '<svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5 5.5 8 10 12.5" /></svg>';
 
@@ -425,12 +434,50 @@ function resetsView(): string {
     </main>`;
 }
 
+// ---------- 설정 ----------
+
+/**
+ * «로그인 시 자동 실행» (developer, 2026-11-04). macOS holds the setting, so the switch shows what
+ * macOS answered, also after a change made in System Settings. Off until the person turns it on.
+ */
+function settingsView(): string {
+  const item = state.loginItem;
+  if (!item) return `<main><section class="card">${skeleton}</section></main>`;
+  const disabled = !item.supported || state.savingLoginItem;
+  const note = !item.supported
+    ? '<p class="sub">소스 폴더에서 실행한 앱(npm start)에서는 켤 수 없어요. 설치한 앱에서 켜 주세요.</p>'
+    : '<p class="sub">Mac에 로그인하면 메뉴 막대에 이 앱이 자동으로 나타나요.</p>';
+  return `
+    <main>
+      <section class="card" data-area="login-item" aria-label="시작">
+        <div class="card-head"><h2>시작</h2></div>
+        <div class="setting-row">
+          <span class="setting-name" id="login-item-name">로그인 시 자동 실행</span>
+          <label class="switch">
+            <input type="checkbox" role="switch" data-key="login-item" aria-labelledby="login-item-name"
+                   ${item.openAtLogin ? 'checked' : ''} ${disabled ? 'disabled' : ''} />
+            <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+          </label>
+        </div>
+        ${note}
+      </section>
+      ${
+        item.needsApproval
+          ? `<div class="notice warn" role="status"><p>macOS의 허용을 기다리고 있어요. 시스템 설정 › 일반 › 로그인 항목에서 이 앱을 허용해 주세요.</p>
+               <div class="row-actions"><button class="small" data-action="open-login-items" data-key="open-login-items">시스템 설정 열기</button></div></div>`
+          : ''
+      }
+      ${item.error ? `<div class="notice error" role="alert"><p>${escapeHtml(item.error)}</p></div>` : ''}
+    </main>`;
+}
+
 // ---------- shell ----------
 
 const titles: Record<View, string> = {
   usage: '사용량 현황',
   'claude-setup': 'Claude Code 연동 안내',
   resets: 'Codex 전체 리셋',
+  settings: '설정',
 };
 
 /** «창 항상 위에 표시»: one setting, the same switch right of every screen's title (FC-F019, PR-P025). */
@@ -459,12 +506,23 @@ function render(): void {
       : `<button class="icon-button" data-action="refresh" data-key="refresh" title="새로 고침"
                  aria-label="${state.refreshing ? '새로 고치는 중' : '새로 고침'}" aria-disabled="${state.refreshing}">
            ${state.refreshing ? '<span class="spinner"></span>' : refreshIcon}</button>`;
-  const body =
-    state.view === 'usage' ? usageView() : state.view === 'claude-setup' ? claudeSetupView() : resetsView();
+  // 설정 (developer, 2026-11-04): a gear in the usage screen's top bar, beside «새로 고침».
+  const settings =
+    state.view !== 'usage'
+      ? ''
+      : `<button class="icon-button" data-action="go" data-view="settings" data-key="open-settings"
+                 aria-label="설정" title="설정">${gearIcon}</button>`;
+  const views: Record<View, () => string> = {
+    usage: usageView,
+    'claude-setup': claudeSetupView,
+    resets: resetsView,
+    settings: settingsView,
+  };
+  const body = views[state.view]();
   const focused = (document.activeElement as HTMLElement | null)?.dataset?.key;
   const scroll = window.scrollY;
   document.body.classList.toggle('pinned', state.window.alwaysOnTop);
-  root.innerHTML = `<header class="topbar">${back}<h1>${titles[state.view]}</h1>${refreshing}${pinSwitch()}</header>${body}`;
+  root.innerHTML = `<header class="topbar">${back}<h1>${titles[state.view]}</h1>${refreshing}${settings}${pinSwitch()}</header>${body}`;
   window.scrollTo(0, scroll);
   // innerHTML replaces every element; keep the keyboard where it was.
   if (focused) root.querySelector<HTMLElement>(`[data-key="${focused}"]`)?.focus();
@@ -502,6 +560,10 @@ async function go(view: View): Promise<void> {
   }
   if (view === 'resets') {
     state.resets = await monitor.openResets();
+    render();
+  }
+  if (view === 'settings') {
+    state.loginItem = await monitor.getLoginItem();
     render();
   }
 }
@@ -546,6 +608,7 @@ root.addEventListener('click', (event) => {
       state.resets = snapshot;
       render();
     });
+  if (action === 'open-login-items') void monitor.openLoginItemSettings();
   if (action === 'external' && target.dataset.url) void monitor.openExternal(target.dataset.url);
   if (action === 'dismiss-alert')
     void monitor.dismissAlertNotice().then((snapshot) => {
@@ -561,6 +624,20 @@ root.addEventListener('click', (event) => {
 
 root.addEventListener('change', (event) => {
   const input = event.target as HTMLInputElement;
+  if (input.dataset.key === 'login-item') {
+    state.savingLoginItem = true;
+    render();
+    void monitor
+      .setOpenAtLogin(input.checked)
+      .then((status) => {
+        state.loginItem = status;
+      })
+      .finally(() => {
+        state.savingLoginItem = false;
+        render();
+      });
+    return;
+  }
   if (input.dataset.key !== 'pin') return;
   void monitor.setAlwaysOnTop(input.checked).then((settings) => {
     state.window = settings;
