@@ -22,6 +22,13 @@ export interface CliUsage {
   updatedAt: number | null;
   /** Codex only: the plan type in the chosen event. */
   planType?: string | null;
+  /**
+   * Claude Code only: where the values came from. `account`: Anthropic, asked with Claude Code's
+   * login, and `updatedAt` is when it answered; `statusline`: the record the hook wrote (FC-F004).
+   */
+  source?: 'account' | 'statusline';
+  /** Claude Code only: why the account could not be asked, when the record is shown instead. */
+  accountProblem?: string | null;
 }
 
 /** What one collector knows right now (PR-P020, WF-S001 states). */

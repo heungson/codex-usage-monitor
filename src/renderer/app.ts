@@ -113,8 +113,16 @@ function windowsHtml(usage: CliUsage): string {
 
 function metaHtml(cli: CliId, usage: CliUsage): string {
   if (cli === 'claude') {
+    // Where the values came from (developer, 2026-11-03): the account, else the status line record
+    // with the reason the account could not be asked.
+    const note =
+      usage.source === 'account'
+        ? 'Anthropic 계정에서 1분마다 받아와요.'
+        : usage.accountProblem
+          ? `상태 표시줄 기록이에요. 계정에서 받지 못했어요: ${escapeHtml(usage.accountProblem)}.`
+          : 'Claude Code 상태 표시줄 기록이에요.';
     return `<div class="meta">마지막 갱신 <strong>${usage.updatedAt ? describePast(usage.updatedAt) : '알 수 없음'}</strong>
-      <span class="meta-note">Claude Code가 실행 중일 때만 갱신돼요.</span></div>`;
+      <span class="meta-note">${note}</span></div>`;
   }
   return `<div class="meta">가장 최근 Codex 기록 <strong>${usage.updatedAt ? describePast(usage.updatedAt) : '알 수 없음'}</strong></div>`;
 }
@@ -122,7 +130,7 @@ function metaHtml(cli: CliId, usage: CliUsage): string {
 function waitingHtml(cli: CliId): string {
   return cli === 'claude'
     ? `<div class="empty"><p>아직 Claude Code 기록이 없어요.</p>
-         <p>상태 표시줄 연동을 적용하고 Claude Code를 쓰면 기록이 쌓여요.
+         <p>Claude Code에 로그인하면 계정에서 받아오고, 상태 표시줄 연동을 적용하면 Claude Code를 쓸 때도 기록돼요.
          <button class="link" data-action="go" data-view="claude-setup">연동 안내 열기</button></p></div>`
     : `<div class="empty"><p>아직 Codex 기록이 없어요.</p>
          <p>최근 8일 안에 Codex CLI를 쓴 기록이 생기면 자동으로 보여요.</p></div>`;
@@ -151,7 +159,8 @@ function sourceCard(cli: CliId, source: SourceState): string {
       body = waitingHtml(cli);
       break;
     case 'ok':
-      badge = chip('정상', 'ok');
+      // The record shown because the account could not be asked may be hours old: say so.
+      badge = source.usage.accountProblem ? chip('계정 조회 실패', 'warn') : chip('정상', 'ok');
       body = windowsHtml(source.usage) + metaHtml(cli, source.usage);
       break;
     case 'error':
@@ -266,7 +275,7 @@ function usageView(): string {
       ${upcomingCard()}
       <footer class="foot">
         <button class="text-button" data-action="go" data-view="claude-setup" data-key="open-setup">Claude Code 연동 안내${chevronRight}</button>
-        <p class="footnote">이 컴퓨터의 CLI 기록만 읽고, 로그인 정보나 토큰은 어디에도 보내지 않아요.</p>
+        <p class="footnote">Claude Code 로그인은 Anthropic 사용량 조회에만 써요.</p>
       </footer>
     </main>`;
 }
@@ -315,11 +324,11 @@ function claudeSetupView(): string {
       }
 
       <section class="card">
-        <div class="card-head"><h2>읽는 것과 보내지 않는 것</h2></div>
+        <div class="card-head"><h2>읽는 것과 보내는 곳</h2></div>
         <ul class="list">
           <li><span class="list-label">읽는 것</span><span>Claude Code가 상태 표시줄 명령에 넘기는 입력, <code>~/.codex/sessions</code>의 Codex 기록, codex-resets.com 공개 API</span></li>
-          <li><span class="list-label">쓰지 않는 것</span><span>토큰이나 로그인 정보. 아무것도 앱 밖으로 보내지 않아요.</span></li>
-          <li><span class="list-label">최신성</span><span>값은 Claude Code가 실행 중일 때만 갱신돼요. 사용량 현황의 «마지막 갱신»으로 확인하세요.</span></li>
+          <li><span class="list-label">로그인</span><span>키체인의 Claude Code 로그인을 읽어 <code>api.anthropic.com</code>에만 보내 사용량을 받아요. 로그인을 갱신하거나 저장하지 않아요.</span></li>
+          <li><span class="list-label">최신성</span><span>Claude Code 로그인이 유효하면 1분마다 계정에서 받아와요. 로그인이 만료되면 Claude Code를 실행할 때까지 상태 표시줄 기록을 보여요. 사용량 현황의 «마지막 갱신»으로 확인하세요.</span></li>
         </ul>
       </section>
     </main>`;

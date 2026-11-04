@@ -29,6 +29,8 @@ test('standalone bundle launches after moving and runs its packaged hook', async
       ULM_CODEX_SESSIONS: fixture.codexSessions,
       ULM_RESETS_BASE_URL: server.url,
       ULM_FAKE_NOTIFY: 'shown',
+      ULM_CLAUDE_CREDENTIALS: fixture.claudeLoginFile,
+      ULM_CLAUDE_API_BASE_URL: 'http://127.0.0.1:9',
     },
   });
   try {

@@ -18,6 +18,11 @@ export interface Fixture {
   notifyFile: string;
   /** Stands in for macOS's login items (ULM_FAKE_LOGIN_ITEM), so no check registers Electron. */
   loginItemFile: string;
+  /**
+   * Stands in for Claude Code's Keychain login (ULM_CLAUDE_CREDENTIALS). Absent unless a check
+   * writes it, so no check reads the real login or asks the real Anthropic.
+   */
+  claudeLoginFile: string;
 }
 
 export function makeFixture(): Fixture {
@@ -30,6 +35,7 @@ export function makeFixture(): Fixture {
     modeFile: join(root, 'resets-mode.json'),
     notifyFile: join(root, 'notify-result'),
     loginItemFile: join(root, 'login-item.json'),
+    claudeLoginFile: join(root, 'claude-login.json'),
   };
   mkdirSync(fixture.dataDir, { recursive: true });
   mkdirSync(join(root, 'claude'), { recursive: true });
@@ -56,6 +62,9 @@ export async function launch(
       ULM_FAKE_NOTIFY: 'shown',
       ULM_FAKE_NOTIFY_FILE: fixture.notifyFile,
       ULM_FAKE_LOGIN_ITEM: fixture.loginItemFile,
+      ULM_CLAUDE_CREDENTIALS: fixture.claudeLoginFile,
+      // Nothing listens here; a check that wants an answer points this at its own fake.
+      ULM_CLAUDE_API_BASE_URL: 'http://127.0.0.1:9',
       ...extraEnv,
     },
   });

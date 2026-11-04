@@ -2,6 +2,8 @@
 // Plan v3: the Codex 예정 리셋 area (FC-F008, FC-F011) and the «창 항상 위에 표시» switch (FC-F019).
 
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 
 import { expect, test } from '@playwright/test';
@@ -261,6 +263,61 @@ test('«새로 고침» re-reads both records and asks for the reset status at o
   await page.getByRole('button', { name: /Claude Code 연동 안내/ }).click();
   await expect(page.getByRole('button', { name: '새로 고침', exact: true })).toHaveCount(0);
   await app.close();
+});
+
+/** A local stand-in for Anthropic's usage endpoint; `reply` decides each answer. */
+async function fakeAccount(reply: () => { status: number; body?: unknown }) {
+  const auth: string[] = [];
+  const server = createServer((req, res) => {
+    auth.push(String(req.headers.authorization));
+    const { status, body } = reply();
+    res.writeHead(status, { 'content-type': 'application/json' }).end(JSON.stringify(body ?? {}));
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  return { url, auth, close: () => new Promise<void>((resolve) => server.close(() => resolve())) };
+}
+
+test('Claude Code limits come from the account without a session, and fall back to the record with the reason (developer 2026-11-03)', async () => {
+  writeClaude(fixture, 35, 100, new Date(Date.now() - 20 * hour));
+  writeCodex(fixture, 44);
+  writeFileSync(
+    fixture.claudeLoginFile,
+    JSON.stringify({ claudeAiOauth: { accessToken: 'test-token', expiresAt: Date.now() + hour } }),
+  );
+  let status = 200;
+  const iso = (ms: number) => new Date(ms).toISOString();
+  const account = await fakeAccount(() => ({
+    status,
+    body: {
+      five_hour: { utilization: 10.0, resets_at: iso(Date.now() + 4 * hour) },
+      seven_day: { utilization: 36.0, resets_at: iso(Date.now() + 5 * 24 * hour) },
+    },
+  }));
+  try {
+    const { app, page } = await launch(fixture, server.url, {
+      ULM_CLAUDE_API_BASE_URL: account.url,
+      ULM_CLAUDE_API_INTERVAL_MS: '1000',
+      ULM_READ_INTERVAL_MS: '1000',
+    });
+    await watchTray(app, page);
+    await expect(card(page, 'claude')).toContainText('10% 사용');
+    await expect(card(page, 'claude')).toContainText('36% 사용');
+    await expect(card(page, 'claude')).toContainText('Anthropic 계정에서 1분마다 받아와요');
+    await expect(card(page, 'claude')).toContainText('정상');
+    await expect.poll(() => trayTitle(app)).toMatch(/^CC 10\/36% /);
+    expect(account.auth[0]).toBe('Bearer test-token');
+    await capture(page, 'usage-claude-account');
+
+    status = 401;
+    await expect(card(page, 'claude')).toContainText('35% 사용', { timeout: 10_000 });
+    await expect(card(page, 'claude')).toContainText('상태 표시줄 기록이에요. 계정에서 받지 못했어요');
+    await expect(card(page, 'claude')).toContainText('계정 조회 실패');
+    await capture(page, 'usage-claude-account-refused');
+    await app.close();
+  } finally {
+    await account.close();
+  }
 });
 
 const mode = (value: object) =>

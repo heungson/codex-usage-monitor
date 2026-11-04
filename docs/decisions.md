@@ -1,5 +1,28 @@
 # Decisions
 
+## Claude Code limits from the Anthropic account (developer, 2026-11-03)
+
+Owner: developer 이흥선, in the coding session, after the status line record had stayed hours old
+whenever no Claude Code session was open (the status line only runs inside a session). This reverses
+the app's earlier rule «uses no token, sends nothing»; the planner has not seen it yet.
+
+- The Claude Code card and the menu bar title use `GET /api/oauth/usage` on `api.anthropic.com`
+  (header `anthropic-beta: oauth-2025-04-20`), the endpoint Claude Code's `/usage` uses, with the
+  access token from the Keychain item «Claude Code-credentials». Checked once by the developer on
+  2026-11-04: HTTP 200 with `five_hour` and `seven_day` (`utilization`, ISO `resets_at`).
+- At most one request a minute (`ULM_CLAUDE_API_INTERVAL_MS`); a failure also waits a minute, so a
+  429 is not repeated. «새로 고침» within the minute reuses the last answer.
+- The login is only read. The app never uses the refresh token: renewing replaces the stored login
+  and could sign Claude Code out. A login past `expiresAt` is not sent; the card says Claude Code
+  renews it when run.
+- Fallback: the status line record (FC-F004), with the reason on the card and the badge «계정 조회
+  실패». Whichever source was updated last is shown, so a running session still shows at once.
+- «마지막 갱신» is the time Anthropic answered when the values come from the account (PR-P004 named
+  the hook's write time; that still holds for the record).
+- The endpoint is undocumented and may change; when it does, the card falls back as above.
+- Code: `src/main/claude-api.ts`. The checks never read the Keychain: `ULM_CLAUDE_CREDENTIALS` points
+  at a test file and `ULM_CLAUDE_API_BASE_URL` at a local fake.
+
 ## Standalone macOS packaging (2026-11-02)
 
 Owner: developer 이흥선 requested a standalone app in the coding session; Codex selected the

@@ -33,6 +33,7 @@ describe('Integration', () => {
       dataDir: join(dir, 'data'),
       claudeSettings: join(dir, 'settings.json'),
       codexSessions: join(dir, 'codex'),
+      claudeLogin: null,
     };
     integration = new Integration(paths, install('app'));
   });

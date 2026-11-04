@@ -1,5 +1,32 @@
 # Verification
 
+## Claude Code limits from the Anthropic account (2026-11-04)
+
+No PRS issue; the developer's decision (`docs/decisions.md`). The PRS MCP servers did not connect,
+so no `record_verification` entry was written.
+
+- Live endpoint: run once by the developer with a probe script outside the repository (the agent's
+  own attempt to read the Keychain was refused by its permission check): HTTP 200 with
+  `five_hour.utilization` 10, `seven_day.utilization` 36 and ISO `resets_at` for each.
+- `npm run typecheck`, `npm run lint`: passed. `npm run format:check`: only the ignored
+  `.claude/settings.local.json` flagged.
+- `npm test`: 112 passed. New `test/claude-api.test.ts`: request URL and headers, mapping of both
+  windows, an expired login sends nothing, 401/429/500/offline/no-limits answers are explained, one
+  request per interval including failures, a newer record wins, a broken record does not hide the
+  account answer, no login with no record is 수집 대기 and with a record is plain record mode, the
+  login file shape.
+- `npm run test:e2e`: 41 passed, 2 skipped. New in `e2e/usage.spec.ts`: against a local fake of the
+  endpoint the card and menu bar show the account's 10/36% over a 20-hour-old 35/100% record, with
+  the token sent as `Bearer`; after the fake answers 401 the card shows the record with «계정 조회
+  실패» and the reason. Every check sets `ULM_CLAUDE_CREDENTIALS` to a test file and
+  `ULM_CLAUDE_API_BASE_URL` to a local address, so none reads the real Keychain or asks Anthropic.
+  The first full run failed the look checks' one-screen rule because the new footer line wrapped;
+  it was shortened and `e2e/look.spec.ts` passed. `tmp/e2e-shots/usage-claude-account-1.png`,
+  `usage-claude-account-refused-1.png` and `tmp/screens/light-usage-pin-off-1.png` were opened.
+- `npm run test:package`: passed.
+- Not checked: the installed app against the real Keychain and Anthropic (left to the developer
+  after installing), how long Claude Code's login lasts before it expires.
+
 ## 설정 › «로그인 시 자동 실행» (2026-11-04)
 
 No PRS issue; asked for by the developer. The PRS MCP servers did not connect, so no

@@ -35,6 +35,7 @@ it('rolls back a settings file already written when a later step fails (LHS-2 ê²
     dataDir: join(root, 'data'),
     claudeSettings: join(root, 'settings.json'),
     codexSessions: join(root, 'sessions'),
+    claudeLogin: null,
   };
   const original = JSON.stringify(
     { model: 'opus', statusLine: { type: 'command', command: 'echo keep' } },

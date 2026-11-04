@@ -12,6 +12,11 @@ export interface Paths {
   claudeSettings: string;
   /** Codex session logs. */
   codexSessions: string;
+  /**
+   * A file holding Claude Code's login JSON, read instead of the macOS Keychain; null reads the
+   * Keychain. Checks always set it, so they never read the real login.
+   */
+  claudeLogin: string | null;
 }
 
 export function resolvePaths(env: NodeJS.ProcessEnv = process.env): Paths {
@@ -20,6 +25,7 @@ export function resolvePaths(env: NodeJS.ProcessEnv = process.env): Paths {
     dataDir: env.ULM_HOME ?? join(home, 'Library', 'Application Support', 'usage-limit-monitor'),
     claudeSettings: env.ULM_CLAUDE_SETTINGS ?? join(home, '.claude', 'settings.json'),
     codexSessions: env.ULM_CODEX_SESSIONS ?? join(home, '.codex', 'sessions'),
+    claudeLogin: env.ULM_CLAUDE_CREDENTIALS ?? null,
   };
 }
 

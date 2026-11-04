@@ -16,6 +16,7 @@ import electron, {
 } from 'electron';
 
 import type { CliId, SourceState, UsageSnapshot, View } from '../shared/types';
+import { claudeSource, fileLogin, keychainLogin } from './claude-api';
 import { claudeReader } from './claude-reader';
 import { codexReader } from './codex-reader';
 import { Collector } from './collector';
@@ -93,11 +94,19 @@ function onSourceChange(cli: CliId, state: SourceState): void {
 }
 
 const collectors: Record<CliId, Collector> = {
-  claude: new Collector(claudeReader(paths.dataDir), {
-    intervalMs: readIntervalMs,
-    delayMs: numberEnv('ULM_READ_DELAY_MS', 0),
-    onChange: (state) => onSourceChange('claude', state),
-  }),
+  claude: new Collector(
+    claudeSource({
+      login: paths.claudeLogin === null ? keychainLogin() : fileLogin(paths.claudeLogin),
+      baseUrl: env.ULM_CLAUDE_API_BASE_URL ?? 'https://api.anthropic.com',
+      record: claudeReader(paths.dataDir),
+      minIntervalMs: numberEnv('ULM_CLAUDE_API_INTERVAL_MS', 60_000),
+    }),
+    {
+      intervalMs: readIntervalMs,
+      delayMs: numberEnv('ULM_READ_DELAY_MS', 0),
+      onChange: (state) => onSourceChange('claude', state),
+    },
+  ),
   codex: new Collector(codexReader(paths.codexSessions), {
     intervalMs: readIntervalMs,
     delayMs: numberEnv('ULM_READ_DELAY_MS', 0),

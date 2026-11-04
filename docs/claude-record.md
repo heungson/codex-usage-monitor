@@ -5,6 +5,10 @@
 정해져 있지 않아요»); it is an internal format between two parts of this app, not something a person
 sees, so it was settled here and recorded in `docs/decisions.md`.
 
+Since 2026-11-03 the record is the fallback: the app first asks the Anthropic account
+(`src/main/claude-api.ts`, see `docs/decisions.md`) and shows this record when that cannot be done,
+or when the record is newer than the last answer.
+
 ## Where
 
 `<data folder>/claude-rate-limits.json`. The data folder is

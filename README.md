@@ -5,13 +5,20 @@ how much of each tool's usage limit windows (5 hours, 7 days) is used and when e
 with a macOS notification at 80%, and shows Codex global reset news from
 [codex-resets.com](https://codex-resets.com).
 
-It reads only files on this Mac and the codex-resets.com public API. It uses no token and sends
-nothing about you anywhere.
+It reads files on this Mac, the codex-resets.com public API, and your Claude Code limits from
+Anthropic. For the last it reads Claude Code's login from the macOS Keychain and sends it only to
+`api.anthropic.com`; it never renews or stores that login. Nothing else about you is sent anywhere.
 
-- **Claude Code**: Claude Code passes `rate_limits.five_hour` / `rate_limits.seven_day` to its
-  status line command. «Claude Code 연동 안내 › 연동 적용» makes this app's hook the status line
-  command; the hook records the limits and then runs your previous status line command, so your
-  status line looks the same. Values update only while Claude Code runs.
+- **Claude Code**: asked from your Anthropic account at most once a minute
+  (`GET https://api.anthropic.com/api/oauth/usage`, the endpoint Claude Code's `/usage` uses, with
+  the login Claude Code keeps in the Keychain as «Claude Code-credentials»), so the values stay
+  current without a Claude Code session open. The endpoint is not a documented API and may change.
+  When it cannot be asked (no login, an expired login, offline, refused), the card says why and shows
+  the status line record instead: Claude Code passes `rate_limits.five_hour` /
+  `rate_limits.seven_day` to its status line command, and «Claude Code 연동 안내 › 연동 적용» makes
+  this app's hook that command; the hook records the limits and then runs your previous status line
+  command, so your status line looks the same. An expired login is renewed by Claude Code the next
+  time it runs; the app does not renew it, since that would replace the login Claude Code holds.
 - **Codex**: read from the `rate_limits` events in `~/.codex/sessions/**/*.jsonl`.
 - **Codex global resets**: `GET /api/v1/status` and `GET /api/v1/resets` on codex-resets.com.
   Data from codex-resets.com. The usage screen shows the next scheduled reset; clicking that area
@@ -110,23 +117,26 @@ The app saves your previous status line in
 
 Used by the checks to point the app at temporary folders. Normal use needs none.
 
-| Variable                    | Meaning                                                                                                |
-| --------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `ULM_HOME`                  | App data folder (default `~/Library/Application Support/usage-limit-monitor`)                          |
-| `ULM_CLAUDE_SETTINGS`       | Claude Code settings file (default `~/.claude/settings.json`)                                          |
-| `ULM_CODEX_SESSIONS`        | Codex sessions folder (default `~/.codex/sessions`)                                                    |
-| `ULM_RESETS_BASE_URL`       | Reset API origin (default `https://codex-resets.com`)                                                  |
-| `ULM_SHOW_WINDOW=1`         | Show the popover as an ordinary window at start                                                        |
-| `ULM_DEV_DISPLAY=1`         | Development: open the windows on a display other than the main one, without taking the keyboard        |
-| `ULM_READ_INTERVAL_MS`      | Local re-read interval (default 30000)                                                                 |
-| `ULM_READ_DELAY_MS`         | Hold every local read this long (shows the loading state)                                              |
-| `ULM_RESET_CHECK_MS`        | Background reset check interval (default 900000)                                                       |
-| `ULM_RESET_RETRY_MS`        | Reset API retry delays, comma separated (default `10000,20000,40000`)                                  |
-| `ULM_FAKE_NOTIFY`           | `shown`, `denied` or `failed`: log notifications to `<data>/notifications.log` instead of showing them |
-| `ULM_FAKE_NOTIFY_FILE`      | A file whose content overrides `ULM_FAKE_NOTIFY` on every notification                                 |
-| `ULM_FAKE_LOGIN_ITEM`       | A JSON file that stands in for macOS's login items, so checks never register Electron at login         |
-| `ULM_NOTIFICATION_APP_NAME` | Notification settings display name; `npm start` sets it to `Usage Limit Monitor`                       |
-| `ULM_SHOTS_DIR`             | Folder for the captures of `e2e/look.spec.ts` (default `tmp/screens`, e.g. `tmp/screens-before`)       |
+| Variable                     | Meaning                                                                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `ULM_HOME`                   | App data folder (default `~/Library/Application Support/usage-limit-monitor`)                          |
+| `ULM_CLAUDE_SETTINGS`        | Claude Code settings file (default `~/.claude/settings.json`)                                          |
+| `ULM_CODEX_SESSIONS`         | Codex sessions folder (default `~/.codex/sessions`)                                                    |
+| `ULM_RESETS_BASE_URL`        | Reset API origin (default `https://codex-resets.com`)                                                  |
+| `ULM_CLAUDE_CREDENTIALS`     | A file with Claude Code's login JSON, read instead of the Keychain (the checks always set it)          |
+| `ULM_CLAUDE_API_BASE_URL`    | Anthropic usage API origin (default `https://api.anthropic.com`)                                       |
+| `ULM_CLAUDE_API_INTERVAL_MS` | Shortest time between two Anthropic usage requests (default 60000)                                     |
+| `ULM_SHOW_WINDOW=1`          | Show the popover as an ordinary window at start                                                        |
+| `ULM_DEV_DISPLAY=1`          | Development: open the windows on a display other than the main one, without taking the keyboard        |
+| `ULM_READ_INTERVAL_MS`       | Local re-read interval (default 30000)                                                                 |
+| `ULM_READ_DELAY_MS`          | Hold every local read this long (shows the loading state)                                              |
+| `ULM_RESET_CHECK_MS`         | Background reset check interval (default 900000)                                                       |
+| `ULM_RESET_RETRY_MS`         | Reset API retry delays, comma separated (default `10000,20000,40000`)                                  |
+| `ULM_FAKE_NOTIFY`            | `shown`, `denied` or `failed`: log notifications to `<data>/notifications.log` instead of showing them |
+| `ULM_FAKE_NOTIFY_FILE`       | A file whose content overrides `ULM_FAKE_NOTIFY` on every notification                                 |
+| `ULM_FAKE_LOGIN_ITEM`        | A JSON file that stands in for macOS's login items, so checks never register Electron at login         |
+| `ULM_NOTIFICATION_APP_NAME`  | Notification settings display name; `npm start` sets it to `Usage Limit Monitor`                       |
+| `ULM_SHOTS_DIR`              | Folder for the captures of `e2e/look.spec.ts` (default `tmp/screens`, e.g. `tmp/screens-before`)       |
 
 ## Layout
 
