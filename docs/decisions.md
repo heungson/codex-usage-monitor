@@ -10,8 +10,13 @@ the app's earlier rule «uses no token, sends nothing»; the planner has not see
   (header `anthropic-beta: oauth-2025-04-20`), the endpoint Claude Code's `/usage` uses, with the
   access token from the Keychain item «Claude Code-credentials». Checked once by the developer on
   2026-11-04: HTTP 200 with `five_hour` and `seven_day` (`utilization`, ISO `resets_at`).
-- At most one request a minute (`ULM_CLAUDE_API_INTERVAL_MS`); a failure also waits a minute, so a
-  429 is not repeated. «새로 고침» within the minute reuses the last answer.
+- At most one request a minute (`ULM_CLAUDE_API_INTERVAL_MS`); a failure also waits a minute.
+  «새로 고침» within the minute reuses the last answer.
+- Changed 2026-11-05 (developer, after the installed app showed «계정 조회 실패 · 429» while a
+  session was open): a one-minute wait was not enough, the app kept being refused. Now, after a 429
+  the app waits for Retry-After, or without one 2, 4, 8, 16, then 30 minutes, and a success starts
+  over; the card says when it asks next. And no request is sent while the status line record is
+  under a minute old: it is current already, and is shown without the old failure.
 - The login is only read. The app never uses the refresh token: renewing replaces the stored login
   and could sign Claude Code out. A login past `expiresAt` is not sent; the card says Claude Code
   renews it when run.

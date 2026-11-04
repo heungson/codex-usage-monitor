@@ -1,5 +1,21 @@
 # Verification
 
+## Fewer Anthropic usage requests (2026-11-05)
+
+No PRS issue; asked for by the developer after the installed app showed «계정 조회 실패» with
+«Anthropic이 요청이 너무 잦다고 했어요 (429)». The PRS MCP servers did not connect, so no
+`record_verification` entry was written. The live endpoint was not called from this session.
+
+- `npm run typecheck`, `npm run lint`: passed. `npm run format:check`: only the ignored
+  `.claude/settings.local.json` flagged, as before.
+- `npm test`: 116 passed. New in `test/claude-api.test.ts`: 2, 4, 8, 16, 30, 30 minutes between
+  429s and a fresh start after a success; Retry-After honoured but never under the interval;
+  no request while the record is under a minute old, shown without the old failure; Retry-After
+  in seconds and as a date.
+- `npm run test:e2e`: 40 passed, 2 skipped, 1 failed: `e2e/dev-display.spec.ts` (macOS's front
+  app changed while the developer was using the Mac); it passed when run again on its own.
+- Not checked: that Anthropic stops answering 429 with the installed app over a day.
+
 ## Claude Code limits from the Anthropic account (2026-11-04)
 
 No PRS issue; the developer's decision (`docs/decisions.md`). The PRS MCP servers did not connect,

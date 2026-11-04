@@ -303,7 +303,7 @@ test('Claude Code limits come from the account without a session, and fall back 
     await watchTray(app, page);
     await expect(card(page, 'claude')).toContainText('10% 사용');
     await expect(card(page, 'claude')).toContainText('36% 사용');
-    await expect(card(page, 'claude')).toContainText('Anthropic 계정에서 1분마다 받아와요');
+    await expect(card(page, 'claude')).toContainText('Anthropic 계정에서 받아왔어요');
     await expect(card(page, 'claude')).toContainText('정상');
     await expect.poll(() => trayTitle(app)).toMatch(/^CC 10\/36% /);
     expect(account.auth[0]).toBe('Bearer test-token');

@@ -6,7 +6,13 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { claudeSource, fetchAccountUsage, fileLogin, type ClaudeLogin } from '../src/main/claude-api';
+import {
+  claudeSource,
+  fetchAccountUsage,
+  fileLogin,
+  parseRetryAfter,
+  type ClaudeLogin,
+} from '../src/main/claude-api';
 import type { CliUsage } from '../src/shared/types';
 import { tempDir } from './helpers';
 
@@ -105,7 +111,7 @@ describe('fetchAccountUsage', () => {
 describe('claudeSource', () => {
   it('shows the account and asks at most once per interval, failures included', async () => {
     let now = t0;
-    const { impl, calls } = fakeFetch([{ status: 429 }, { status: 200, body: answer }]);
+    const { impl, calls } = fakeFetch([{ status: 500 }, { status: 200, body: answer }]);
     const read = claudeSource({
       login: login({ accessToken: 'tok', expiresAt: null }),
       baseUrl: 'https://api.test',
@@ -116,7 +122,7 @@ describe('claudeSource', () => {
     });
     const first = await read();
     expect(first?.source).toBe('statusline');
-    expect(first?.accountProblem).toContain('429');
+    expect(first?.accountProblem).toContain('HTTP 500');
     now += 30_000;
     await read();
     expect(calls).toHaveLength(1);
@@ -125,6 +131,113 @@ describe('claudeSource', () => {
     expect(calls).toHaveLength(2);
     expect(later?.source).toBe('account');
     expect(later?.windows[0]?.usedPercent).toBe(10);
+  });
+
+  it('after a 429 waits 2, 4, 8, 16, then 30 minutes, and starts over after a success', async () => {
+    let now = t0;
+    const { impl, calls } = fakeFetch([
+      { status: 429 },
+      { status: 429 },
+      { status: 429 },
+      { status: 429 },
+      { status: 429 },
+      { status: 429 },
+      { status: 200, body: answer },
+      { status: 429 },
+    ]);
+    const read = claudeSource({
+      login: login({ accessToken: 'tok', expiresAt: null }),
+      baseUrl: 'https://api.test',
+      fetch: impl,
+      now: () => now,
+      record: async () => record(35, t0 - 600 * minute),
+      minIntervalMs: minute,
+    });
+    const first = await read();
+    expect(first?.accountProblem).toContain('429');
+    expect(first?.accountProblem).toContain('에 다시 물어봐요');
+    for (const [i, wait] of [2, 4, 8, 16, 30].entries()) {
+      now += (wait - 1) * minute;
+      await read();
+      expect(calls).toHaveLength(i + 1);
+      now += minute;
+      await read();
+      expect(calls).toHaveLength(i + 2);
+    }
+    // The sixth 429 waits 30 minutes too; the success after it resets the backoff.
+    now += 30 * minute;
+    expect((await read())?.source).toBe('account');
+    now += minute;
+    await read();
+    expect(calls).toHaveLength(8);
+    now += minute;
+    await read();
+    expect(calls).toHaveLength(8);
+    now += minute;
+    await read();
+    expect(calls).toHaveLength(9);
+  });
+
+  it('after a 429 waits as long as Retry-After says, but never less than the interval', async () => {
+    let now = t0;
+    const calls: number[] = [];
+    let retryAfter = '600';
+    const impl = (async () => {
+      calls.push(now);
+      return new Response('{}', { status: 429, headers: { 'Retry-After': retryAfter } });
+    }) as unknown as typeof fetch;
+    const read = claudeSource({
+      login: login({ accessToken: 'tok', expiresAt: null }),
+      baseUrl: 'https://api.test',
+      fetch: impl,
+      now: () => now,
+      record: async () => null,
+      minIntervalMs: minute,
+    });
+    await expect(read()).rejects.toThrow('429');
+    now += 9 * minute;
+    await expect(read()).rejects.toThrow('429');
+    expect(calls).toHaveLength(1);
+    retryAfter = '0';
+    now += minute;
+    await expect(read()).rejects.toThrow('429');
+    expect(calls).toHaveLength(2);
+    now += 30_000;
+    await expect(read()).rejects.toThrow('429');
+    expect(calls).toHaveLength(2);
+  });
+
+  it('does not ask while the status line record is fresh, and shows it without the old failure', async () => {
+    let now = t0;
+    let written = t0 - 600 * minute;
+    const { impl, calls } = fakeFetch([{ status: 429 }, { status: 200, body: answer }]);
+    const read = claudeSource({
+      login: login({ accessToken: 'tok', expiresAt: null }),
+      baseUrl: 'https://api.test',
+      fetch: impl,
+      now: () => now,
+      record: async () => record(41, written),
+      minIntervalMs: minute,
+    });
+    expect((await read())?.accountProblem).toContain('429');
+    // Claude Code draws its status line: the record is current, so nothing is asked.
+    now += 10 * minute;
+    written = now - 5_000;
+    const shown = await read();
+    expect(calls).toHaveLength(1);
+    expect(shown).toMatchObject({ source: 'statusline', accountProblem: null });
+    expect(shown?.windows[0]?.usedPercent).toBe(41);
+    // Claude Code closed: once the record is a minute old the account is asked again.
+    now += minute;
+    expect((await read())?.source).toBe('account');
+    expect(calls).toHaveLength(2);
+  });
+
+  it('reads Retry-After in seconds or as a date', () => {
+    expect(parseRetryAfter('120', t0)).toBe(120_000);
+    expect(parseRetryAfter(new Date(t0 + 5 * minute).toUTCString(), t0)).toBe(5 * minute);
+    expect(parseRetryAfter(null, t0)).toBeNull();
+    expect(parseRetryAfter('soon', t0)).toBeNull();
   });
 
   it('shows a status line record newer than the last account answer', async () => {

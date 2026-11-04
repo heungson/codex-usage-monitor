@@ -117,7 +117,7 @@ function metaHtml(cli: CliId, usage: CliUsage): string {
     // with the reason the account could not be asked.
     const note =
       usage.source === 'account'
-        ? 'Anthropic 계정에서 1분마다 받아와요.'
+        ? 'Anthropic 계정에서 받아왔어요.'
         : usage.accountProblem
           ? `상태 표시줄 기록이에요. 계정에서 받지 못했어요: ${escapeHtml(usage.accountProblem)}.`
           : 'Claude Code 상태 표시줄 기록이에요.';
