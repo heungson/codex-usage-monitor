@@ -306,6 +306,30 @@ when the even-use mark moves. Decided while building it and confirmed by the dev
 - Off until turned on; kept with «항상 위» in `window-settings.json`. With it on, the mark's tip adds
   «주말과 공휴일에는 멈춰요.»
 
+## 14 more themes (developer, 2026-11-05)
+
+Asked for by the developer: «add 15 more themes», then, while they were being built, «add just 14
+more not 15». Decided while building them and confirmed by the developer the same day:
+
+- **Which 14**: 바다, 숲, 노을, 벚꽃, 한지, 단청, 우주, 커피, 민트, 모노, 신문, 청사진, LCD, 사탕. The agent
+  had drawn 15; 눈 (icy blue-white) was dropped as the closest to 바다 and 민트. Original names and
+  palettes rather than named editor schemes, so nothing imitates another product.
+- **One scheme by nature**: 단청, 우주 and 청사진 are always dark; 한지, 신문 and LCD always light. The
+  rest follow the Mac. 한지 and 신문 use the Mac's serif fonts (AppleMyungjo for Korean), 청사진 and
+  LCD the monospaced one; 벚꽃 and 사탕 the rounded one. Nothing new is bundled.
+- **Every colour token per theme**: each block sets all of them, so no colour leaks from 기본's
+  translucent ones. Hover, sunken, tinted backgrounds and the grey of values that are not current
+  are mixes of the theme's own surface and text.
+- **Contrast is measured, not judged**: `test/themes.test.ts` reads each theme's tokens from
+  styles.css and checks text, secondary text, links, warnings and errors at 4.5:1 on panel and
+  window, bars and the even-use mark at 3:1 on the panel, button text and the hover tip at 4.5:1.
+  It found the earlier themes short in two places, fixed here: the primary button's text was
+  always white, unreadable on 고대비 dark's yellow and weak on 픽셀 dark, 네온 and 파스텔 (a new
+  `--on-accent` token now sets it per theme); and 파스텔 light's bars were 1.8–2.8:1 on white (now
+  #8b5cf6, #ec4899, #ea580c).
+- **Picker**: twenty options no longer fit two columns with notes; it is three columns of swatch and
+  name, the short note in the tooltip.
+
 ## 테마 on the 설정 screen (developer, 2026-11-05)
 
 Asked for by the developer: «can you make it use pixel art style?», then, while it was being built,

@@ -1,5 +1,21 @@
 # Verification
 
+## 14 more themes (2026-11-05)
+
+No PRS issue; asked for by the developer. The live endpoint was not called.
+
+- `npm run typecheck`, `npm run lint`, `npm run format:check`: passed.
+- `npm test`: 147 passed. New `test/themes.test.ts`: twenty distinct themes, 기본 first, and for each
+  of the other nineteen, light and dark, the contrast pairs in docs/decisions.md («14 more themes»).
+  It failed first for 파스텔 and for button text in four themes; both fixed.
+- `npm run test:e2e`: 62 passed, 2 skipped. `e2e/settings.spec.ts` now picks all twenty themes;
+  `e2e/look.spec.ts` captures every theme but 기본 in light and dark, checks the usage screen fits
+  the 600-pixel popover and the even-use tip opens. The new captures were opened side by side
+  (`tmp/screens/new-themes-{light,dark}-{a,b}.png`). Once, 바다 dark showed the 예정 리셋 card light
+  grey; a rerun of that test showed it normal, and the cause was not found.
+- `npm run test:package`: passed.
+- Not checked: the installed app.
+
 ## 테마 (2026-11-05)
 
 No PRS issue; asked for by the developer. The live endpoint was not called.

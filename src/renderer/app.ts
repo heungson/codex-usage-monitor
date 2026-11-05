@@ -522,14 +522,15 @@ function settingsView(): string {
 
 /** 테마 (developer, 2026-11-05): one radio group; the look changes as soon as one is picked. */
 function themeCard(): string {
+  // Twenty themes: three columns of swatch and name; the short description is the tooltip.
   const options = themes
     .map((theme) => {
       const [bg, panel, bar, accent] = theme.swatch;
-      return `<label class="theme-option">
+      return `<label class="theme-option" title="${theme.note}">
           <input type="radio" name="theme" value="${theme.id}" data-key="theme-${theme.id}"
                  ${state.window.theme === theme.id ? 'checked' : ''} />
           <span class="theme-swatch" aria-hidden="true" style="--sw-bg:${bg};--sw-panel:${panel};--sw-bar:${bar};--sw-accent:${accent}"><i></i></span>
-          <span class="theme-text"><span class="theme-name">${theme.name}</span><span class="theme-note">${theme.note}</span></span>
+          <span class="theme-name">${theme.name}</span>
         </label>`;
     })
     .join('');

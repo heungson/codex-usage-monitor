@@ -9,6 +9,7 @@ import { join } from 'node:path';
 
 import { expect, test, type Page } from '@playwright/test';
 
+import { themes } from '../src/shared/themes';
 import { codexLine } from '../test/helpers';
 import { capture, clickUpcomingArea, launch, makeFixture, type Fixture } from './app';
 import { startFakeResets } from './fake-resets-server';
@@ -145,7 +146,7 @@ for (const scheme of ['light', 'dark'] as const) {
 
 // Every theme (developer, 2026-11-05) in light and dark: the usage screen with the default data
 // still fits the popover, and the hover tip still shows. Captures in tmp/screens/theme-*.
-for (const theme of ['pixel', 'terminal', 'pastel', 'neon', 'contrast'] as const) {
+for (const { id: theme } of themes.slice(1)) {
   test(`theme ${theme}`, async () => {
     mkdirSync(dir, { recursive: true });
     const fixture = makeFixture();
