@@ -1,5 +1,31 @@
 # Verification
 
+## Pace and freshness on the usage cards (2026-11-05)
+
+No PRS issue; asked for by the developer. The PRS MCP servers did not connect, so no
+`record_verification` entry was written.
+
+- `npm run typecheck`, `npm run lint`: passed. `npm run format:check`: only the ignored
+  `.claude/settings.local.json` flagged.
+- `npm test`: 122 passed. New `test/pace.test.ts`: the even-use point, lasting, running out, the tight
+  band in the last tenth, no projection early, at 0% or 100%, none without a length or reset.
+- `npm run test:e2e`: 41 passed, 2 skipped (two assertions changed to the new header wording).
+- Captures: `tmp/screens-before/` (before) and `tmp/screens/` (after) were opened, usage screen light
+  and dark and the stale state. Every window's reset line and pace fit one line at 360 px; the usage
+  screen still fits 600 px. The first pass flagged Codex 7일 at 44% with 43% of the week gone as
+  «소진 예상»; the tight band was added for that, and the weekday dropped from the short date so the
+  7-day lines stop wrapping. Stale pace text turns grey like the stale figures.
+- Menu bar meter, added after: `test/tray-icon.test.ts` (which windows, pixels, faint) and an e2e
+  check that the tray image is an 18-pt template; its capture `tmp/e2e-shots/tray-meter@2x.png` was
+  enlarged and opened (top bar 23%, bottom 61%).
+- Translucent popover, added after: the Playwright captures show only the page, so the real window
+  was captured with `screencapture -l` (`tmp/vibrancy/shot.mjs`, `tmp/vibrancy/light.png`) and opened:
+  the material shows behind the page and the text reads as before. Dark could not be captured: the
+  page follows the system appearance, and the check did not change this Mac's.
+- Totals after both: `npm test` 126 passed; `npm run test:e2e` 42 passed, 2 skipped;
+  `npm run test:package` passed.
+- Not checked: the installed app; the dark material in a real window.
+
 ## Fewer Anthropic usage requests (2026-11-05)
 
 No PRS issue; asked for by the developer after the installed app showed «계정 조회 실패» with

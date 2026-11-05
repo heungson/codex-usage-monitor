@@ -20,9 +20,15 @@
   --radius-card: 10px;
   --radius-control: 6px;
 
-  /* Light. Text colours keep at least 4.5:1 on --surface and --window. */
-  --window: #f2f2f4;
-  --surface: #ffffff;
+  /*
+   * Light. Text colours keep at least 4.5:1 on --surface and --window.
+   * The window is macOS's translucent popover material (developer, 2026-11-05): --window is the
+   * page background over it, --surface the cards; both stay nearly opaque so text contrast holds
+   * whatever is behind the window. --chrome is the top bar, blurred over what scrolls beneath it.
+   */
+  --window: rgba(242, 242, 244, 0.55);
+  --surface: rgba(255, 255, 255, 0.86);
+  --chrome: rgba(242, 242, 244, 0.72);
   --surface-hover: #f7f7f9;
   --sunken: #f2f2f4;
   --text: #1d1d1f;
@@ -36,6 +42,8 @@
   /* Bars are graphics: at least 3:1 on --surface (#c76a00: 3.8:1; the earlier #f08c00 was 2.5:1). */
   --bar-high: #c76a00;
   --bar-stale: #9a9aa0;
+  /* The even-use mark on a bar (developer, 2026-11-05): a graphic, at least 3:1 on --surface. */
+  --even: #6e6e73;
   --ok: #1f7a35;
   --ok-bg: rgba(52, 199, 89, 0.14);
   --warn: #8f4c00;
@@ -50,8 +58,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --window: #1c1c1e;
-    --surface: #2c2c2e;
+    --window: rgba(28, 28, 30, 0.55);
+    --surface: rgba(58, 58, 60, 0.72);
+    --chrome: rgba(28, 28, 30, 0.72);
     --surface-hover: #323235;
     --sunken: #232325;
     --text: #f5f5f7;
@@ -64,6 +73,7 @@
     --bar: #0a84ff;
     --bar-high: #ff9f0a;
     --bar-stale: #6e6e73;
+    --even: #c7c7cc;
     --ok: #4cd472;
     --ok-bg: rgba(48, 209, 88, 0.16);
     --warn: #ffb340;
@@ -129,7 +139,9 @@ p {
   gap: var(--s2);
   min-height: 40px;
   padding: 6px var(--s3) 6px var(--s4);
-  background: var(--window);
+  background: var(--chrome);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
   border-bottom: 0.5px solid var(--separator);
 }
 
@@ -238,7 +250,20 @@ main {
   justify-content: space-between;
   gap: var(--s2);
   min-height: 20px;
-  margin-bottom: 6px;
+}
+
+/* How old the values are, under the card title (CodexBar's «Updated just now»). */
+.card-sub {
+  margin: -1px 0 var(--s2);
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+}
+
+/* Why the account could not be asked (shown with the record instead). */
+.card-note {
+  margin-top: var(--s2);
+  color: var(--warn);
+  font-size: var(--fs-caption);
 }
 
 .card-head h2 {
@@ -367,11 +392,37 @@ main {
 }
 
 .track {
+  position: relative;
   height: 5px;
   margin: 3px 0 2px;
   border-radius: 3px;
   background: var(--track);
-  overflow: hidden;
+}
+
+/* Where even use would put the bar now; it stands a little proud of the bar so it reads over the fill. */
+.even {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--even);
+  box-shadow: 0 0 0 1px var(--surface);
+}
+
+.window-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  column-gap: var(--s2);
+  color: var(--text-2);
+  font-size: var(--fs-small);
+}
+
+.pace.warn {
+  color: var(--warn);
+  font-weight: 500;
 }
 
 .fill {
@@ -382,24 +433,6 @@ main {
 
 .fill.high {
   background: var(--bar-high);
-}
-
-.meta {
-  margin-top: var(--s2);
-  padding-top: 6px;
-  border-top: 0.5px solid var(--separator);
-  color: var(--text-2);
-  font-size: var(--fs-small);
-}
-
-.meta strong {
-  color: var(--text);
-  font-weight: 500;
-}
-
-.meta-note {
-  display: block;
-  font-size: var(--fs-caption);
 }
 
 /*
@@ -413,6 +446,7 @@ main {
 
 .stale .num,
 .stale .window-percent.high .num,
+.stale .pace.warn,
 .stale .upcoming-main {
   color: var(--text-2);
 }

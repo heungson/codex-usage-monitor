@@ -25,6 +25,8 @@ Anthropic. For the last it reads Claude Code's login from the macOS Keychain and
 - **Codex global resets**: `GET /api/v1/status` and `GET /api/v1/resets` on codex-resets.com.
   Data from codex-resets.com. The usage screen shows the next scheduled reset; clicking that area
   opens the full status and history.
+- **Menu bar icon**: a two-bar meter, the fullest 5시간 window of either CLI on top and the fullest
+  7일 below; faint when no values are current.
 - **Menu bar title**: both windows of each CLI, 5시간/7일, «CC 92/84% · CX 12/44%», and «· ↻ 2일» while
   a Codex reset is scheduled. A click on the item opens 사용량 현황.
 - **Quitting**: right click or Control-click the menu bar item › «종료», or ⌘Q while 사용량 현황 is

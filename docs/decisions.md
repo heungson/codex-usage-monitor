@@ -280,6 +280,35 @@ Test windows covered the developer's main display (the LG with the menu bar) and
   elsewhere (it closes on blur); a click on the menu bar item closes it.
 - The menu bar item is on every display; macOS places it, and it is left as it is.
 
+## Pace and freshness on the usage cards (developer, 2026-11-05)
+
+The developer asked for a better design after looking at similar apps. Adopted from CodexBar
+(`github.com/steipete/CodexBar`) and Usage4Claude (`github.com/f-is-h/usage4claude`):
+
+- **Even-use mark** (Usage4Claude's pace guide): a thin mark on every bar where the bar would be if
+  the window were spent evenly until its reset. Bar left of the mark: ahead; right: behind.
+- **Pace** (CodexBar's «Pace: … · Lasts to reset»): right of the reset line, «N 뒤 소진 예상» in the
+  warning colour when this rate runs the window out before its reset, «리셋 직전까지 빠듯» when it runs
+  out only in the last tenth of the window, «리셋까지 충분» otherwise, «한도 도달» at 100%. Nothing in
+  the first tenth of a window, where one busy hour would dominate the projection. Code:
+  `src/shared/pace.ts`.
+- **Countdown first** (CodexBar's «Resets in 3h 53m»): «2시간 14분 뒤 리셋 · 12:08»; the date
+  without its weekday off today, the full time in the tooltip.
+- **Freshness in the header** (CodexBar's «Updated just now»): «마지막 갱신 3분 전 · Anthropic 계정» or
+  «· 상태 표시줄 기록» under the Claude Code title, «가장 최근 Codex 기록 10분 전» under Codex; the
+  separate meta block at the bottom of each card is gone. The words «마지막 갱신» stay (PR-P004).
+- Kept: the cards, the two-colour rule at 80% (no red step), the one-screen fit, the tokens.
+- **Menu bar meter** (CodexBar's two-bar icon), asked for by the developer the same day: the tray
+  icon is drawn live as two bars, the fullest 5시간 window of either CLI on top and the fullest 7일
+  below, an outlined track filled from the left. A template image, so macOS tints it; drawn faint when
+  no CLI has current values. It replaces `src/main/assets/trayTemplate*.png`, which nothing loads now.
+  Code: `src/main/tray-icon.ts`.
+- **Translucent popover**, also asked for that day: the window has macOS's `popover` vibrancy,
+  kept active while pinned. The page, the top bar and the cards are tinted over it rather than clear
+  (light cards 86% white, dark cards `#3a3a3c` at 72%), so text contrast stays close to the opaque
+  values above whatever is behind the window. The top bar blurs what scrolls beneath it.
+- Not adopted: provider tabs (two CLIs fit one screen).
+
 ## Look (v3, revised 2026-10-30)
 
 The plan stops at the wireframe; the look is ours. First chosen by the coding agent when the developer

@@ -12,6 +12,7 @@ import {
   windowLabel,
 } from '../shared/format';
 import { nearLimit } from '../shared/limits';
+import { pace } from '../shared/pace';
 import type {
   AreaState,
   CliId,
@@ -87,7 +88,37 @@ const skeleton = '<div class="skeleton"></div><div class="skeleton short"></div>
 
 // ---------- 사용량 현황 ----------
 
-function windowsHtml(usage: CliUsage): string {
+/** «12:46» today, «내일 09:00», else «11/9 21:00»: short enough to share a line with the pace. */
+function shortWhen(at: number, now: number): string {
+  const full = formatDateTime(at, now);
+  if (full.startsWith('오늘 ')) return full.slice(3);
+  if (full.startsWith('내일 ') || full.startsWith('어제 ')) return full;
+  const d = new Date(at);
+  const time = full.slice(-5);
+  return `${d.getMonth() + 1}/${d.getDate()} ${time}`;
+}
+
+/**
+ * The line under a bar: the countdown first, as CodexBar does, then the clock time; on the right the
+ * pace (developer, 2026-11-05): when this rate runs the window out before its reset, or that it lasts.
+ */
+function windowFoot(w: CliUsage['windows'][number], now: number): string {
+  if (w.resetsAt === null) return '<div class="window-foot"><span>리셋 시각이 기록에 없어요</span></div>';
+  const reset =
+    w.resetsAt > now
+      ? `${formatDuration(w.resetsAt - now)} 뒤 리셋 · ${shortWhen(w.resetsAt, now)}`
+      : `리셋 시각 지남 · ${shortWhen(w.resetsAt, now)}`;
+  const p = pace(w, now);
+  let right = '';
+  if (w.usedPercent >= 100) right = '<span class="pace warn">한도 도달</span>';
+  else if (p?.runsOutAt)
+    right = `<span class="pace warn" title="이 속도면 ${formatDateTime(p.runsOutAt, now)}에 한도에 닿아요">${formatDuration(p.runsOutAt - now)} 뒤 소진 예상</span>`;
+  else if (p?.tight) right = '<span class="pace">리셋 직전까지 빠듯</span>';
+  else if (p?.projected) right = '<span class="pace">리셋까지 충분</span>';
+  return `<div class="window-foot"><span title="리셋 ${describeReset(w.resetsAt, now)}">${reset}</span>${right}</div>`;
+}
+
+function windowsHtml(usage: CliUsage, now = Date.now()): string {
   if (usage.windows.length === 0) return '<p class="empty">기록에 한도 값이 없어요.</p>';
   return [...usage.windows]
     .sort(shorterFirst)
@@ -95,6 +126,11 @@ function windowsHtml(usage: CliUsage): string {
       const percent = Math.max(0, Math.min(100, w.usedPercent));
       // Two colours only: the warning colour from the limit alert threshold (LHS-9, 80%), else the usual one.
       const tone = nearLimit(w.usedPercent) ? 'high' : '';
+      const p = pace(w, now);
+      // The even-use mark (Usage4Claude's guide): where the bar would be if spent evenly until the reset.
+      const even = p
+        ? `<div class="even" style="left:${p.expected.toFixed(1)}%" title="고르게 쓰면 지금 ${Math.round(p.expected)}%"></div>`
+        : '';
       return `
         <div class="window">
           <div class="window-top">
@@ -103,28 +139,32 @@ function windowsHtml(usage: CliUsage): string {
           </div>
           <div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(percent)}"
                aria-label="${windowLabel(w.windowMinutes)} 한도 사용 비율">
-            <div class="fill ${tone}" style="width:${percent}%"></div>
+            <div class="fill ${tone}" style="width:${percent}%"></div>${even}
           </div>
-          <div class="sub">${w.resetsAt === null ? '리셋 시각이 기록에 없어요' : `리셋 ${describeReset(w.resetsAt)}`}</div>
+          ${windowFoot(w, now)}
         </div>`;
     })
     .join('');
 }
 
-function metaHtml(cli: CliId, usage: CliUsage): string {
-  if (cli === 'claude') {
-    // Where the values came from (developer, 2026-11-03): the account, else the status line record
-    // with the reason the account could not be asked.
-    const note =
-      usage.source === 'account'
-        ? 'Anthropic 계정에서 받아왔어요.'
-        : usage.accountProblem
-          ? `상태 표시줄 기록이에요. 계정에서 받지 못했어요: ${escapeHtml(usage.accountProblem)}.`
-          : 'Claude Code 상태 표시줄 기록이에요.';
-    return `<div class="meta">마지막 갱신 <strong>${usage.updatedAt ? describePast(usage.updatedAt) : '알 수 없음'}</strong>
-      <span class="meta-note">${note}</span></div>`;
-  }
-  return `<div class="meta">가장 최근 Codex 기록 <strong>${usage.updatedAt ? describePast(usage.updatedAt) : '알 수 없음'}</strong></div>`;
+/**
+ * Under the card title, as CodexBar's «Updated just now»: how old the values are and, for Claude
+ * Code, where they came from (developer, 2026-11-03). The full time is in the tooltip.
+ */
+function freshnessHtml(cli: CliId, usage: CliUsage | null, now = Date.now()): string {
+  if (!usage) return '';
+  const age = usage.updatedAt ? `${formatDuration(now - usage.updatedAt)} 전` : '알 수 없음';
+  const full = usage.updatedAt ? ` title="${describePast(usage.updatedAt, now)}"` : '';
+  if (cli === 'codex') return `<p class="card-sub"${full}>가장 최근 Codex 기록 ${age}</p>`;
+  const from = usage.source === 'account' ? 'Anthropic 계정' : '상태 표시줄 기록';
+  return `<p class="card-sub"${full}>마지막 갱신 ${age} · ${from}</p>`;
+}
+
+/** Why the account could not be asked, when the status line record is shown instead. */
+function accountProblemHtml(usage: CliUsage): string {
+  return usage.accountProblem
+    ? `<p class="card-note">계정에서 받지 못했어요: ${escapeHtml(usage.accountProblem)}.</p>`
+    : '';
 }
 
 function waitingHtml(cli: CliId): string {
@@ -161,7 +201,7 @@ function sourceCard(cli: CliId, source: SourceState): string {
     case 'ok':
       // The record shown because the account could not be asked may be hours old: say so.
       badge = source.usage.accountProblem ? chip('계정 조회 실패', 'warn') : chip('정상', 'ok');
-      body = windowsHtml(source.usage) + metaHtml(cli, source.usage);
+      body = windowsHtml(source.usage) + accountProblemHtml(source.usage);
       break;
     case 'error':
       if (source.lastGood) {
@@ -172,7 +212,7 @@ function sourceCard(cli: CliId, source: SourceState): string {
             <p>${escapeHtml(source.message)}. 아래는 마지막으로 읽은 값이에요.</p>
             ${retryLine(cli, source)}
           </div>
-          <div class="stale">${windowsHtml(source.lastGood)}${metaHtml(cli, source.lastGood)}</div>`;
+          <div class="stale">${windowsHtml(source.lastGood)}</div>`;
       } else {
         badge = chip(source.retrying ? '자동 재시도 중' : '확인 불가', 'error');
         body = `
@@ -188,6 +228,7 @@ function sourceCard(cli: CliId, source: SourceState): string {
   return `
     <section class="card${stale ? ' is-stale' : ''}" data-cli="${cli}" aria-label="${cliNames[cli]}">
       <div class="card-head"><h2>${cliNames[cli]}${plan}</h2>${badge}</div>
+      ${freshnessHtml(cli, shown)}
       ${body}
     </section>`;
 }

@@ -303,7 +303,7 @@ test('Claude Code limits come from the account without a session, and fall back 
     await watchTray(app, page);
     await expect(card(page, 'claude')).toContainText('10% 사용');
     await expect(card(page, 'claude')).toContainText('36% 사용');
-    await expect(card(page, 'claude')).toContainText('Anthropic 계정에서 받아왔어요');
+    await expect(card(page, 'claude')).toContainText('· Anthropic 계정');
     await expect(card(page, 'claude')).toContainText('정상');
     await expect.poll(() => trayTitle(app)).toMatch(/^CC 10\/36% /);
     expect(account.auth[0]).toBe('Bearer test-token');
@@ -311,13 +311,53 @@ test('Claude Code limits come from the account without a session, and fall back 
 
     status = 401;
     await expect(card(page, 'claude')).toContainText('35% 사용', { timeout: 10_000 });
-    await expect(card(page, 'claude')).toContainText('상태 표시줄 기록이에요. 계정에서 받지 못했어요');
+    await expect(card(page, 'claude')).toContainText('계정에서 받지 못했어요');
     await expect(card(page, 'claude')).toContainText('계정 조회 실패');
     await capture(page, 'usage-claude-account-refused');
     await app.close();
   } finally {
     await account.close();
   }
+});
+
+test('the menu bar icon is a template meter of the fullest 5시간 and 7일 windows (developer 2026-11-05)', async () => {
+  const { app, page } = await launch(fixture, server.url, { ULM_READ_INTERVAL_MS: '1000' });
+  await expect(card(page, 'claude')).toContainText('수집 대기');
+  await app.evaluate(({ Tray }) => {
+    const g = globalThis as unknown as {
+      trayImage?: { png: string; template: boolean; size: Electron.Size };
+    };
+    const setImage = Tray.prototype.setImage;
+    Tray.prototype.setImage = function (this: Electron.Tray, image: Electron.NativeImage | string) {
+      if (typeof image !== 'string')
+        g.trayImage = {
+          png: image.toPNG({ scaleFactor: 2 }).toString('base64'),
+          template: image.isTemplateImage(),
+          size: image.getSize(),
+        };
+      return setImage.call(this, image);
+    };
+  });
+  writeClaude(fixture, 23, 61);
+  writeCodex(fixture, 44);
+  await expect(card(page, 'claude')).toContainText('23% 사용', { timeout: 10_000 });
+  const image = await expect
+    .poll(() =>
+      app.evaluate(() => (globalThis as unknown as { trayImage?: { png: string } }).trayImage ?? null),
+    )
+    .not.toBeNull()
+    .then(() =>
+      app.evaluate(
+        () =>
+          (globalThis as unknown as { trayImage: { png: string; template: boolean; size: Electron.Size } })
+            .trayImage,
+      ),
+    );
+  expect(image.template).toBe(true);
+  expect(image.size).toEqual({ width: 18, height: 18 });
+  mkdirSync(join('tmp', 'e2e-shots'), { recursive: true });
+  writeFileSync(join('tmp', 'e2e-shots', 'tray-meter@2x.png'), Buffer.from(image.png, 'base64'));
+  await app.close();
 });
 
 const mode = (value: object) =>

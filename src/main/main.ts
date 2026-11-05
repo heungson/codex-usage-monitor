@@ -3,20 +3,11 @@
 import { mkdirSync, watch, type FSWatcher } from 'node:fs';
 import { join } from 'node:path';
 
-import electron, {
-  app,
-  BrowserWindow,
-  ipcMain,
-  Menu,
-  nativeImage,
-  nativeTheme,
-  screen,
-  shell,
-  Tray,
-} from 'electron';
+import electron, { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron';
 
 import type { CliId, SourceState, UsageSnapshot, View } from '../shared/types';
 import { claudeSource, fileLogin, keychainLogin } from './claude-api';
+import { iconPoints, iconScale, meter, meterBitmap } from './tray-icon';
 import { claudeReader } from './claude-reader';
 import { codexReader } from './codex-reader';
 import { Collector } from './collector';
@@ -123,8 +114,27 @@ function usageSnapshot(): UsageSnapshot {
   };
 }
 
+/** The menu bar icon: a two-bar meter of the fullest 5시간 and 7일 windows (src/main/tray-icon.ts). */
+function meterImage(snapshot: UsageSnapshot): Electron.NativeImage {
+  const pixels = iconPoints * iconScale;
+  const image = nativeImage.createFromBitmap(meterBitmap(meter(snapshot)), {
+    width: pixels,
+    height: pixels,
+    scaleFactor: iconScale,
+  });
+  image.setTemplateImage(true);
+  return image;
+}
+
+let lastMeter = '';
+
 function publishUsage(): void {
   const snapshot = usageSnapshot();
+  const value = JSON.stringify(meter(snapshot));
+  if (tray && value !== lastMeter) {
+    lastMeter = value;
+    tray.setImage(meterImage(snapshot));
+  }
   menuBarTitle.setUsage(snapshot);
   send('usage', snapshot);
 }
@@ -244,7 +254,11 @@ function createPopover(): BrowserWindow {
     skipTaskbar: !showWindowMode,
     alwaysOnTop: !showWindowMode,
     title: '사용량 한도 모니터',
-    backgroundColor: windowBackground(),
+    // macOS's translucent popover material behind the page (developer, 2026-11-05), kept active
+    // so a pinned window does not turn flat grey when another app is in front.
+    backgroundColor: '#00000000',
+    vibrancy: 'popover',
+    visualEffectState: 'active',
     webPreferences: {
       preload: join(__dirname, '..', 'preload', 'preload.js'),
       contextIsolation: true,
@@ -266,11 +280,6 @@ function createPopover(): BrowserWindow {
     return { action: 'deny' };
   });
   return window;
-}
-
-/** Matches the page background so a resize never flashes the wrong colour (styles.css --window). */
-function windowBackground(): string {
-  return nativeTheme.shouldUseDarkColors ? '#1c1c1e' : '#f2f2f4';
 }
 
 /** Applies «창 항상 위에 표시» to the window (FC-F019). */
@@ -350,9 +359,9 @@ app.whenReady().then(() => {
   if (!showWindowMode) app.dock?.hide();
   popover = createPopover();
   applyWindowSettings();
-  nativeTheme.on('updated', () => popover?.setBackgroundColor(windowBackground()));
 
-  tray = new Tray(nativeImage.createFromPath(join(__dirname, 'assets', 'trayTemplate.png')));
+  lastMeter = JSON.stringify(meter(usageSnapshot()));
+  tray = new Tray(meterImage(usageSnapshot()));
   tray.setToolTip('사용량 한도 모니터');
   quitMenu = Menu.buildFromTemplate([quitItem]);
   // A click opens 사용량 현황 as before; a right click or Control-click opens the «종료» menu
