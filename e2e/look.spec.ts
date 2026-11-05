@@ -165,6 +165,11 @@ for (const { id: theme } of themes.slice(1)) {
       await page.evaluate(() => document.fonts.ready);
       await capture(page, `theme-${theme}-${scheme}-usage`, dir);
       expect(await fitsWithoutScrolling(page)).toBe(true);
+      // The 예정 리셋 card takes the new scheme's panel colour like the others; it once kept the old
+      // one through a background transition (2026-11-05).
+      const panel = (selector: string) =>
+        page.locator(selector).evaluate((el) => getComputedStyle(el).backgroundColor);
+      expect(await panel('section[data-area="upcoming"]')).toBe(await panel('section[data-cli="claude"]'));
       await page.locator('.even').first().hover();
       await expect(page.locator('.even-tip').first()).toBeVisible();
       await page.mouse.move(0, 0);

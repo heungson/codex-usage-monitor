@@ -306,6 +306,35 @@ when the even-use mark moves. Decided while building it and confirmed by the dev
 - Off until turned on; kept with «항상 위» in `window-settings.json`. With it on, the mark's tip adds
   «주말과 공휴일에는 멈춰요.»
 
+## Six themes from Korean crafts and painting (developer, 2026-11-05)
+
+Asked for by the developer: «could you add more Korean cultures or traditions inspired color
+themes?» No number was given; the agent chose six, each from a different craft, and the developer
+confirmed them the same day:
+
+- **색동**: the rainbow stripes of a child's hanbok sleeve, as the bars' stripes (red, yellow, green,
+  blue, pink, white). Some stripes are light, so the fill has a 1-pixel dark edge to show where it
+  ends; over 80% it turns to two reds. Follows the Mac.
+- **청자**: Goryeo celadon, jade-green glaze with a faint crackle of crossing hairlines behind the
+  cards, iron brown for warnings. Follows the Mac.
+- **백자**: Joseon white porcelain, the moon jar's warm white, cobalt (청화) bars and copper red (진사)
+  for warnings; large round corners. Always light.
+- **자개**: 나전칠기, mother-of-pearl in black lacquer: pearl-coloured gradient bars and a pearl
+  rule under the top bar. Always dark.
+- **일월오봉**: the screen behind the Joseon throne, a blue sky, green peaks as each card's bottom
+  rule and the bars, a red sun as the top bar's rule and warnings, a white moon as the even-use
+  mark. Always dark.
+- **조각보**: a wrapping cloth pieced from leftover silk, with a stitched seam inside each card and
+  bars of patchwork colours (dark-edged, as 색동). Follows the Mac.
+- All six pass `test/themes.test.ts`. The bar token each is measured by is the bar's main colour;
+  the lighter stripes of 색동 and 조각보 are decoration inside the dark edge.
+
+Found while capturing them: the 예정 리셋 card sometimes kept the previous scheme's background after
+a light/dark switch, in 기본 too. Its `transition: background` animated the switch, and Chromium
+does not run animations in the unfocused test window on the second display, so the card stayed at
+the old colour. The transition is now on `:hover` only (the pointer arriving still fades in);
+`e2e/look.spec.ts` checks the card matches the other cards in every theme and scheme.
+
 ## 14 more themes (developer, 2026-11-05)
 
 Asked for by the developer: «add 15 more themes», then, while they were being built, «add just 14

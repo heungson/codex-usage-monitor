@@ -80,11 +80,11 @@ const pairs: Array<[string, string, number]> = [
 const optional = ['bar-end', 'bar-high-end'];
 
 describe('themes', () => {
-  it('lists 20 distinct themes, 기본 first', () => {
-    expect(themes).toHaveLength(20);
+  it('lists 26 distinct themes, 기본 first', () => {
+    expect(themes).toHaveLength(26);
     expect(themes[0]!.id).toBe('default');
-    expect(new Set(themes.map((t) => t.id)).size).toBe(20);
-    expect(new Set(themes.map((t) => t.name)).size).toBe(20);
+    expect(new Set(themes.map((t) => t.id)).size).toBe(26);
+    expect(new Set(themes.map((t) => t.name)).size).toBe(26);
     expect(isThemeId('pixel')).toBe(true);
     expect(isThemeId('gone')).toBe(false);
   });

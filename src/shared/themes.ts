@@ -1,8 +1,9 @@
 // The looks a person can choose on the 설정 screen (developer, 2026-11-05: «add it as one of themes
-// that the users can choose», then «add 4 more themes» and «add just 14 more»). 기본 is the macOS look the app had; the
+// that the users can choose», then «add 4 more themes» «add just 14 more» and «add more Korean cultures or traditions inspired
+// color themes»). 기본 is the macOS look the app had; the
 // others are laid over it in styles.css under `:root[data-theme='…']`. Each follows the Mac's light
-// or dark setting unless it has one scheme by nature: 터미널, 네온, 단청, 우주 and 청사진 are dark;
-// 한지, 신문 and LCD are light.
+// or dark setting unless it has one scheme by nature: 터미널, 네온, 단청, 우주, 청사진, 자개 and 일월오봉
+// are dark; 한지, 신문, LCD and 백자 are light.
 
 export const themeIds = [
   'default',
@@ -25,6 +26,12 @@ export const themeIds = [
   'blueprint',
   'lcd',
   'candy',
+  'saekdong',
+  'celadon',
+  'baekja',
+  'najeon',
+  'irworobong',
+  'jogakbo',
 ] as const;
 
 export type ThemeId = (typeof themeIds)[number];
@@ -98,6 +105,27 @@ export const themes: readonly Theme[] = [
     name: '사탕',
     note: '알록달록 줄무늬',
     swatch: ['#fff4fb', '#ffffff', '#c026d3', '#a21caf'],
+  },
+  {
+    id: 'saekdong',
+    name: '색동',
+    note: '한복 소매 줄무늬',
+    swatch: ['#fbf6ee', '#ffffff', '#c8102e', '#b5223b'],
+  },
+  { id: 'celadon', name: '청자', note: '고려 비색', swatch: ['#dce8e0', '#eef5f0', '#4b8a75', '#2a6654'] },
+  { id: 'baekja', name: '백자', note: '청화백자', swatch: ['#efece3', '#fbfaf6', '#2a4fa8', '#1f3f8f'] },
+  { id: 'najeon', name: '자개', note: '나전칠기', swatch: ['#0b0b0d', '#151518', '#8fd3ff', '#a8e6da'] },
+  {
+    id: 'irworobong',
+    name: '일월오봉',
+    note: '해와 달과 다섯 봉우리',
+    swatch: ['#0f2a4a', '#143559', '#4cbf7e', '#f5c542'],
+  },
+  {
+    id: 'jogakbo',
+    name: '조각보',
+    note: '조각 이은 보자기',
+    swatch: ['#ece5d8', '#fbf8f2', '#7a5a2e', '#8c3b5a'],
   },
 ];
 

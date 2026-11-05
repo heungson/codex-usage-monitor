@@ -42,10 +42,11 @@ Anthropic. For the last it reads Claude Code's login from the macOS Keychain and
   only on working days, still reaching the end at the reset; 5시간 bars are unchanged. The holidays
   are listed in `src/shared/holidays-kr.ts` for 2026 and 2027; add each next year when its 월력요항 is
   published (a year not listed counts weekends only).
-- **설정 › 테마**: twenty looks, applied as soon as one is picked and kept across restarts: 기본 (the
-  macOS translucent look, the first state), 픽셀, 터미널, 파스텔, 네온, 고대비, 바다, 숲, 노을, 벚꽃,
-  한지, 단청, 우주, 커피, 민트, 모노, 신문, 청사진, LCD and 사탕. 터미널, 네온, 단청, 우주 and 청사진 are
-  always dark, 한지, 신문 and LCD always light; the others follow the Mac's light or dark setting.
+- **설정 › 테마**: twenty-six looks, applied as soon as one is picked and kept across restarts: 기본
+  (the macOS translucent look, the first state), 픽셀, 터미널, 파스텔, 네온, 고대비, 바다, 숲, 노을,
+  벚꽃, 한지, 단청, 우주, 커피, 민트, 모노, 신문, 청사진, LCD, 사탕, and six from Korean crafts and
+  painting: 색동, 청자, 백자, 자개, 일월오봉, 조각보. 터미널, 네온, 단청, 우주, 청사진, 자개 and 일월오봉
+  are always dark, 한지, 신문, LCD and 백자 always light; the others follow the Mac's light or dark setting.
   `test/themes.test.ts` measures every theme's contrast. 픽셀 uses Galmuri11 by Lee Minseo
   (SIL Open Font License 1.1, `src/renderer/fonts/OFL.txt`), bundled with the app.
 

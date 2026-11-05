@@ -1,5 +1,21 @@
 # Verification
 
+## Six themes from Korean crafts and painting (2026-11-05)
+
+No PRS issue; asked for by the developer. The live endpoint was not called.
+
+- `npm run typecheck`, `npm run lint`, `npm run format:check`: passed.
+- `npm test`: 153 passed (`test/themes.test.ts` now 26 themes; the six new ones passed the contrast
+  pairs at first try).
+- `npm run test:e2e`: 68 passed, 2 skipped. New in `e2e/look.spec.ts`: in every theme and scheme the
+  예정 리셋 card's background equals the Claude Code card's.
+- The grey 예정 리셋 card of the previous section was reproduced with a probe (in 기본, 픽셀 and
+  조각보 the card's computed background stayed the light one after switching to dark, 2 runs in 3);
+  with the transition moved to `:hover`, 8 runs in 4 themes were all right. The probe was not kept.
+- Captures opened: `tmp/screens/korean-themes.png` (the six in light, three in dark, and the picker).
+- `npm run test:package`: passed.
+- Not checked: the installed app; a real macOS appearance switch with the popover open.
+
 ## 14 more themes (2026-11-05)
 
 No PRS issue; asked for by the developer. The live endpoint was not called.
