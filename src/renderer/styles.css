@@ -411,20 +411,6 @@ main {
   box-shadow: 0 0 0 1px var(--surface);
 }
 
-.window-foot {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  column-gap: var(--s2);
-  color: var(--text-2);
-  font-size: var(--fs-small);
-}
-
-.pace.warn {
-  color: var(--warn);
-  font-weight: 500;
-}
-
 .fill {
   height: 100%;
   border-radius: 3px;
@@ -446,7 +432,6 @@ main {
 
 .stale .num,
 .stale .window-percent.high .num,
-.stale .pace.warn,
 .stale .upcoming-main {
   color: var(--text-2);
 }

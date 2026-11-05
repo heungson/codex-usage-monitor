@@ -1,5 +1,18 @@
 # Verification
 
+## CodexBar style removed (2026-11-05)
+
+The developer found the redesign worse and chose what to remove: the menu bar meter, the pace line
+and the countdown-first reset line. `src/main/tray-icon.ts`, `test/tray-icon.test.ts` and the e2e
+meter check were removed; `src/shared/pace.ts` keeps only the even-use point.
+
+- `npm run typecheck`, `npm run lint`: passed. `npm run format:check`: only the ignored
+  `.claude/settings.local.json` flagged.
+- `npm test`: 118 passed. `npm run test:e2e`: 41 passed, 2 skipped. `npm run test:package`: passed.
+- `tmp/screens/light-usage-pin-off-1.png` was opened: reset lines read «리셋 오늘 12:30 (2시간 14분
+  뒤)» again, with no pace text; the freshness line and the even-use mark remain.
+- Not checked: the installed app.
+
 ## Pace and freshness on the usage cards (2026-11-05)
 
 No PRS issue; asked for by the developer. The PRS MCP servers did not connect, so no

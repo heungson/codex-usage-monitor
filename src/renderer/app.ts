@@ -12,7 +12,7 @@ import {
   windowLabel,
 } from '../shared/format';
 import { nearLimit } from '../shared/limits';
-import { pace } from '../shared/pace';
+import { evenUse } from '../shared/pace';
 import type {
   AreaState,
   CliId,
@@ -88,36 +88,6 @@ const skeleton = '<div class="skeleton"></div><div class="skeleton short"></div>
 
 // ---------- 사용량 현황 ----------
 
-/** «12:46» today, «내일 09:00», else «11/9 21:00»: short enough to share a line with the pace. */
-function shortWhen(at: number, now: number): string {
-  const full = formatDateTime(at, now);
-  if (full.startsWith('오늘 ')) return full.slice(3);
-  if (full.startsWith('내일 ') || full.startsWith('어제 ')) return full;
-  const d = new Date(at);
-  const time = full.slice(-5);
-  return `${d.getMonth() + 1}/${d.getDate()} ${time}`;
-}
-
-/**
- * The line under a bar: the countdown first, as CodexBar does, then the clock time; on the right the
- * pace (developer, 2026-11-05): when this rate runs the window out before its reset, or that it lasts.
- */
-function windowFoot(w: CliUsage['windows'][number], now: number): string {
-  if (w.resetsAt === null) return '<div class="window-foot"><span>리셋 시각이 기록에 없어요</span></div>';
-  const reset =
-    w.resetsAt > now
-      ? `${formatDuration(w.resetsAt - now)} 뒤 리셋 · ${shortWhen(w.resetsAt, now)}`
-      : `리셋 시각 지남 · ${shortWhen(w.resetsAt, now)}`;
-  const p = pace(w, now);
-  let right = '';
-  if (w.usedPercent >= 100) right = '<span class="pace warn">한도 도달</span>';
-  else if (p?.runsOutAt)
-    right = `<span class="pace warn" title="이 속도면 ${formatDateTime(p.runsOutAt, now)}에 한도에 닿아요">${formatDuration(p.runsOutAt - now)} 뒤 소진 예상</span>`;
-  else if (p?.tight) right = '<span class="pace">리셋 직전까지 빠듯</span>';
-  else if (p?.projected) right = '<span class="pace">리셋까지 충분</span>';
-  return `<div class="window-foot"><span title="리셋 ${describeReset(w.resetsAt, now)}">${reset}</span>${right}</div>`;
-}
-
 function windowsHtml(usage: CliUsage, now = Date.now()): string {
   if (usage.windows.length === 0) return '<p class="empty">기록에 한도 값이 없어요.</p>';
   return [...usage.windows]
@@ -126,11 +96,12 @@ function windowsHtml(usage: CliUsage, now = Date.now()): string {
       const percent = Math.max(0, Math.min(100, w.usedPercent));
       // Two colours only: the warning colour from the limit alert threshold (LHS-9, 80%), else the usual one.
       const tone = nearLimit(w.usedPercent) ? 'high' : '';
-      const p = pace(w, now);
       // The even-use mark (Usage4Claude's guide): where the bar would be if spent evenly until the reset.
-      const even = p
-        ? `<div class="even" style="left:${p.expected.toFixed(1)}%" title="고르게 쓰면 지금 ${Math.round(p.expected)}%"></div>`
-        : '';
+      const expected = evenUse(w, now);
+      const even =
+        expected === null
+          ? ''
+          : `<div class="even" style="left:${expected.toFixed(1)}%" title="고르게 쓰면 지금 ${Math.round(expected)}%"></div>`;
       return `
         <div class="window">
           <div class="window-top">
@@ -141,7 +112,7 @@ function windowsHtml(usage: CliUsage, now = Date.now()): string {
                aria-label="${windowLabel(w.windowMinutes)} 한도 사용 비율">
             <div class="fill ${tone}" style="width:${percent}%"></div>${even}
           </div>
-          ${windowFoot(w, now)}
+          <div class="sub">${w.resetsAt === null ? '리셋 시각이 기록에 없어요' : `리셋 ${describeReset(w.resetsAt, now)}`}</div>
         </div>`;
     })
     .join('');

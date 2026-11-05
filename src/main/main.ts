@@ -7,7 +7,6 @@ import electron, { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, shell
 
 import type { CliId, SourceState, UsageSnapshot, View } from '../shared/types';
 import { claudeSource, fileLogin, keychainLogin } from './claude-api';
-import { iconPoints, iconScale, meter, meterBitmap } from './tray-icon';
 import { claudeReader } from './claude-reader';
 import { codexReader } from './codex-reader';
 import { Collector } from './collector';
@@ -114,27 +113,8 @@ function usageSnapshot(): UsageSnapshot {
   };
 }
 
-/** The menu bar icon: a two-bar meter of the fullest 5시간 and 7일 windows (src/main/tray-icon.ts). */
-function meterImage(snapshot: UsageSnapshot): Electron.NativeImage {
-  const pixels = iconPoints * iconScale;
-  const image = nativeImage.createFromBitmap(meterBitmap(meter(snapshot)), {
-    width: pixels,
-    height: pixels,
-    scaleFactor: iconScale,
-  });
-  image.setTemplateImage(true);
-  return image;
-}
-
-let lastMeter = '';
-
 function publishUsage(): void {
   const snapshot = usageSnapshot();
-  const value = JSON.stringify(meter(snapshot));
-  if (tray && value !== lastMeter) {
-    lastMeter = value;
-    tray.setImage(meterImage(snapshot));
-  }
   menuBarTitle.setUsage(snapshot);
   send('usage', snapshot);
 }
@@ -360,8 +340,7 @@ app.whenReady().then(() => {
   popover = createPopover();
   applyWindowSettings();
 
-  lastMeter = JSON.stringify(meter(usageSnapshot()));
-  tray = new Tray(meterImage(usageSnapshot()));
+  tray = new Tray(nativeImage.createFromPath(join(__dirname, 'assets', 'trayTemplate.png')));
   tray.setToolTip('사용량 한도 모니터');
   quitMenu = Menu.buildFromTemplate([quitItem]);
   // A click opens 사용량 현황 as before; a right click or Control-click opens the «종료» menu
