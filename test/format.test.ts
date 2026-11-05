@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { trayTitle } from '../src/main/tray-title';
 import { alertThresholdPercent } from '../src/main/limit-alerts';
 import { nearLimit } from '../src/shared/limits';
-import { describeReset, formatDuration, windowLabel } from '../src/shared/format';
+import { currentPercent, describeReset, formatDuration, windowLabel } from '../src/shared/format';
 import type { SourceState, UsageWindow } from '../src/shared/types';
 
 describe('format', () => {
@@ -69,6 +69,38 @@ describe('trayTitle', () => {
     expect(title(failed(bothCc), bothCx)).toBe('CC 92/84%? · CX 12/44%');
     expect(title(bothCc, failed(bothCx))).toBe('CC 92/84% · CX 12/44%?');
     expect(title(bothCc, failed(ok(win(10080, 30))))).toBe('CC 92/84% · CX 30%?');
+  });
+});
+
+// developer, 2026-11-05: the record still read 71% after the 5시간 reset while Anthropic showed 0%.
+describe('a window past its reset time', () => {
+  const now = new Date(2026, 10, 5, 17, 25).getTime();
+  const w = (used: number, resetsAt: number | null): UsageWindow => ({
+    key: 'five_hour',
+    windowMinutes: 300,
+    usedPercent: used,
+    resetsAt,
+  });
+
+  it('counts 0% from the reset time on, and keeps the value before it or without a reset time', () => {
+    expect(currentPercent(w(71, now - 5 * 60_000), now)).toBe(0);
+    expect(currentPercent(w(71, now), now)).toBe(0);
+    expect(currentPercent(w(71, now + 60_000), now)).toBe(71);
+    expect(currentPercent(w(71, null), now)).toBe(71);
+  });
+
+  it('shows 0 in the menu bar title for that window only', () => {
+    const usage = {
+      updatedAt: 0,
+      windows: [
+        w(71, now - 5 * 60_000),
+        { ...w(60, now + 86_400_000), key: 'seven_day', windowMinutes: 10080 },
+      ],
+    };
+    const ok: SourceState = { kind: 'ok', readAt: 0, usage };
+    expect(
+      trayTitle({ claude: ok, codex: { kind: 'waiting' }, alertNotice: null, resetNotice: null }, now),
+    ).toBe('CC 0/60% · CX –');
   });
 });
 

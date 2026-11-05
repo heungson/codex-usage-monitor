@@ -322,6 +322,24 @@ test('Claude Code limits come from the account without a session, and fall back 
     await expect(card(page, 'claude')).not.toContainText('계정 조회 실패');
     await expect(card(page, 'claude')).not.toContainText('계정에서 받지 못했어요');
     await capture(page, 'usage-claude-account-paused');
+
+    // Still paused, and the record's 5시간 reset has passed (developer, 2026-11-05: it kept 71%
+    // while Anthropic showed 0%): that window reads 0% and says it reset; 7일 keeps its value.
+    writeFileSync(
+      join(fixture.dataDir, 'claude-rate-limits.json'),
+      JSON.stringify({
+        version: 1,
+        updatedAt: new Date(Date.now() - 8 * 60_000).toISOString(),
+        fiveHour: { usedPercentage: 71, resetsAt: Date.now() - 5 * 60_000 },
+        sevenDay: { usedPercentage: 60, resetsAt: Date.now() + 4 * 24 * hour },
+      }),
+    );
+    await expect(card(page, 'claude')).toContainText('에 리셋됨 · 새 기록을 기다려요', { timeout: 10_000 });
+    await expect(card(page, 'claude').locator('.window').first()).toContainText('0% 사용');
+    await expect(card(page, 'claude')).toContainText('60% 사용');
+    await expect(card(page, 'claude')).not.toContainText('71%');
+    await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toMatch(/^CC 0\/60% /);
+    await capture(page, 'usage-claude-reset-passed');
     await app.close();
   } finally {
     await account.close();

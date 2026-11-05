@@ -56,6 +56,18 @@ describe('LimitAlerts', () => {
     expect(sent).toHaveLength(2);
   });
 
+  it('does not alert on a value from before the window reset (developer, 2026-11-05)', async () => {
+    const { notifier, sent } = recordingNotifier();
+    const alerts = new LimitAlerts(
+      file,
+      notifier,
+      () => undefined,
+      () => now,
+    );
+    await alerts.evaluate('claude', usage(85, now - 60_000));
+    expect(sent).toHaveLength(0);
+  });
+
   it('alerts once per window until it resets, across restarts (검증 3)', async () => {
     const { notifier, sent } = recordingNotifier();
     let alerts = new LimitAlerts(

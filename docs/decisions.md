@@ -24,6 +24,15 @@ the app's earlier rule «uses no token, sends nothing»; the planner has not see
   A 429 while the status line record can be shown is a pause, not a failure: the badge stays 정상
   and a grey line says «Anthropic이 잠시 조회를 막았어요 (429) · HH:MM:SS에 다시 물어봐요». Other
   failures still show «계정 조회 실패».
+- Changed 2026-11-05 (developer, «why does it not match the actual value?», with the card at
+  «5시간 71% · 리셋 오늘 17:20 (지남)» while Anthropic's page said «Current session 0%»): the record
+  is written only while Claude Code draws its status line, and the account was paused by a 429, so
+  the newest value was from before the reset. A window whose reset time has passed now counts 0%
+  everywhere: the card (with «오늘 17:20에 리셋됨 · 새 기록을 기다려요» under it, no even-use mark),
+  the menu bar title, and the 80% alert, which no longer fires again on that old value. The value
+  read stays as it was; only what is shown is worked out at the time (`currentPercent` in
+  `src/shared/format.ts`). A 1-point difference on a window still running (60% here, 61% on the
+  page) is the record's age: it is the value when Claude Code last drew its status line.
 - The login is only read. The app never uses the refresh token: renewing replaces the stored login
   and could sign Claude Code out. A login past `expiresAt` is not sent; the card says Claude Code
   renews it when run.

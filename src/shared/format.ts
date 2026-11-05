@@ -56,6 +56,19 @@ export function formatDuration(ms: number): string {
   return `${mins}분`;
 }
 
+/**
+ * The used share to show now. A window whose reset time has passed starts again from 0%, even when
+ * the newest value is from before it (developer, 2026-11-05: the status line record still read 71%
+ * after the 5시간 reset while Anthropic showed 0%, the account being paused by a 429).
+ */
+export function currentPercent(window: UsageWindow, now: number = Date.now()): number {
+  return resetPassed(window, now) ? 0 : window.usedPercent;
+}
+
+export function resetPassed(window: UsageWindow, now: number = Date.now()): boolean {
+  return window.resetsAt !== null && window.resetsAt <= now;
+}
+
 /** «오늘 15:30 (1시간 20분 뒤)»; a reset time already passed reads «… (지남)». */
 export function describeReset(resetsAt: number, now: number = Date.now()): string {
   const when = formatDateTime(resetsAt, now);

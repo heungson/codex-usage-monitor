@@ -1,5 +1,21 @@
 # Verification
 
+## A window past its reset reads 0% (2026-11-05)
+
+No PRS issue; asked for by the developer («why does it not match the actual value?») with the card
+at 5시간 71% «(지남)» and Anthropic's page at 0%. The PRS MCP servers did not connect, so no
+`record_verification` entry was written.
+
+- `npm run typecheck`, `npm run lint`, `npm run format:check`: passed.
+- `npm test`: 156 passed. New in `test/format.test.ts`: `currentPercent` is 0 at and after the reset
+  time, unchanged before it or without one; the menu bar title reads «CC 0/60%». New in
+  `test/alerts.test.ts`: 85% with a passed reset sends no alert.
+- `npm run test:e2e`: 68 passed, 2 skipped. `e2e/usage.spec.ts` (account test) now writes a record
+  whose 5시간 reset passed 5 minutes ago while the account answers 429, and checks 0%, «에 리셋됨 ·
+  새 기록을 기다려요», 60% on 7일, no 71%, and the title «CC 0/60%». Capture
+  `tmp/e2e-shots/usage-claude-reset-passed-1.png` opened and looked at.
+- Not checked: the installed app (not rebuilt or reinstalled yet).
+
 ## Six themes from Korean crafts and painting (2026-11-05)
 
 No PRS issue; asked for by the developer. The live endpoint was not called.

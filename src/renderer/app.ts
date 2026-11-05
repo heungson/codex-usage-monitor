@@ -4,11 +4,13 @@
 
 import { isThemeId, themes } from '../shared/themes';
 import {
+  currentPercent,
   describePast,
   describeReset,
   formatClock,
   formatDateTime,
   formatDuration,
+  resetPassed,
   shorterFirst,
   windowLabel,
 } from '../shared/format';
@@ -26,6 +28,7 @@ import type {
   ResetStatus,
   ResetsSnapshot,
   SourceState,
+  UsageWindow,
   UsageSnapshot,
   View,
   WindowSettings,
@@ -103,14 +106,23 @@ function evenMark(expected: number, workdays: boolean): string {
     <div class="even-tip" style="--at:${at}%" aria-hidden="true">${text}</div>`;
 }
 
+/** «리셋 내일 09:00 (3시간 뒤)»; once passed, «오늘 17:20에 리셋됨 · 새 기록을 기다려요». */
+function resetLine(w: UsageWindow, now: number): string {
+  if (w.resetsAt === null) return '리셋 시각이 기록에 없어요';
+  if (resetPassed(w, now)) return `${formatDateTime(w.resetsAt, now)}에 리셋됨 · 새 기록을 기다려요`;
+  return `리셋 ${describeReset(w.resetsAt, now)}`;
+}
+
 function windowsHtml(usage: CliUsage, now = Date.now()): string {
   if (usage.windows.length === 0) return '<p class="empty">기록에 한도 값이 없어요.</p>';
   return [...usage.windows]
     .sort(shorterFirst)
     .map((w) => {
-      const percent = Math.max(0, Math.min(100, w.usedPercent));
+      // Past its reset time the window counts 0% until a newer value comes (currentPercent).
+      const used = currentPercent(w, now);
+      const percent = Math.max(0, Math.min(100, used));
       // Two colours only: the warning colour from the limit alert threshold (LHS-9, 80%), else the usual one.
-      const tone = nearLimit(w.usedPercent) ? 'high' : '';
+      const tone = nearLimit(used) ? 'high' : '';
       // The even-use mark (Usage4Claude's guide): where the bar would be if spent evenly until the reset.
       const workdays = state.window.workdaysOnly && (w.windowMinutes ?? 0) >= 1440;
       const expected = evenUse(w, now, workdays);
@@ -119,13 +131,13 @@ function windowsHtml(usage: CliUsage, now = Date.now()): string {
         <div class="window">
           <div class="window-top">
             <span class="window-name">${windowLabel(w.windowMinutes)} 한도</span>
-            <span class="window-percent ${tone}"><span class="num">${Math.round(w.usedPercent)}%</span> 사용</span>
+            <span class="window-percent ${tone}"><span class="num">${Math.round(used)}%</span> 사용</span>
           </div>
           <div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(percent)}"
                aria-label="${windowLabel(w.windowMinutes)} 한도 사용 비율">
             <div class="fill ${tone}" style="width:${percent}%"></div>${even}
           </div>
-          <div class="sub">${w.resetsAt === null ? '리셋 시각이 기록에 없어요' : `리셋 ${describeReset(w.resetsAt, now)}`}</div>
+          <div class="sub">${resetLine(w, now)}</div>
         </div>`;
     })
     .join('');

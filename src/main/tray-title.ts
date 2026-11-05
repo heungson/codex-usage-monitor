@@ -5,7 +5,7 @@
 // scheduled, the time left follows with the same separator: «… · ↻ 2일» (PR-P026). The title is
 // never shortened for space; macOS hides the item when the menu bar is full (LHS-5 개발 항목 5).
 
-import { shorterFirst } from '../shared/format';
+import { currentPercent, shorterFirst } from '../shared/format';
 import type { AreaState, CliUsage, ResetStatus, SourceState, UsageSnapshot } from '../shared/types';
 
 const separator = ' · ';
@@ -13,27 +13,27 @@ const minute = 60_000;
 const hour = 60 * minute;
 const day = 24 * hour;
 
-function part(state: SourceState): string {
+function part(state: SourceState, now: number): string {
   switch (state.kind) {
     case 'loading':
       return '…';
     case 'waiting':
       return '–';
     case 'ok':
-      return percents(state.usage);
+      return percents(state.usage, now);
     case 'error':
-      return state.lastGood ? `${percents(state.lastGood)}?` : '!';
+      return state.lastGood ? `${percents(state.lastGood, now)}?` : '!';
   }
 }
 
-/** «92/84%», shorter window first; «30%» with one window. */
-function percents(usage: CliUsage): string {
-  const values = [...usage.windows].sort(shorterFirst).map((w) => Math.round(w.usedPercent));
+/** «92/84%», shorter window first; «30%» with one window. A window past its reset counts 0%. */
+function percents(usage: CliUsage, now: number): string {
+  const values = [...usage.windows].sort(shorterFirst).map((w) => Math.round(currentPercent(w, now)));
   return values.length === 0 ? '–' : `${values.join('/')}%`;
 }
 
-export function trayTitle(snapshot: UsageSnapshot): string {
-  return `CC ${part(snapshot.claude)}${separator}CX ${part(snapshot.codex)}`;
+export function trayTitle(snapshot: UsageSnapshot, now: number = Date.now()): string {
+  return `CC ${part(snapshot.claude, now)}${separator}CX ${part(snapshot.codex, now)}`;
 }
 
 /** Time left, rounded down to whole days, else hours, else minutes; under a minute «1분 미만» (PR-P026). */
@@ -58,7 +58,9 @@ export function scheduledDue(status: AreaState<ResetStatus> | null, now: number)
 
 export function fullTitle(usage: UsageSnapshot, status: AreaState<ResetStatus> | null, now: number): string {
   const due = scheduledDue(status, now);
-  return due === null ? trayTitle(usage) : `${trayTitle(usage)}${separator}↻ ${timeLeft(due - now)}`;
+  return due === null
+    ? trayTitle(usage, now)
+    : `${trayTitle(usage, now)}${separator}↻ ${timeLeft(due - now)}`;
 }
 
 /**

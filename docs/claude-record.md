@@ -30,7 +30,8 @@ or when the record is newer than the last answer.
 - `usedPercentage` and `resetsAt` come from `rate_limits.five_hour` / `rate_limits.seven_day` in the
   status line input (Claude Code 2.1.312). `resetsAt` is stored in epoch milliseconds; the hook
   accepts seconds, milliseconds or an ISO string from Claude Code. A window Claude Code did not send
-  is `null`.
+  is `null`. A window whose `resetsAt` has passed is shown as 0% until a newer value comes; the
+  record itself is not changed (developer, 2026-11-05; docs/decisions.md).
 
 ## Rules
 

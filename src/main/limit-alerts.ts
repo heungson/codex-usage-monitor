@@ -13,7 +13,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 import type { CliId, CliUsage, UsageWindow } from '../shared/types';
-import { describeReset, formatDateTime, windowLabel } from '../shared/format';
+import { currentPercent, describeReset, formatDateTime, windowLabel } from '../shared/format';
 import { limitAlertPercent } from '../shared/limits';
 import { sameResetWindow as sameWindow } from '../shared/windows';
 import type { Notifier } from './notifier';
@@ -76,7 +76,8 @@ export class LimitAlerts {
   async evaluate(cli: CliId, usage: CliUsage): Promise<void> {
     this.retireNotice(cli, usage);
     for (const window of usage.windows) {
-      if (window.usedPercent < alertThresholdPercent) continue;
+      // A value from before the window's reset is not current (currentPercent): no alert for it.
+      if (currentPercent(window, this.now()) < alertThresholdPercent) continue;
       const key = `${cli}:${window.key}`;
       if (this.alreadySent(key, window)) continue;
 
