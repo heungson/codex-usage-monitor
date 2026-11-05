@@ -145,9 +145,11 @@ function freshnessHtml(cli: CliId, usage: CliUsage | null, now = Date.now()): st
 
 /** Why the account could not be asked, when the status line record is shown instead. */
 function accountProblemHtml(usage: CliUsage): string {
-  return usage.accountProblem
-    ? `<p class="card-note">계정에서 받지 못했어요: ${escapeHtml(usage.accountProblem)}.</p>`
-    : '';
+  if (usage.accountProblem)
+    return `<p class="card-note">계정에서 받지 못했어요: ${escapeHtml(usage.accountProblem)}.</p>`;
+  if (usage.accountRetryAt)
+    return `<p class="card-note quiet">Anthropic이 잠시 조회를 막았어요 (429) · ${formatClock(usage.accountRetryAt)}에 다시 물어봐요.</p>`;
+  return '';
 }
 
 function waitingHtml(cli: CliId): string {

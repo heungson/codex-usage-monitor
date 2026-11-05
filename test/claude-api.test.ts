@@ -153,9 +153,13 @@ describe('claudeSource', () => {
       record: async () => record(35, t0 - 600 * minute),
       minIntervalMs: minute,
     });
+    // With the record to show, a 429 is a pause, not a failure: no problem, only when to ask next.
     const first = await read();
-    expect(first?.accountProblem).toContain('429');
-    expect(first?.accountProblem).toContain('에 다시 물어봐요');
+    expect(first).toMatchObject({
+      source: 'statusline',
+      accountProblem: null,
+      accountRetryAt: t0 + 2 * minute,
+    });
     for (const [i, wait] of [2, 4, 8, 16, 30].entries()) {
       now += (wait - 1) * minute;
       await read();
@@ -178,7 +182,7 @@ describe('claudeSource', () => {
     expect(calls).toHaveLength(9);
   });
 
-  it('after a 429 waits as long as Retry-After says, but never less than the interval', async () => {
+  it('after a 429 waits as long as a longer Retry-After says, and ignores «Retry-After: 0»', async () => {
     let now = t0;
     const calls: number[] = [];
     let retryAfter = '600';
@@ -198,13 +202,18 @@ describe('claudeSource', () => {
     now += 9 * minute;
     await expect(read()).rejects.toThrow('429');
     expect(calls).toHaveLength(1);
+    // Anthropic sends «Retry-After: 0» and keeps refusing (seen 2026-11-05): the backoff stands,
+    // 4 minutes after the second 429 in a row.
     retryAfter = '0';
     now += minute;
     await expect(read()).rejects.toThrow('429');
     expect(calls).toHaveLength(2);
-    now += 30_000;
-    await expect(read()).rejects.toThrow('429');
+    now += 4 * minute - 1;
+    await expect(read()).rejects.toThrow('에 다시 물어봐요');
     expect(calls).toHaveLength(2);
+    now += 1;
+    await expect(read()).rejects.toThrow('429');
+    expect(calls).toHaveLength(3);
   });
 
   it('does not ask while the status line record is fresh, and shows it without the old failure', async () => {
@@ -219,7 +228,7 @@ describe('claudeSource', () => {
       record: async () => record(41, written),
       minIntervalMs: minute,
     });
-    expect((await read())?.accountProblem).toContain('429');
+    expect((await read())?.accountRetryAt).toBe(t0 + 2 * minute);
     // Claude Code draws its status line: the record is current, so nothing is asked.
     now += 10 * minute;
     written = now - 5_000;

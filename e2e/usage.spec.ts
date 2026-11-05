@@ -314,6 +314,14 @@ test('Claude Code limits come from the account without a session, and fall back 
     await expect(card(page, 'claude')).toContainText('계정에서 받지 못했어요');
     await expect(card(page, 'claude')).toContainText('계정 조회 실패');
     await capture(page, 'usage-claude-account-refused');
+
+    // A 429 with the record to show is a pause: 정상, and a quiet line with when it asks next.
+    status = 429;
+    await expect(card(page, 'claude')).toContainText('잠시 조회를 막았어요 (429)', { timeout: 10_000 });
+    await expect(card(page, 'claude')).toContainText('정상');
+    await expect(card(page, 'claude')).not.toContainText('계정 조회 실패');
+    await expect(card(page, 'claude')).not.toContainText('계정에서 받지 못했어요');
+    await capture(page, 'usage-claude-account-paused');
     await app.close();
   } finally {
     await account.close();

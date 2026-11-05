@@ -271,6 +271,11 @@ main {
   font-size: var(--fs-caption);
 }
 
+/* Anthropic paused asking (429): the record is current enough, so not a warning. */
+.card-note.quiet {
+  color: var(--text-2);
+}
+
 .card-head h2 {
   font-size: var(--fs-body);
   font-weight: 600;

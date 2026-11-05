@@ -11,7 +11,8 @@ Anthropic. For the last it reads Claude Code's login from the macOS Keychain and
 
 - **Claude Code**: asked from your Anthropic account at most once a minute, and not at all while
   a Claude Code session has written its status line within that minute; after a 429 the app waits
-  as long as Anthropic says, or 2 → 4 → 8 → 16 → 30 minutes
+  2 → 4 → 8 → 16 → 30 minutes, or longer if Anthropic says so, and shows the status line record
+  meanwhile without calling it a failure
   (`GET https://api.anthropic.com/api/oauth/usage`, the endpoint Claude Code's `/usage` uses, with
   the login Claude Code keeps in the Keychain as «Claude Code-credentials»), so the values stay
   current without a Claude Code session open. The endpoint is not a documented API and may change.

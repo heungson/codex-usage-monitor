@@ -85,6 +85,21 @@ No PRS issue; asked for by the developer. The PRS MCP servers did not connect, s
   `npm run test:package` passed.
 - Not checked: the installed app; the dark material in a real window.
 
+## A 429 is a pause, and «Retry-After: 0» no longer cuts the backoff (2026-11-05)
+
+No PRS issue; asked for by the developer («just fix this») after the installed app showed
+«계정 조회 실패» with «Anthropic이 요청이 너무 잦다고 했어요 (429) · 14:02:40에 다시 물어봐요». The
+PRS MCP servers did not connect, so no `record_verification` entry was written. The live endpoint
+was not called from this session.
+
+- `npm run typecheck`, `npm run lint`, `npm run format:check`: passed.
+- `npm test`: 126 passed. Changed in `test/claude-api.test.ts`: a 429 with a record gives no
+  problem and the next ask time; «Retry-After: 0» keeps the 4-minute backoff after a second 429.
+- `npm run test:e2e`: 42 passed, 2 skipped. `e2e/usage.spec.ts` now also answers 429 and checks
+  정상, the grey line, and no «계정 조회 실패»; capture `tmp/e2e-shots/usage-claude-account-paused-1.png`
+  opened and looked at.
+- Not checked: the installed app (not rebuilt or reinstalled); that Anthropic stops answering 429.
+
 ## Fewer Anthropic usage requests (2026-11-05)
 
 No PRS issue; asked for by the developer after the installed app showed «계정 조회 실패» with

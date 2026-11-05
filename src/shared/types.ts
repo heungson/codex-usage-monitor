@@ -29,6 +29,11 @@ export interface CliUsage {
   source?: 'account' | 'statusline';
   /** Claude Code only: why the account could not be asked, when the record is shown instead. */
   accountProblem?: string | null;
+  /**
+   * Claude Code only: Anthropic answered 429, so the record is shown and the account is asked again
+   * at this time (epoch ms). Not a failure.
+   */
+  accountRetryAt?: number | null;
 }
 
 /** What one collector knows right now (PR-P020, WF-S001 states). */

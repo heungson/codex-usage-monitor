@@ -41,8 +41,10 @@ export function parseRetryAfter(value: string | null, now: number): number | nul
 }
 
 /**
- * The wait after the n-th 429 in a row without a Retry-After: 2, 4, 8, 16, then 30 minutes
- * (developer, 2026-11-05). Asking again every minute kept the app shut out (seen 2026-11-05).
+ * The least wait after the n-th 429 in a row: 2, 4, 8, 16, then 30 minutes (developer, 2026-11-05).
+ * Asking again every minute kept the app shut out (seen 2026-11-05). A longer Retry-After is kept;
+ * a shorter one is not, since Anthropic answers this endpoint's 429 with «Retry-After: 0» and keeps
+ * refusing (anthropics/claude-code issues 30930, 31637).
  */
 export function rateLimitBackoffMs(consecutive: number): number {
   return Math.min(2 ** Math.max(1, consecutive), 30) * 60_000;
@@ -184,26 +186,28 @@ export interface ClaudeSourceOptions extends AccountUsageOptions {
  */
 export function claudeSource(options: ClaudeSourceOptions): () => Promise<CliUsage | null> {
   const now = options.now ?? Date.now;
-  let last: { usage: CliUsage | null; problem: string | null } | null = null;
+  let last: { usage: CliUsage | null; problem: string | null; retryAt: number | null } | null = null;
   let nextAskAt = 0;
   let rateLimited = 0;
 
   async function ask(at: number): Promise<void> {
     try {
-      last = { usage: await fetchAccountUsage(options), problem: null };
+      last = { usage: await fetchAccountUsage(options), problem: null, retryAt: null };
       rateLimited = 0;
       nextAskAt = at + options.minIntervalMs;
     } catch (error) {
       let problem = (error as Error).message;
+      let retryAt: number | null = null;
       if (error instanceof RateLimitedError) {
         rateLimited += 1;
-        const wait = error.retryAfterMs ?? rateLimitBackoffMs(rateLimited);
+        const wait = Math.max(error.retryAfterMs ?? 0, rateLimitBackoffMs(rateLimited));
         nextAskAt = at + Math.max(wait, options.minIntervalMs);
+        retryAt = nextAskAt;
         problem = `${problem} · ${formatClock(nextAskAt)}에 다시 물어봐요`;
       } else {
         nextAskAt = at + options.minIntervalMs;
       }
-      last = { usage: null, problem };
+      last = { usage: null, problem, retryAt };
     }
   }
 
@@ -230,7 +234,14 @@ export function claudeSource(options: ClaudeSourceOptions): () => Promise<CliUsa
     // No login at all (an API key user, or never signed in) is the record-only setup, not a failure.
     // A fresh record is current, so an earlier failure to ask the account does not matter now.
     const problem = recordFresh || last?.problem === noLogin ? null : (last?.problem ?? null);
-    if (record) return { ...record, source: 'statusline', accountProblem: problem };
+    if (record) {
+      // A 429 with the record to show is a pause, not a failure (developer, 2026-11-05: «just fix
+      // this» on «계정 조회 실패 · 429»): the record is shown as usual with when the account is
+      // asked next.
+      if (problem !== null && last?.retryAt != null)
+        return { ...record, source: 'statusline', accountProblem: null, accountRetryAt: last.retryAt };
+      return { ...record, source: 'statusline', accountProblem: problem };
+    }
     if (problem === null) return null;
     throw new Error(problem);
   };

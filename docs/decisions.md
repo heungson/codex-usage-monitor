@@ -17,6 +17,13 @@ the app's earlier rule «uses no token, sends nothing»; the planner has not see
   the app waits for Retry-After, or without one 2, 4, 8, 16, then 30 minutes, and a success starts
   over; the card says when it asks next. And no request is sent while the status line record is
   under a minute old: it is current already, and is shown without the old failure.
+- Changed again 2026-11-05 (developer, «just fix this» on «계정 조회 실패 · 429 · 14:02:40에 다시
+  물어봐요»): Anthropic answers this endpoint's 429 with «Retry-After: 0» and keeps refusing
+  (anthropics/claude-code issues 30930 and 31637; Claude Code's own sessions poll it too, so the
+  limit is shared). The backoff is now the least wait and only a longer Retry-After extends it.
+  A 429 while the status line record can be shown is a pause, not a failure: the badge stays 정상
+  and a grey line says «Anthropic이 잠시 조회를 막았어요 (429) · HH:MM:SS에 다시 물어봐요». Other
+  failures still show «계정 조회 실패».
 - The login is only read. The app never uses the refresh token: renewing replaces the stored login
   and could sign Claude Code out. A login past `expiresAt` is not sent; the card says Claude Code
   renews it when run.
@@ -283,7 +290,7 @@ Test windows covered the developer's main display (the LG with the menu bar) and
 ## «주말·공휴일 제외» for the even-use mark (developer, 2026-11-05)
 
 Asked for by the developer: a 설정 switch that leaves Saturdays, Sundays and national holidays out
-when the even-use mark moves. Decided while building it, for the developer to confirm:
+when the even-use mark moves. Decided while building it and confirmed by the developer the same day:
 
 - **Korea's holidays**, since the app and its user are Korean: public holidays, substitute holidays
   and election days from 우주항공청's 월력요항, as published by holidays-kr
