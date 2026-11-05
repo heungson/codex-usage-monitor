@@ -135,6 +135,11 @@ export type View = 'usage' | 'claude-setup' | 'resets' | 'settings';
 /** Window settings shared by the three screens and kept across restarts (FC-F019). */
 export interface WindowSettings {
   alwaysOnTop: boolean;
+  /**
+   * «주말·공휴일 제외» (developer, 2026-11-05): the even-use mark of a window of a day or longer counts
+   * only working days in Korea. Off until turned on.
+   */
+  workdaysOnly: boolean;
 }
 
 /** «로그인 시 자동 실행» on the 설정 screen, as macOS reports it (developer, 2026-11-04). */
@@ -171,6 +176,7 @@ export interface MonitorApi {
   onResets(listener: (snapshot: ResetsSnapshot) => void): () => void;
   getWindowSettings(): Promise<WindowSettings>;
   setAlwaysOnTop(on: boolean): Promise<WindowSettings>;
+  setWorkdaysOnly(on: boolean): Promise<WindowSettings>;
   getLoginItem(): Promise<LoginItemStatus>;
   setOpenAtLogin(on: boolean): Promise<LoginItemStatus>;
   /** System Settings › General › Login Items, where macOS asks to allow the item. */

@@ -7,7 +7,7 @@ import { dirname } from 'node:path';
 
 import type { WindowSettings } from '../shared/types';
 
-export const defaultWindowSettings: WindowSettings = { alwaysOnTop: false };
+export const defaultWindowSettings: WindowSettings = { alwaysOnTop: false, workdaysOnly: false };
 
 export class WindowSettingsStore {
   private value: WindowSettings;
@@ -21,7 +21,16 @@ export class WindowSettingsStore {
   }
 
   setAlwaysOnTop(on: boolean): WindowSettings {
-    this.value = { ...this.value, alwaysOnTop: on };
+    return this.save({ ...this.value, alwaysOnTop: on });
+  }
+
+  /** «주말·공휴일 제외» on the 설정 screen (developer, 2026-11-05). */
+  setWorkdaysOnly(on: boolean): WindowSettings {
+    return this.save({ ...this.value, workdaysOnly: on });
+  }
+
+  private save(value: WindowSettings): WindowSettings {
+    this.value = value;
     mkdirSync(dirname(this.file), { recursive: true });
     writeFileSync(this.file, `${JSON.stringify(this.value, null, 2)}\n`);
     return this.current;
@@ -32,7 +41,7 @@ export class WindowSettingsStore {
     if (!existsSync(this.file)) return { ...defaultWindowSettings };
     try {
       const raw = JSON.parse(readFileSync(this.file, 'utf8')) as Partial<WindowSettings>;
-      return { alwaysOnTop: raw.alwaysOnTop === true };
+      return { alwaysOnTop: raw.alwaysOnTop === true, workdaysOnly: raw.workdaysOnly === true };
     } catch {
       return { ...defaultWindowSettings };
     }

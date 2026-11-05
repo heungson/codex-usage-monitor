@@ -36,6 +36,11 @@ Anthropic. For the last it reads Claude Code's login from the macOS Keychain and
   at login (a login item; macOS keeps the setting, and it also shows in System Settings › General ›
   Login Items). Off until turned on. Only the installed app can turn it on; run from this folder
   (`npm start`) the switch is greyed out, since macOS would start a bare Electron without this code.
+- **설정 › 주말·공휴일 제외**: off at first. On, the vertical mark on a 7일 bar (how much of the
+  window's time has passed) stands still on Saturdays, Sundays and Korean public holidays and moves
+  only on working days, still reaching the end at the reset; 5시간 bars are unchanged. The holidays
+  are listed in `src/shared/holidays-kr.ts` for 2026 and 2027; add each next year when its 월력요항 is
+  published (a year not listed counts weekends only).
 
 Planned in PRS (plan «사용량 한도 모니터», version 3). Decisions: `docs/decisions.md`.
 

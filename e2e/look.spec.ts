@@ -64,7 +64,7 @@ for (const scheme of ['light', 'dark'] as const) {
     await expect(tip).toBeHidden();
     await page.locator('.even').first().hover();
     await expect(tip).toBeVisible();
-    await expect(tip).toContainText('한도 기간 중 지난 시간');
+    await expect(tip).toContainText('리셋 시각에 끝에 이르러요');
     await expect(tip).toHaveCSS('opacity', '1');
     await shot('usage-even-tip');
     await page.mouse.move(0, 0);

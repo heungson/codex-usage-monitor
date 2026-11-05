@@ -280,6 +280,25 @@ Test windows covered the developer's main display (the LG with the menu bar) and
   elsewhere (it closes on blur); a click on the menu bar item closes it.
 - The menu bar item is on every display; macOS places it, and it is left as it is.
 
+## «주말·공휴일 제외» for the even-use mark (developer, 2026-11-05)
+
+Asked for by the developer: a 설정 switch that leaves Saturdays, Sundays and national holidays out
+when the even-use mark moves. Decided while building it, for the developer to confirm:
+
+- **Korea's holidays**, since the app and its user are Korean: public holidays, substitute holidays
+  and election days from 우주항공청's 월력요항, as published by holidays-kr
+  (`github.com/hyunbinseo/holidays-kr`, MIT). The dates are copied into
+  `src/shared/holidays-kr.ts` for 2026 and 2027 rather than added as a package: the agent's attempt
+  to install the package was refused by its permission check, and a short list in the repository is
+  easy to check. It needs the next year added each year; a year not listed counts weekends only.
+- **Windows of a day or longer only** (the 7일 limits). A 5시간 window that stopped on a Saturday would
+  say nothing useful, so it always counts every hour.
+- **How it moves**: the mark is the share of the window's working time that has passed, by local
+  calendar day. It stands still on days off and moves faster on working days, reaching the end at
+  the reset. A window with no working time at all has no mark.
+- Off until turned on; kept with «항상 위» in `window-settings.json`. With it on, the mark's tip adds
+  «주말과 공휴일에는 멈춰요.»
+
 ## Freshness, an even-use mark and a translucent popover (developer, 2026-11-05)
 
 The developer asked for a better design after looking at similar apps. A first version adopted
@@ -295,8 +314,7 @@ tray icon is back), the pace line («… 소진 예상», «리셋까지 충분�
 - **Even-use mark** (Usage4Claude's pace guide): a thin mark on each bar where the bar would be if
   the window were spent evenly until its reset. Code: `src/shared/pace.ts`. The mark alone was not
   understood. A one-line legend under the CLI cards was tried first; the developer had it replaced
-  the same day by a tip shown while the pointer is over the mark: «한도 기간 중 지난 시간 N%. 막대가
-  이 표시를 넘으면 리셋 전에 한도에 닿을 수 있어요.» The area that shows it is wider than the mark;
+  the same day by a tip shown while the pointer is over the mark. Its wording, as the developer asked, says that the mark moves with time and what it means when the bar passes it: «시간이 흐를수록 이 표시는 오른쪽으로 움직여 리셋 시각에 끝에 이르러요. 지금은 N%예요. 사용량 막대가 이 표시를 앞서면 리셋 전에 한도에 닿을 수 있어요.» (the developer's draft, reworded and chosen by the developer) The area that shows it is wider than the mark;
   screen readers get the same text as the mark's label.
 - **Translucent popover**: the window has macOS's `popover` vibrancy, kept active while pinned. The
   page, the top bar and the cards are tinted over it rather than clear (light cards 86% white, dark

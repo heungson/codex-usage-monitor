@@ -1,5 +1,33 @@
 # Verification
 
+## «주말·공휴일 제외» (2026-11-05)
+
+Asked for by the developer. The hover tip wording (option A, previous section) is in the same change.
+
+- `npm run typecheck`, `npm run lint`: passed. `npm run format:check`: only the ignored
+  `.claude/settings.local.json`.
+- `npm test`: 126 passed. New in `test/pace.test.ts`: half of Monday–Friday is 50% with the setting
+  (2.5/7 without), the mark stands still over the weekend, 5시간 windows are unchanged, a window with
+  no working time has no mark, time splits at local midnight; Korean days off (weekend, 추석, a
+  substitute day, the 2026 local election, 2027 대체공휴일(설날)) and an ordinary Thursday; a year
+  not listed counts weekends only. `test/window-settings.test.ts`: the setting is kept apart from
+  «항상 위», and an older file reads it as off.
+- `npm run test:e2e`: 42 passed, 2 skipped. New in `e2e/settings.spec.ts`: the switch starts off;
+  turned on, the Codex 7일 mark's label adds «주말과 공휴일에는 멈춰요»; it is still on after a
+  restart. `tmp/e2e-shots/settings-workdays-on-1.png` was opened.
+- `npm run test:package`: passed.
+- Not checked: the installed app; the holiday dates against 우주항공청's own publication (they were
+  copied from holidays-kr's 2026 and 2027 files).
+
+## Hover tip wording (2026-11-05)
+
+The developer asked that the tip say the mark moves as time passes and that a bar past it may reach
+the limit before the reset. `npm run typecheck`, `npm run lint`: passed; `npm run format:check`:
+only the ignored `.claude/settings.local.json`. `npm test`: 118 passed. `npm run test:e2e`: 41
+passed, 2 skipped (the tip check now looks for «리셋 시각에 끝에 이르러요»).
+`npm run test:package`: passed. `tmp/screens/light-usage-even-tip-1.png` was opened: the new text
+fits the tip in four short lines. Not checked: the installed app.
+
 ## Hover tip instead of the legend (2026-11-05)
 
 Asked for by the developer. `npm run typecheck`, `npm run lint`: passed; `npm run format:check`:

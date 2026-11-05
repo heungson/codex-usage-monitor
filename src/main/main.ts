@@ -320,6 +320,9 @@ ipcMain.handle('window:always-on-top', (_event, on: unknown) => {
   applyWindowSettings();
   return settings;
 });
+ipcMain.handle('window:workdays-only', (_event, on: unknown) =>
+  typeof on === 'boolean' ? windowSettings.setWorkdaysOnly(on) : windowSettings.current,
+);
 ipcMain.handle('login-item:get', () => loginItem.status());
 ipcMain.handle('login-item:set', (_event, on: unknown) =>
   typeof on === 'boolean' ? loginItem.set(on) : loginItem.status(),

@@ -1,10 +1,12 @@
 // 설정 › «로그인 시 자동 실행» (developer, 2026-11-04). macOS's login items are stood in for by a file
 // (ULM_FAKE_LOGIN_ITEM), so these checks never add Electron to the developer's real login items.
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
+import { codexLine } from '../test/helpers';
 import { capture, launch, makeFixture } from './app';
 import { startFakeResets, type FakeServer } from './fake-resets-server';
 
@@ -73,5 +75,45 @@ test('run from the source folder, the switch is off and cannot be turned on', as
   await expect(loginSwitch(page)).not.toBeChecked();
   await expect(page.getByText('설치한 앱에서 켜 주세요')).toBeVisible();
   await capture(page, 'settings-unsupported');
+  await app.close();
+});
+
+test("«주말·공휴일 제외» starts off, changes the 7일 mark's tip, and survives a restart (developer 2026-11-05)", async () => {
+  const fixture = makeFixture();
+  server = await startFakeResets(fixture.modeFile);
+  // A Codex 7일 window halfway through, so its bar has an even-use mark.
+  const dir = join(fixture.codexSessions, '2026', '11', '05');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    join(dir, 'rollout-a.jsonl'),
+    codexLine(new Date().toISOString(), {
+      used_percent: 40,
+      window_minutes: 10080,
+      resets_at: Math.floor((Date.now() + 3.5 * 86_400_000) / 1000),
+    }) + '\n',
+  );
+  const workdays = (page: import('@playwright/test').Page) =>
+    page.getByRole('switch', { name: '주말·공휴일 제외' });
+  const markLabel = (page: import('@playwright/test').Page) =>
+    page.locator('section[data-cli="codex"] .even').first().getAttribute('aria-label');
+
+  let { app, page } = await launch(fixture, server.url);
+  await expect(page.locator('section[data-cli="codex"] .even')).toHaveCount(1);
+  expect(await markLabel(page)).not.toContain('주말과 공휴일에는 멈춰요');
+
+  await page.getByRole('button', { name: '설정' }).click();
+  await expect(workdays(page)).not.toBeChecked();
+  await workdays(page).check({ force: true });
+  await expect(workdays(page)).toBeChecked();
+  await capture(page, 'settings-workdays-on');
+  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  expect(await markLabel(page)).toContain('주말과 공휴일에는 멈춰요');
+
+  await app.close();
+  ({ app, page } = await launch(fixture, server.url));
+  await expect(page.locator('section[data-cli="codex"] .even')).toHaveCount(1);
+  await expect.poll(() => markLabel(page)).toContain('주말과 공휴일에는 멈춰요');
+  await page.getByRole('button', { name: '설정' }).click();
+  await expect(workdays(page)).toBeChecked();
   await app.close();
 });

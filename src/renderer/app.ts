@@ -61,7 +61,7 @@ const state: {
   integration: null,
   applying: false,
   resets: null,
-  window: { alwaysOnTop: false },
+  window: { alwaysOnTop: false, workdaysOnly: false },
   loginItem: null,
   savingLoginItem: false,
 };
@@ -93,9 +93,11 @@ const skeleton = '<div class="skeleton"></div><div class="skeleton short"></div>
  * the mark alone was not understood, and a legend under the cards was replaced by this). The tip is
  * placed along the bar under the mark, kept inside the bar's width.
  */
-function evenMark(expected: number): string {
+function evenMark(expected: number, workdays: boolean): string {
   const at = expected.toFixed(1);
-  const text = `한도 기간 중 지난 시간 ${Math.round(expected)}%. 막대가 이 표시를 넘으면 리셋 전에 한도에 닿을 수 있어요.`;
+  // With «주말·공휴일 제외» the mark stands still on days off; say so where it is explained.
+  const days = workdays ? ' 주말과 공휴일에는 멈춰요.' : '';
+  const text = `시간이 흐를수록 이 표시는 오른쪽으로 움직여 리셋 시각에 끝에 이르러요.${days} 지금은 ${Math.round(expected)}%예요. 사용량 막대가 이 표시를 앞서면 리셋 전에 한도에 닿을 수 있어요.`;
   return `<div class="even" style="left:${at}%" role="img" aria-label="${text}"></div>
     <div class="even-tip" style="--at:${at}%" aria-hidden="true">${text}</div>`;
 }
@@ -109,8 +111,9 @@ function windowsHtml(usage: CliUsage, now = Date.now()): string {
       // Two colours only: the warning colour from the limit alert threshold (LHS-9, 80%), else the usual one.
       const tone = nearLimit(w.usedPercent) ? 'high' : '';
       // The even-use mark (Usage4Claude's guide): where the bar would be if spent evenly until the reset.
-      const expected = evenUse(w, now);
-      const even = expected === null ? '' : evenMark(expected);
+      const workdays = state.window.workdaysOnly && (w.windowMinutes ?? 0) >= 1440;
+      const expected = evenUse(w, now, workdays);
+      const even = expected === null ? '' : evenMark(expected, workdays);
       return `
         <div class="window">
           <div class="window-top">
@@ -498,6 +501,18 @@ function settingsView(): string {
           : ''
       }
       ${item.error ? `<div class="notice error" role="alert"><p>${escapeHtml(item.error)}</p></div>` : ''}
+      <section class="card" data-area="workdays" aria-label="사용 속도 표시">
+        <div class="card-head"><h2>사용 속도 표시</h2></div>
+        <div class="setting-row">
+          <span class="setting-name" id="workdays-name">주말·공휴일 제외</span>
+          <label class="switch">
+            <input type="checkbox" role="switch" data-key="workdays" aria-labelledby="workdays-name"
+                   ${state.window.workdaysOnly ? 'checked' : ''} />
+            <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+          </label>
+        </div>
+        <p class="sub">켜면 7일 한도 막대의 세로 표시가 토·일요일과 공휴일에는 멈추고, 평일에만 움직여 리셋 시각에 끝에 이르러요. 5시간 한도는 그대로예요.</p>
+      </section>
     </main>`;
 }
 
@@ -666,6 +681,13 @@ root.addEventListener('change', (event) => {
         state.savingLoginItem = false;
         render();
       });
+    return;
+  }
+  if (input.dataset.key === 'workdays') {
+    void monitor.setWorkdaysOnly(input.checked).then((settings) => {
+      state.window = settings;
+      render();
+    });
     return;
   }
   if (input.dataset.key !== 'pin') return;
