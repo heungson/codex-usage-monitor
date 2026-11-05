@@ -234,6 +234,9 @@ function createPopover(): BrowserWindow {
     fullscreenable: false,
     skipTaskbar: !showWindowMode,
     alwaysOnTop: !showWindowMode,
+    // A pinned window sits behind other apps' focus; without this the first click on it only
+    // activates the app. The first click now also reaches the page: the top bar drag, buttons.
+    acceptFirstMouse: true,
     title: '사용량 한도 모니터',
     // macOS's translucent popover material behind the page (developer, 2026-11-05), kept active
     // so a pinned window does not turn flat grey when another app is in front.
@@ -298,6 +301,26 @@ ipcMain.on('popover:height', (_event, height: unknown) => {
   const next = Math.round(Math.min(Math.max(height, 160), display.workArea.height - 40));
   const bounds = popover.getBounds();
   if (bounds.height !== next) popover.setBounds({ ...bounds, height: next });
+});
+/**
+ * Pinned, the top bar moves the window (FC-F019). The page sends how far the pointer has gone since
+ * it was pressed, and the window follows from where it was. Done here rather than with CSS
+ * `-webkit-app-region: drag`, which did nothing in the installed app (developer, 2026-11-05, «why
+ * can't I drag the window?» and, after a first click, «it is not moving»).
+ */
+let dragFrom: { x: number; y: number } | null = null;
+ipcMain.on('popover:drag', (_event, phase: unknown, dx: unknown, dy: unknown) => {
+  if (!popover || !popover.isMovable()) return;
+  if (phase === 'start') {
+    const [x = 0, y = 0] = popover.getPosition();
+    dragFrom = { x, y };
+  } else if (phase === 'end') {
+    dragFrom = null;
+  } else if (phase === 'move' && dragFrom && typeof dx === 'number' && typeof dy === 'number') {
+    if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+    popover.setPosition(Math.round(dragFrom.x + dx), Math.round(dragFrom.y + dy));
+    movedByPerson = true;
+  }
 });
 ipcMain.handle('alerts:dismiss', () => {
   limitAlerts.dismissNotice();

@@ -296,6 +296,20 @@ Test windows covered the developer's main display (the LG with the menu bar) and
   elsewhere (it closes on blur); a click on the menu bar item closes it.
 - The menu bar item is on every display; macOS places it, and it is left as it is.
 
+## Dragging the pinned window (developer, 2026-11-05)
+
+The developer asked «why can't I drag the window?» with «항상 위» on, and after clicking the window
+once first: «it is not moving». The window was movable and its top bar had CSS
+`-webkit-app-region: drag`, yet macOS never moved it; the reason was not found, since a real drag
+cannot be sent from the coding session (the terminal has no Accessibility permission).
+
+- The page now moves the window itself: pressing the top bar (not a button or the switch) and
+  moving the pointer sends the distance to the main process (`popover:drag`), which places the
+  window from where it was. The CSS drag region is gone. The cursor is a hand over the top bar.
+- `acceptFirstMouse`: the first click on the window while another app is in front also reaches the
+  page, so the drag and the top bar's buttons work without a click to bring the app forward first.
+- Unchanged (FC-F019): only pinned windows move; once dragged, the window reopens where it was left.
+
 ## «주말·공휴일 제외» for the even-use mark (developer, 2026-11-05)
 
 Asked for by the developer: a 설정 switch that leaves Saturdays, Sundays and national holidays out

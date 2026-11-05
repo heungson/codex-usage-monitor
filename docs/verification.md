@@ -1,5 +1,19 @@
 # Verification
 
+## Dragging the pinned window (2026-11-05)
+
+No PRS issue; asked for by the developer («why can't I drag the window?», then «it is not moving»).
+
+- `npm run typecheck`, `npm run lint`, `npm run format:check`: passed. `npm test`: 156 passed.
+- `npm run test:e2e`: 69 passed, 2 skipped. New in `e2e/usage.spec.ts`: unpinned, a drag on the
+  title moves nothing; pinned, it moves the window by the pointer's distance (60, 40); pressing the
+  switch moves nothing and leaves no drag going. Run as the framed test window.
+- The real frameless popover (no `ULM_SHOW_WINDOW`, pinned, on the second display) with
+  `tmp/drag-probe/probe3.mjs`: the same drag moved it from (2600, 71) to (2660, 111).
+- Both use Playwright's page mouse, which reaches the page but not macOS. With the real pointer, in
+  the installed app: the developer dragged the pinned window by its title and it moved («now it
+  works», 2026-11-05).
+
 ## A window past its reset reads 0% (2026-11-05)
 
 No PRS issue; asked for by the developer («why does it not match the actual value?») with the card

@@ -511,6 +511,45 @@ test('«창 항상 위에 표시» is one switch on all three screens, off at fi
   await app.close();
 });
 
+test('pinned, the top bar drags the window; unpinned, or on the switch, it does not (FC-F019; developer 2026-11-05)', async () => {
+  const position = (app: import('@playwright/test').ElectronApplication) =>
+    app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getPosition());
+  const { app, page } = await launch(fixture, server.url);
+  const drag = async (selector: string) => {
+    const box = (await page.locator(selector).first().boundingBox())!;
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + 60, y + 40);
+    await page.mouse.up();
+  };
+  // The window is placed on the development display once shown: wait until it stays put.
+  let start = await position(app);
+  await expect
+    .poll(async () => {
+      const before = start;
+      await page.waitForTimeout(300);
+      start = await position(app);
+      return start.join() === before.join();
+    })
+    .toBe(true);
+  await drag('h1');
+  expect(await position(app)).toEqual(start);
+
+  const pin = page.getByRole('switch', { name: '창 항상 위에 표시' });
+  await pin.check({ force: true });
+  await expect(page.locator('body')).toHaveClass(/pinned/);
+  await drag('h1');
+  await expect.poll(() => position(app)).toEqual([start[0]! + 60, start[1]! + 40]);
+  const moved = await position(app);
+  // The buttons and the switch keep their clicks; pressing them moves nothing.
+  await drag('.topbar label');
+  expect(await position(app)).toEqual(moved);
+  await expect(page.locator('body')).not.toHaveClass(/dragging/);
+  await app.close();
+});
+
 test('limit alerts: 80% notifies once per window; a refusal is explained (LHS-9 검증 1–4)', async () => {
   writeClaude(fixture, 79, 10);
   writeCodex(fixture, 20);

@@ -742,6 +742,36 @@ root.addEventListener('change', (event) => {
   });
 });
 
+// ---------- drag ----------
+
+/**
+ * Pinned, pressing the top bar (not its buttons or switch) and moving the pointer moves the window;
+ * main.ts ('popover:drag') places it. The top bar is redrawn with each render, so the listeners are
+ * on the document, not on it.
+ */
+let dragStart: { x: number; y: number } | null = null;
+document.addEventListener('pointerdown', (event) => {
+  if (event.button !== 0 || !document.body.classList.contains('pinned')) return;
+  const target = event.target as Element;
+  if (!target.closest('.topbar') || target.closest('button, label, input, a')) return;
+  event.preventDefault();
+  dragStart = { x: event.screenX, y: event.screenY };
+  document.body.classList.add('dragging');
+  monitor.dragWindow('start', 0, 0);
+});
+window.addEventListener('pointermove', (event) => {
+  if (dragStart) monitor.dragWindow('move', event.screenX - dragStart.x, event.screenY - dragStart.y);
+});
+function endDrag(): void {
+  if (!dragStart) return;
+  dragStart = null;
+  document.body.classList.remove('dragging');
+  monitor.dragWindow('end', 0, 0);
+}
+window.addEventListener('pointerup', endDrag);
+window.addEventListener('pointercancel', endDrag);
+window.addEventListener('blur', endDrag);
+
 monitor.onUsage((snapshot) => {
   state.usage = snapshot;
   if (state.view === 'usage') render();

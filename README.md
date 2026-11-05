@@ -32,7 +32,8 @@ Anthropic. For the last it reads Claude Code's login from the macOS Keychain and
 - **Quitting**: right click or Control-click the menu bar item › «종료», or ⌘Q while 사용량 현황 is
   open.
 - **창 항상 위에 표시**: the switch right of every screen's title. On, the popover stays open above
-  other windows and can be dragged by its top bar; the choice is kept in
+  other windows and can be dragged by its top bar (anywhere but its buttons and switch, also when
+  another app is in front); the choice is kept in
   `~/Library/Application Support/usage-limit-monitor/window-settings.json`.
 - **설정 › 로그인 시 자동 실행**: the gear in 사용량 현황's top bar opens 설정. On, macOS opens the app
   at login (a login item; macOS keeps the setting, and it also shows in System Settings › General ›

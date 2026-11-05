@@ -18,6 +18,7 @@ const api: MonitorApi = {
   dismissAlertNotice: () => ipcRenderer.invoke('alerts:dismiss'),
   dismissResetNotice: () => ipcRenderer.invoke('reset-alerts:dismiss'),
   reportHeight: (height) => ipcRenderer.send('popover:height', height),
+  dragWindow: (phase, dx, dy) => ipcRenderer.send('popover:drag', phase, dx, dy),
   getIntegration: () => ipcRenderer.invoke('integration:get'),
   applyIntegration: () => ipcRenderer.invoke('integration:apply'),
   getResets: () => ipcRenderer.invoke('resets:get'),

@@ -167,14 +167,19 @@ p {
   margin-left: calc(var(--s1) * -1.5);
 }
 
-/* Pinned, the window has no frame to hold: the top bar moves it (FC-F019). */
+/* Pinned, the window has no frame to hold: the top bar moves it (FC-F019; app.ts, «drag»). */
 body.pinned .topbar {
-  -webkit-app-region: drag;
+  cursor: grab;
 }
 
 body.pinned .topbar button,
 body.pinned .topbar label {
-  -webkit-app-region: no-drag;
+  cursor: default;
+}
+
+body.dragging,
+body.dragging * {
+  cursor: grabbing !important;
 }
 
 /* ---------- switch ---------- */

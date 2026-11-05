@@ -173,6 +173,8 @@ export interface MonitorApi {
   dismissResetNotice(): Promise<UsageSnapshot>;
   /** The page's content height, so the menu bar popover fits it. */
   reportHeight(height: number): void;
+  /** Pinned, a drag on the top bar: the pointer's distance from where it was pressed, in screen pixels. */
+  dragWindow(phase: 'start' | 'move' | 'end', dx: number, dy: number): void;
   getIntegration(): Promise<IntegrationStatus>;
   applyIntegration(): Promise<IntegrationStatus>;
   /** The reset state as it is now, without a request: the usage screen's 예정 리셋 area. */
