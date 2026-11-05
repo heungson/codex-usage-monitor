@@ -29,6 +29,7 @@ const api: MonitorApi = {
   getWindowSettings: () => ipcRenderer.invoke('window:get'),
   setAlwaysOnTop: (on) => ipcRenderer.invoke('window:always-on-top', on),
   setWorkdaysOnly: (on) => ipcRenderer.invoke('window:workdays-only', on),
+  setTheme: (theme) => ipcRenderer.invoke('window:theme', theme),
   getLoginItem: () => ipcRenderer.invoke('login-item:get'),
   setOpenAtLogin: (on) => ipcRenderer.invoke('login-item:set', on),
   openLoginItemSettings: () => ipcRenderer.invoke('login-item:open-settings'),

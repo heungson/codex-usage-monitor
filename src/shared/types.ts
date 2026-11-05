@@ -1,5 +1,7 @@
 // Shapes shared by the main process, the preload bridge and the renderer.
 
+import type { ThemeId } from './themes';
+
 export type CliId = 'claude' | 'codex';
 
 /** One rate-limit window of one CLI, as the popover shows it. */
@@ -145,6 +147,8 @@ export interface WindowSettings {
    * only working days in Korea. Off until turned on.
    */
   workdaysOnly: boolean;
+  /** The look chosen on the 설정 screen (developer, 2026-11-05); 기본 until changed. */
+  theme: ThemeId;
 }
 
 /** «로그인 시 자동 실행» on the 설정 screen, as macOS reports it (developer, 2026-11-04). */
@@ -182,6 +186,7 @@ export interface MonitorApi {
   getWindowSettings(): Promise<WindowSettings>;
   setAlwaysOnTop(on: boolean): Promise<WindowSettings>;
   setWorkdaysOnly(on: boolean): Promise<WindowSettings>;
+  setTheme(theme: ThemeId): Promise<WindowSettings>;
   getLoginItem(): Promise<LoginItemStatus>;
   setOpenAtLogin(on: boolean): Promise<LoginItemStatus>;
   /** System Settings › General › Login Items, where macOS asks to allow the item. */

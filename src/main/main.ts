@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import electron, { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron';
 
 import type { CliId, SourceState, UsageSnapshot, View } from '../shared/types';
+import { isThemeId } from '../shared/themes';
 import { claudeSource, fileLogin, keychainLogin } from './claude-api';
 import { claudeReader } from './claude-reader';
 import { codexReader } from './codex-reader';
@@ -322,6 +323,9 @@ ipcMain.handle('window:always-on-top', (_event, on: unknown) => {
 });
 ipcMain.handle('window:workdays-only', (_event, on: unknown) =>
   typeof on === 'boolean' ? windowSettings.setWorkdaysOnly(on) : windowSettings.current,
+);
+ipcMain.handle('window:theme', (_event, theme: unknown) =>
+  isThemeId(theme) ? windowSettings.setTheme(theme) : windowSettings.current,
 );
 ipcMain.handle('login-item:get', () => loginItem.status());
 ipcMain.handle('login-item:set', (_event, on: unknown) =>

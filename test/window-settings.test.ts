@@ -13,6 +13,7 @@ describe('WindowSettingsStore', () => {
     expect(new WindowSettingsStore(join(tempDir(), 'window-settings.json')).current).toEqual({
       alwaysOnTop: false,
       workdaysOnly: false,
+      theme: 'default',
     });
   });
 
@@ -21,7 +22,11 @@ describe('WindowSettingsStore', () => {
     new WindowSettingsStore(file).setAlwaysOnTop(true);
     expect(new WindowSettingsStore(file).current.alwaysOnTop).toBe(true);
     new WindowSettingsStore(file).setAlwaysOnTop(false);
-    expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ alwaysOnTop: false, workdaysOnly: false });
+    expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({
+      alwaysOnTop: false,
+      workdaysOnly: false,
+      theme: 'default',
+    });
   });
 
   it('reads an unreadable file as off', () => {
@@ -34,9 +39,24 @@ describe('WindowSettingsStore', () => {
     const file = join(tempDir(), 'window-settings.json');
     new WindowSettingsStore(file).setAlwaysOnTop(true);
     new WindowSettingsStore(file).setWorkdaysOnly(true);
-    expect(new WindowSettingsStore(file).current).toEqual({ alwaysOnTop: true, workdaysOnly: true });
+    expect(new WindowSettingsStore(file).current).toEqual({
+      alwaysOnTop: true,
+      workdaysOnly: true,
+      theme: 'default',
+    });
     // A file from before the setting existed reads as off.
     writeFileSync(file, JSON.stringify({ alwaysOnTop: true }));
     expect(new WindowSettingsStore(file).current.workdaysOnly).toBe(false);
+  });
+
+  it('keeps the chosen theme, and reads a missing or unknown one as 기본 (developer, 2026-11-05)', () => {
+    const file = join(tempDir(), 'window-settings.json');
+    new WindowSettingsStore(file).setWorkdaysOnly(true);
+    new WindowSettingsStore(file).setTheme('pixel');
+    expect(new WindowSettingsStore(file).current).toMatchObject({ workdaysOnly: true, theme: 'pixel' });
+    writeFileSync(file, JSON.stringify({ alwaysOnTop: true, theme: 'gone' }));
+    expect(new WindowSettingsStore(file).current.theme).toBe('default');
+    writeFileSync(file, JSON.stringify({ alwaysOnTop: true }));
+    expect(new WindowSettingsStore(file).current.theme).toBe('default');
   });
 });

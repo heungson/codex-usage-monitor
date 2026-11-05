@@ -2,6 +2,7 @@
 // and 설정 (developer, 2026-11-04; no PRS screen).
 // Built from plan v3: the layout and elements follow the wireframe; the look is the app's own CSS.
 
+import { isThemeId, themes } from '../shared/themes';
 import {
   describePast,
   describeReset,
@@ -61,7 +62,7 @@ const state: {
   integration: null,
   applying: false,
   resets: null,
-  window: { alwaysOnTop: false, workdaysOnly: false },
+  window: { alwaysOnTop: false, workdaysOnly: false, theme: 'default' },
   loginItem: null,
   savingLoginItem: false,
 };
@@ -515,7 +516,27 @@ function settingsView(): string {
         </div>
         <p class="sub">켜면 7일 한도 막대의 세로 표시가 토·일요일과 공휴일에는 멈추고, 평일에만 움직여 리셋 시각에 끝에 이르러요. 5시간 한도는 그대로예요.</p>
       </section>
+      ${themeCard()}
     </main>`;
+}
+
+/** 테마 (developer, 2026-11-05): one radio group; the look changes as soon as one is picked. */
+function themeCard(): string {
+  const options = themes
+    .map((theme) => {
+      const [bg, panel, bar, accent] = theme.swatch;
+      return `<label class="theme-option">
+          <input type="radio" name="theme" value="${theme.id}" data-key="theme-${theme.id}"
+                 ${state.window.theme === theme.id ? 'checked' : ''} />
+          <span class="theme-swatch" aria-hidden="true" style="--sw-bg:${bg};--sw-panel:${panel};--sw-bar:${bar};--sw-accent:${accent}"><i></i></span>
+          <span class="theme-text"><span class="theme-name">${theme.name}</span><span class="theme-note">${theme.note}</span></span>
+        </label>`;
+    })
+    .join('');
+  return `<section class="card" data-area="theme" aria-label="테마">
+      <div class="card-head"><h2 id="theme-name">테마</h2></div>
+      <div class="theme-grid" role="radiogroup" aria-labelledby="theme-name">${options}</div>
+    </section>`;
 }
 
 // ---------- shell ----------
@@ -538,6 +559,7 @@ function pinSwitch(): string {
 }
 
 function render(): void {
+  document.documentElement.dataset.theme = state.window.theme;
   const back =
     state.view === 'usage'
       ? ''
@@ -683,6 +705,14 @@ root.addEventListener('change', (event) => {
         state.savingLoginItem = false;
         render();
       });
+    return;
+  }
+  if (input.name === 'theme') {
+    if (!isThemeId(input.value)) return;
+    void monitor.setTheme(input.value).then((settings) => {
+      state.window = settings;
+      render();
+    });
     return;
   }
   if (input.dataset.key === 'workdays') {

@@ -117,3 +117,35 @@ test("«주말·공휴일 제외» starts off, changes the 7일 mark's tip, and 
   await expect(workdays(page)).toBeChecked();
   await app.close();
 });
+
+test('테마: six looks to pick from, applied at once and kept across a restart (developer 2026-11-05)', async () => {
+  const fixture = makeFixture();
+  server = await startFakeResets(fixture.modeFile);
+  let { app, page } = await launch(fixture, server.url);
+  const theme = () => page.evaluate(() => document.documentElement.dataset.theme);
+  expect(await theme()).toBe('default');
+
+  await page.getByRole('button', { name: '설정' }).click();
+  const group = page.getByRole('radiogroup', { name: '테마' });
+  await expect(group.getByRole('radio')).toHaveCount(6);
+  await expect(group.getByRole('radio', { name: /기본/ })).toBeChecked();
+  for (const [name, id] of [
+    ['픽셀', 'pixel'],
+    ['터미널', 'terminal'],
+    ['파스텔', 'pastel'],
+    ['네온', 'neon'],
+    ['고대비', 'contrast'],
+  ] as const) {
+    await group.getByRole('radio', { name: new RegExp(name) }).check({ force: true });
+    await expect.poll(theme).toBe(id);
+    await expect(group.getByRole('radio', { name: new RegExp(name) })).toBeChecked();
+  }
+  await group.getByRole('radio', { name: /픽셀/ }).check({ force: true });
+  await expect.poll(theme).toBe('pixel');
+  await capture(page, 'settings-theme-pixel');
+
+  await app.close();
+  ({ app, page } = await launch(fixture, server.url));
+  await expect.poll(theme).toBe('pixel');
+  await app.close();
+});

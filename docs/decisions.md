@@ -306,6 +306,31 @@ when the even-use mark moves. Decided while building it and confirmed by the dev
 - Off until turned on; kept with «항상 위» in `window-settings.json`. With it on, the mark's tip adds
   «주말과 공휴일에는 멈춰요.»
 
+## 테마 on the 설정 screen (developer, 2026-11-05)
+
+Asked for by the developer: «can you make it use pixel art style?», then, while it was being built,
+«just add it as one of themes that the users can choose» and «add 4 more themes». Decided while
+building it and confirmed by the developer the same day:
+
+- **Six themes**: 기본 (the look the app had, still the first state), 픽셀 (asked for), and four the
+  agent chose to differ from each other: 터미널 (green phosphor, monospaced), 파스텔 (rounded, soft
+  lavender and pink), 네온 (dark synthwave, glowing bars) and 고대비 (black and white, 2-pixel
+  outlines, larger type, for reading at a glance).
+- **Light and dark**: 터미널 and 네온 are always dark, since that is what they are; the others follow
+  the Mac's setting. Every theme but 기본 is opaque; 기본 keeps the macOS popover material.
+- **픽셀's font**: Galmuri11 (Lee Minseo, SIL OFL 1.1; `galmuri@2.40.3` on npm, fetched from
+  jsDelivr), regular and bold, bundled in `src/renderer/fonts/` with its licence (about 670 KB). It
+  covers all Hangul syllables and is drawn at its own 12-pixel size, or 24 for the big figures, so
+  glyphs stay on the pixel grid. Bars are blocks, outlines 2 pixels, shadows hard. Light is paper
+  and ink; dark uses the Sweetie 16 palette (GrafxKid).
+- **How it is built**: `<html data-theme>` names the theme; each theme is a block of tokens and a few
+  rules in `styles.css` under `:root[data-theme='…']`. Outlines are box-shadows, not borders, so no
+  box changes size (the 예정 리셋 button must keep covering its card exactly).
+- **Picker**: a radio group of six with a small preview each, two columns; kept in
+  `window-settings.json` beside «항상 위» and «주말·공휴일 제외». A file without a theme, or naming one
+  this version lacks, reads as 기본.
+- The menu bar title is drawn by macOS and stays as it is in every theme.
+
 ## Freshness, an even-use mark and a translucent popover (developer, 2026-11-05)
 
 The developer asked for a better design after looking at similar apps. A first version adopted

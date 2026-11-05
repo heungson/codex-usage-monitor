@@ -42,6 +42,10 @@ Anthropic. For the last it reads Claude Code's login from the macOS Keychain and
   only on working days, still reaching the end at the reset; 5시간 bars are unchanged. The holidays
   are listed in `src/shared/holidays-kr.ts` for 2026 and 2027; add each next year when its 월력요항 is
   published (a year not listed counts weekends only).
+- **설정 › 테마**: six looks, applied as soon as one is picked and kept across restarts: 기본 (the
+  macOS translucent look, the first state), 픽셀, 터미널, 파스텔, 네온 and 고대비. 터미널 and 네온 are
+  always dark; the others follow the Mac's light or dark setting. 픽셀 uses Galmuri11 by Lee Minseo
+  (SIL Open Font License 1.1, `src/renderer/fonts/OFL.txt`), bundled with the app.
 
 Planned in PRS (plan «사용량 한도 모니터», version 3). Decisions: `docs/decisions.md`.
 
@@ -152,7 +156,7 @@ Used by the checks to point the app at temporary folders. Normal use needs none.
 src/main/       Electron main process: collectors, readers, integration, alerts, reset API
 src/hook/       The status line hook Claude Code runs
 src/preload/    The bridge the popover page uses
-src/renderer/   The popover page: 사용량 현황, Claude Code 연동 안내, Codex 전체 리셋, 설정; styles.css holds the look's tokens
+src/renderer/   The popover page: 사용량 현황, Claude Code 연동 안내, Codex 전체 리셋, 설정; styles.css holds the look's tokens and the themes; fonts/ the 픽셀 font
 src/shared/     Types, the Claude record format, Korean time wording
 test/           Unit tests (Vitest)
 e2e/            App checks (Playwright + Electron), a fake codex-resets.com, light/dark captures (look.spec.ts)

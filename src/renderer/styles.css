@@ -910,3 +910,806 @@ code {
 .switch:has(input:disabled) {
   cursor: default;
 }
+
+/* ---------- 테마 picker on the 설정 screen ---------- */
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: var(--s1);
+}
+
+.theme-option {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 6px var(--s2);
+  border-radius: var(--radius-control);
+  box-shadow: inset 0 0 0 1px var(--border);
+  cursor: pointer;
+}
+
+.theme-option:hover {
+  background: var(--surface-hover);
+}
+
+.theme-option:has(input:checked) {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.theme-option:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.theme-option input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+}
+
+/* A tiny picture of the theme: its background, a panel, a bar and the accent. */
+.theme-swatch {
+  position: relative;
+  flex: none;
+  width: 30px;
+  height: 22px;
+  border-radius: 3px;
+  background: var(--sw-bg);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.theme-swatch i {
+  position: absolute;
+  inset: 4px;
+  background: var(--sw-panel);
+}
+
+.theme-swatch i::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 4px;
+  height: 3px;
+  background: var(--sw-accent);
+}
+
+.theme-swatch i::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  right: 6px;
+  bottom: 3px;
+  height: 3px;
+  background: var(--sw-bar);
+}
+
+.theme-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.theme-name {
+  font-size: var(--fs-small);
+  font-weight: 600;
+}
+
+.theme-note {
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+ * Themes (developer, 2026-11-05). Each is laid over the look above while <html data-theme> names
+ * it; 기본 (default) has no rules of its own. Panels are opaque in every theme but 기본, so the
+ * macOS material behind the window does not show through.
+ * ======================================================================== */
+
+/* ---------- 픽셀: Galmuri11, a Korean bitmap font (SIL OFL 1.1, fonts/OFL.txt), drawn at its own
+ * 12-pixel size or twice it so glyphs stay on the pixel grid; square corners, 2-pixel ink outlines,
+ * hard offset shadows, bars built from blocks. Paper and ink in light, Sweetie 16 (GrafxKid) in dark.
+ * Outlines are box-shadows, not borders, so no box changes size. ---------- */
+
+@font-face {
+  font-family: Galmuri11;
+  font-weight: 400;
+  src: url('fonts/Galmuri11.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: Galmuri11;
+  font-weight: 700;
+  src: url('fonts/Galmuri11-Bold.woff2') format('woff2');
+}
+
+:root[data-theme='pixel'] {
+  --font: Galmuri11, 'Apple SD Gothic Neo', sans-serif;
+  --mono: Galmuri11, ui-monospace, Menlo, monospace;
+  --fs-caption: 12px;
+  --fs-small: 12px;
+  --fs-body: 12px;
+  --fs-title: 12px;
+  --fs-figure: 24px;
+  --radius-card: 0;
+  --radius-control: 0;
+  --window: #e4dcc8;
+  --surface: #fbf7ec;
+  --chrome: #e4dcc8;
+  --surface-hover: #f1ead8;
+  --sunken: #ece4d0;
+  --ink: #26213a;
+  --text: #26213a;
+  --text-2: #5a5470;
+  --separator: #26213a;
+  --border: #26213a;
+  --accent: #2f4fb8;
+  --accent-fill: #3b5dc9;
+  --track: #ddd3bb;
+  --bar: #3b5dc9;
+  --bar-high: #b13e53;
+  --bar-stale: #8b8798;
+  --even: #26213a;
+  --tip-bg: #26213a;
+  --tip-text: #fbf7ec;
+  --ok: #2f8a4c;
+  --ok-bg: #d8efc8;
+  --warn: #9a3b1c;
+  --warn-bg: #ffe1b0;
+  --error: #a3283f;
+  --error-bg: #f7d3d3;
+  --switch-off: #b8ae96;
+  --card-shadow: 0 0 0 2px var(--ink), 5px 5px 0 0 var(--ink);
+  --control-shadow: 0 0 0 2px var(--ink), 3px 3px 0 0 var(--ink);
+
+  @media (prefers-color-scheme: dark) {
+    --window: #1a1c2c;
+    --surface: #29366f;
+    --chrome: #1a1c2c;
+    --surface-hover: #333c57;
+    --sunken: #1a1c2c;
+    --ink: #0d0e17;
+    --text: #f4f4f4;
+    --text-2: #c3d3de;
+    --separator: #0d0e17;
+    --border: #0d0e17;
+    --accent: #73eff7;
+    --accent-fill: #38b764;
+    --track: #1a1c2c;
+    --bar: #41a6f6;
+    --bar-high: #ef7d57;
+    --bar-stale: #566c86;
+    --even: #ffcd75;
+    --tip-bg: #f4f4f4;
+    --tip-text: #1a1c2c;
+    --ok: #a7f070;
+    --ok-bg: #257179;
+    --warn: #ffcd75;
+    --warn-bg: #5d275d;
+    --error: #ff8c8c;
+    --error-bg: #5d275d;
+    --switch-off: #566c86;
+  }
+
+  &,
+  & body {
+    -webkit-font-smoothing: none;
+    text-rendering: optimizeSpeed;
+    /* 16 pixels a line: the 12-pixel glyphs and a 4-pixel gap, on the grid. */
+    line-height: 16px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-radius: 0;
+    background: var(--text-2);
+  }
+
+  .topbar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-bottom: 2px solid var(--ink);
+  }
+
+  .topbar h1,
+  .card-head h2,
+  .window-name,
+  .window-percent .num,
+  .theme-name {
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+
+  main {
+    gap: 10px;
+    padding: 10px 14px 12px 12px;
+  }
+
+  .card {
+    padding: 6px 10px 8px;
+  }
+
+  .card-sub {
+    margin: 0 0 4px;
+  }
+
+  .chip {
+    border-radius: 0;
+    box-shadow: inset 0 0 0 2px currentColor;
+    font-weight: 400;
+    line-height: 16px;
+    padding: 0 5px;
+  }
+
+  .chip.ok {
+    box-shadow: none;
+  }
+
+  .chip.ok::before,
+  .theme-swatch {
+    border-radius: 0;
+  }
+
+  .window + .window {
+    margin-top: 6px;
+  }
+
+  .window-percent .num {
+    line-height: 20px;
+  }
+
+  .track {
+    height: 12px;
+    margin: 1px 0 2px;
+    border-radius: 0;
+    box-shadow: inset 0 0 0 2px var(--ink);
+  }
+
+  .fill {
+    border-radius: 0;
+    background: repeating-linear-gradient(to right, var(--bar) 0 6px, transparent 6px 8px);
+    background-clip: content-box;
+    padding: 2px;
+  }
+
+  .fill.high {
+    background: repeating-linear-gradient(to right, var(--bar-high) 0 6px, transparent 6px 8px);
+    background-clip: content-box;
+  }
+
+  .stale .fill,
+  .stale .fill.high {
+    background: repeating-linear-gradient(to right, var(--bar-stale) 0 6px, transparent 6px 8px);
+    background-clip: content-box;
+  }
+
+  /* The even-use mark: a 2-pixel post standing out of the well above and below. */
+  .even {
+    top: -5px;
+    bottom: -5px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .even-tip {
+    box-shadow: var(--control-shadow);
+    transition: none;
+  }
+
+  .notice,
+  code,
+  .skeleton,
+  .spinner {
+    border-radius: 0;
+  }
+
+  .notice {
+    box-shadow: inset 0 0 0 2px currentColor;
+  }
+
+  button {
+    font-weight: 400;
+  }
+
+  button:active:not(:disabled) {
+    filter: none;
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 2px var(--ink);
+  }
+
+  .icon-button:active:not(:disabled),
+  .link:active:not(:disabled),
+  .upcoming-open:active:not(:disabled) {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .switch-track {
+    width: 28px;
+    height: 16px;
+    border-radius: 0;
+    box-shadow: inset 0 0 0 2px var(--ink);
+    transition: none;
+  }
+
+  .switch-thumb {
+    top: 4px;
+    left: 4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 0;
+    background: var(--ink);
+    box-shadow: none;
+    transition: none;
+  }
+
+  .switch input:checked + .switch-track .switch-thumb {
+    transform: translateX(12px);
+    background: #fff;
+  }
+
+  .theme-option,
+  .theme-option:has(input:checked) {
+    box-shadow: inset 0 0 0 2px var(--ink);
+  }
+
+  .theme-option:has(input:checked) {
+    background: var(--track);
+  }
+}
+
+/* ---------- 터미널: a green phosphor screen, monospaced, always dark. ---------- */
+
+:root[data-theme='terminal'] {
+  --font: 'SF Mono', ui-monospace, Menlo, 'Apple SD Gothic Neo', monospace;
+  --mono: var(--font);
+  --fs-caption: 11px;
+  --fs-small: 12px;
+  --fs-body: 12px;
+  --fs-title: 13px;
+  --fs-figure: 18px;
+  --radius-card: 0;
+  --radius-control: 0;
+  --window: #050a05;
+  --surface: #0b140b;
+  --chrome: #050a05;
+  --surface-hover: #10200f;
+  --sunken: #050a05;
+  --text: #46ff7a;
+  --text-2: #8fd99c;
+  --separator: #1d4d26;
+  --border: #2a7a3a;
+  --accent: #9dffb4;
+  --accent-fill: #1f9a44;
+  --track: #10230f;
+  --bar: #46ff7a;
+  --bar-high: #ffb000;
+  --bar-stale: #3d6b47;
+  --even: #e8ffe9;
+  --tip-bg: #46ff7a;
+  --tip-text: #050a05;
+  --ok: #46ff7a;
+  --ok-bg: #10230f;
+  --warn: #ffb000;
+  --warn-bg: #2a1d00;
+  --error: #ff5f56;
+  --error-bg: #2a0c0a;
+  --switch-off: transparent;
+  --card-shadow: 0 0 0 1px var(--border);
+  --control-shadow: 0 0 0 1px var(--border);
+  color-scheme: dark;
+
+  & body {
+    text-shadow: 0 0 6px rgba(70, 255, 122, 0.35);
+  }
+
+  .topbar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .topbar h1::before {
+    content: '> ';
+    color: var(--text-2);
+  }
+
+  .topbar h1::after {
+    content: '_';
+    animation: terminal-cursor 1s steps(1) infinite;
+  }
+
+  .chip {
+    border-radius: 0;
+    background: none;
+  }
+
+  .chip::before {
+    content: '[';
+  }
+
+  .chip::after {
+    content: ']';
+  }
+
+  .chip.ok::before {
+    content: '[';
+    width: auto;
+    height: auto;
+    background: none;
+  }
+
+  .track {
+    height: 8px;
+    border-radius: 0;
+  }
+
+  .fill {
+    border-radius: 0;
+    background: repeating-linear-gradient(to right, var(--bar) 0 4px, transparent 4px 5px);
+    box-shadow: 0 0 6px rgba(70, 255, 122, 0.45);
+  }
+
+  .fill.high {
+    background: repeating-linear-gradient(to right, var(--bar-high) 0 4px, transparent 4px 5px);
+    box-shadow: 0 0 6px rgba(255, 176, 0, 0.45);
+  }
+
+  .stale .fill,
+  .stale .fill.high {
+    background: repeating-linear-gradient(to right, var(--bar-stale) 0 4px, transparent 4px 5px);
+    box-shadow: none;
+  }
+
+  .even,
+  .notice,
+  code,
+  .skeleton,
+  .switch-track,
+  .switch-thumb,
+  .theme-swatch,
+  ::-webkit-scrollbar-thumb {
+    border-radius: 0;
+  }
+
+  .even-tip {
+    text-shadow: none;
+  }
+
+  .notice {
+    box-shadow: inset 0 0 0 1px currentColor;
+  }
+
+  /* Off: an outlined box with a dim block; on: a lit box with a dark block. */
+  .switch-track {
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+
+  .switch-thumb {
+    background: var(--bar-stale);
+    box-shadow: none;
+  }
+
+  .switch input:checked + .switch-track .switch-thumb {
+    background: #050a05;
+  }
+}
+
+@keyframes terminal-cursor {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme='terminal'] .topbar h1::after {
+    animation: none;
+  }
+}
+
+/* ---------- 파스텔: rounded, soft lavender and pink. ---------- */
+
+:root[data-theme='pastel'] {
+  --font: ui-rounded, 'SF Pro Rounded', -apple-system, 'Apple SD Gothic Neo', sans-serif;
+  --radius-card: 18px;
+  --radius-control: 12px;
+  --window: #f4eefe;
+  --surface: #ffffff;
+  --chrome: #f4eefe;
+  --surface-hover: #faf6ff;
+  --sunken: #f4eefe;
+  --text: #3b3355;
+  --text-2: #6b6385;
+  --separator: #ebe3fa;
+  --border: #ddd1f5;
+  --accent: #7c3aed;
+  --accent-fill: #a78bfa;
+  --track: #efe7fb;
+  --bar: #a78bfa;
+  --bar-end: #f9a8d4;
+  --bar-high: #f97316;
+  --bar-high-end: #f43f5e;
+  --bar-stale: #c9c1dc;
+  --even: #7c6f9b;
+  --tip-bg: #3b3355;
+  --tip-text: #ffffff;
+  --ok: #15803d;
+  --ok-bg: #dcfce7;
+  --warn: #b45309;
+  --warn-bg: #ffedd5;
+  --error: #be123c;
+  --error-bg: #ffe4e6;
+  --switch-off: #ddd1f5;
+  --card-shadow: 0 6px 18px rgba(124, 58, 237, 0.08), 0 1px 2px rgba(124, 58, 237, 0.08);
+  --control-shadow: 0 1px 3px rgba(124, 58, 237, 0.14);
+
+  @media (prefers-color-scheme: dark) {
+    --window: #1e1a2e;
+    --surface: #2a2440;
+    --chrome: #1e1a2e;
+    --surface-hover: #332c4d;
+    --sunken: #1e1a2e;
+    --text: #f3efff;
+    --text-2: #bdb4da;
+    --separator: #3a3354;
+    --border: #4a4268;
+    --accent: #c4b5fd;
+    --accent-fill: #8b5cf6;
+    --track: #3a3354;
+    --bar: #c4b5fd;
+    --bar-end: #f9a8d4;
+    --bar-high: #fdba74;
+    --bar-high-end: #fb7185;
+    --bar-stale: #5f5878;
+    --even: #f3efff;
+    --tip-bg: #f3efff;
+    --tip-text: #2a2440;
+    --ok: #86efac;
+    --ok-bg: rgba(134, 239, 172, 0.14);
+    --warn: #fdba74;
+    --warn-bg: rgba(253, 186, 116, 0.14);
+    --error: #fda4af;
+    --error-bg: rgba(253, 164, 175, 0.14);
+    --switch-off: #4a4268;
+    --card-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  }
+
+  .topbar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-bottom: 0;
+  }
+
+  main {
+    gap: 10px;
+  }
+
+  .track {
+    height: 8px;
+    border-radius: 4px;
+  }
+
+  .fill {
+    border-radius: 4px;
+    background: linear-gradient(to right, var(--bar), var(--bar-end));
+  }
+
+  .fill.high {
+    background: linear-gradient(to right, var(--bar-high), var(--bar-high-end));
+  }
+
+  .even {
+    border-radius: 2px;
+    width: 3px;
+  }
+
+  .notice {
+    border-radius: 12px;
+  }
+}
+
+/* ---------- 네온: a dark synthwave screen with glowing bars, always dark. ---------- */
+
+:root[data-theme='neon'] {
+  --radius-card: 8px;
+  --radius-control: 6px;
+  --window: #0d0221;
+  --surface: #170838;
+  --chrome: #0d0221;
+  --surface-hover: #22104d;
+  --sunken: #0d0221;
+  --text: #f5f3ff;
+  --text-2: #b8a9e0;
+  --separator: #2b1660;
+  --border: #3d2287;
+  --accent: #05d9e8;
+  --accent-fill: #ff2a6d;
+  --track: #2b1660;
+  --bar: #05d9e8;
+  --bar-end: #ff2a6d;
+  --bar-high: #ff2a6d;
+  --bar-high-end: #ffd319;
+  --bar-stale: #5a4a85;
+  --even: #ffffff;
+  --tip-bg: #05d9e8;
+  --tip-text: #0d0221;
+  --ok: #3cffb4;
+  --ok-bg: rgba(60, 255, 180, 0.12);
+  --warn: #ffd319;
+  --warn-bg: rgba(255, 211, 25, 0.12);
+  --error: #ff6b9a;
+  --error-bg: rgba(255, 42, 109, 0.14);
+  --switch-off: #3d2287;
+  --card-shadow: 0 0 0 1px rgba(5, 217, 232, 0.35), 0 0 16px rgba(255, 42, 109, 0.14);
+  --control-shadow: 0 0 0 1px rgba(5, 217, 232, 0.5);
+  color-scheme: dark;
+
+  .topbar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-bottom: 1px solid rgba(5, 217, 232, 0.35);
+  }
+
+  .topbar h1 {
+    text-shadow: 0 0 8px rgba(255, 42, 109, 0.8);
+  }
+
+  .window-percent .num {
+    text-shadow: 0 0 8px rgba(5, 217, 232, 0.7);
+  }
+
+  .window-percent.high .num {
+    text-shadow: 0 0 8px rgba(255, 211, 25, 0.7);
+  }
+
+  .track {
+    height: 6px;
+  }
+
+  .fill {
+    background: linear-gradient(to right, var(--bar), var(--bar-end));
+    box-shadow: 0 0 10px rgba(255, 42, 109, 0.65);
+  }
+
+  .fill.high {
+    background: linear-gradient(to right, var(--bar-high), var(--bar-high-end));
+    box-shadow: 0 0 10px rgba(255, 211, 25, 0.6);
+  }
+
+  .stale .fill,
+  .stale .fill.high {
+    box-shadow: none;
+  }
+
+  .even {
+    box-shadow: 0 0 6px #ffffff;
+  }
+
+  .chip.ok::before {
+    box-shadow: 0 0 6px var(--ok);
+  }
+}
+
+/* ---------- 고대비: black on white (white on black in dark), thick lines, larger type. ---------- */
+
+:root[data-theme='contrast'] {
+  --fs-caption: 12px;
+  --fs-small: 13px;
+  --fs-body: 14px;
+  --fs-title: 16px;
+  --fs-figure: 18px;
+  --radius-card: 4px;
+  --radius-control: 4px;
+  --window: #ffffff;
+  --surface: #ffffff;
+  --chrome: #ffffff;
+  --surface-hover: #eeeeee;
+  --sunken: #eeeeee;
+  --ink: #000000;
+  --text: #000000;
+  --text-2: #1f1f1f;
+  --separator: #000000;
+  --border: #000000;
+  --accent: #0033b3;
+  --accent-fill: #0033b3;
+  --track: #ffffff;
+  --bar: #0033b3;
+  --bar-high: #b00020;
+  --bar-stale: #6b6b6b;
+  --even: #000000;
+  --tip-bg: #000000;
+  --tip-text: #ffffff;
+  --ok: #005a1e;
+  --ok-bg: #ffffff;
+  --warn: #7a2e00;
+  --warn-bg: #ffffff;
+  --error: #b00020;
+  --error-bg: #ffffff;
+  --switch-off: #6b6b6b;
+  --card-shadow: 0 0 0 2px var(--ink);
+  --control-shadow: 0 0 0 2px var(--ink);
+
+  @media (prefers-color-scheme: dark) {
+    --window: #000000;
+    --surface: #000000;
+    --chrome: #000000;
+    --surface-hover: #1f1f1f;
+    --sunken: #1f1f1f;
+    --ink: #ffffff;
+    --text: #ffffff;
+    --text-2: #e6e6e6;
+    --separator: #ffffff;
+    --border: #ffffff;
+    --accent: #ffd400;
+    --accent-fill: #ffd400;
+    --track: #000000;
+    --bar: #ffd400;
+    --bar-high: #ff6b6b;
+    --bar-stale: #8f8f8f;
+    --even: #ffffff;
+    --tip-bg: #ffffff;
+    --tip-text: #000000;
+    --ok: #4dff88;
+    --ok-bg: #000000;
+    --warn: #ffd400;
+    --warn-bg: #000000;
+    --error: #ff6b6b;
+    --error-bg: #000000;
+    --switch-off: #8f8f8f;
+  }
+
+  & body {
+    -webkit-font-smoothing: auto;
+  }
+
+  .topbar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-bottom: 2px solid var(--ink);
+  }
+
+  .card-head h2,
+  .window-name,
+  .theme-name {
+    font-weight: 700;
+  }
+
+  .track {
+    height: 10px;
+    box-shadow: inset 0 0 0 2px var(--ink);
+  }
+
+  .fill {
+    border-radius: 3px;
+  }
+
+  .even {
+    width: 3px;
+    box-shadow: 0 0 0 1px var(--surface);
+  }
+
+  .chip,
+  .notice {
+    box-shadow: inset 0 0 0 2px currentColor;
+  }
+
+  .chip.ok {
+    box-shadow: none;
+  }
+
+  .switch-track {
+    box-shadow: inset 0 0 0 2px var(--ink);
+  }
+
+  .switch input:checked + .switch-track .switch-thumb {
+    background: var(--window);
+  }
+}

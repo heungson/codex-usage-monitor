@@ -1,5 +1,22 @@
 # Verification
 
+## 테마 (2026-11-05)
+
+No PRS issue; asked for by the developer. The live endpoint was not called.
+
+- `npm run typecheck`, `npm run lint`, `npm run format:check`: passed.
+- `npm test`: 127 passed. New in `test/window-settings.test.ts`: the theme is kept with the other
+  settings, and a missing or unknown one reads as 기본.
+- `npm run test:e2e`: 48 passed, 2 skipped. New: `e2e/settings.spec.ts` picks each of the six
+  themes and sees it applied at once and kept after a restart; `e2e/look.spec.ts` shows each theme
+  but 기본 in light and dark, checks the usage screen still fits the 600-pixel popover and the
+  even-use tip still opens, and captures `tmp/screens/theme-*`. Those captures and 기본's were opened
+  side by side (`tmp/screens/themes-{usage,settings}-{light,dark}.png`); found and fixed there: the
+  theme grid overflowed sideways with the wider fonts, and 터미널's off switches looked on.
+- `npm run test:package`: passed, and the packaged app holds `dist/renderer/fonts/`.
+- Not checked: the installed app; colour contrast was chosen by eye against the 4.5:1 and 3:1
+  targets, not measured for every theme.
+
 ## «주말·공휴일 제외» (2026-11-05)
 
 Asked for by the developer. The hover tip wording (option A, previous section) is in the same change.

@@ -142,3 +142,36 @@ for (const scheme of ['light', 'dark'] as const) {
     await server.close();
   });
 }
+
+// Every theme (developer, 2026-11-05) in light and dark: the usage screen with the default data
+// still fits the popover, and the hover tip still shows. Captures in tmp/screens/theme-*.
+for (const theme of ['pixel', 'terminal', 'pastel', 'neon', 'contrast'] as const) {
+  test(`theme ${theme}`, async () => {
+    mkdirSync(dir, { recursive: true });
+    const fixture = makeFixture();
+    writeFileSync(fixture.modeFile, JSON.stringify({ status: 'scheduled', history: 'ok' }));
+    const server = await startFakeResets(fixture.modeFile);
+    writeDefaultData(fixture);
+    writeFileSync(
+      join(fixture.dataDir, 'window-settings.json'),
+      JSON.stringify({ alwaysOnTop: false, workdaysOnly: false, theme }),
+    );
+    const { app, page } = await launch(fixture, server.url, { ULM_RESET_CHECK_MS: '3600000' });
+    for (const scheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: scheme });
+      await expect(page.locator('section[data-area="upcoming"]')).toContainText('전체 리셋 예정');
+      await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe(theme);
+      await page.evaluate(() => document.fonts.ready);
+      await capture(page, `theme-${theme}-${scheme}-usage`, dir);
+      expect(await fitsWithoutScrolling(page)).toBe(true);
+      await page.locator('.even').first().hover();
+      await expect(page.locator('.even-tip').first()).toBeVisible();
+      await page.mouse.move(0, 0);
+      await page.getByRole('button', { name: '설정' }).click();
+      await capture(page, `theme-${theme}-${scheme}-settings`, dir);
+      await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+    }
+    await app.close();
+    await server.close();
+  });
+}

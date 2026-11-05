@@ -5,9 +5,14 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
+import { isThemeId, type ThemeId } from '../shared/themes';
 import type { WindowSettings } from '../shared/types';
 
-export const defaultWindowSettings: WindowSettings = { alwaysOnTop: false, workdaysOnly: false };
+export const defaultWindowSettings: WindowSettings = {
+  alwaysOnTop: false,
+  workdaysOnly: false,
+  theme: 'default',
+};
 
 export class WindowSettingsStore {
   private value: WindowSettings;
@@ -29,6 +34,11 @@ export class WindowSettingsStore {
     return this.save({ ...this.value, workdaysOnly: on });
   }
 
+  /** The look on the 설정 screen (developer, 2026-11-05). */
+  setTheme(theme: ThemeId): WindowSettings {
+    return this.save({ ...this.value, theme });
+  }
+
   private save(value: WindowSettings): WindowSettings {
     this.value = value;
     mkdirSync(dirname(this.file), { recursive: true });
@@ -41,7 +51,12 @@ export class WindowSettingsStore {
     if (!existsSync(this.file)) return { ...defaultWindowSettings };
     try {
       const raw = JSON.parse(readFileSync(this.file, 'utf8')) as Partial<WindowSettings>;
-      return { alwaysOnTop: raw.alwaysOnTop === true, workdaysOnly: raw.workdaysOnly === true };
+      return {
+        alwaysOnTop: raw.alwaysOnTop === true,
+        workdaysOnly: raw.workdaysOnly === true,
+        // A file from before themes, or one naming a theme this version lacks, gets 기본.
+        theme: isThemeId(raw.theme) ? raw.theme : 'default',
+      };
     } catch {
       return { ...defaultWindowSettings };
     }

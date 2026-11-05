@@ -40,4 +40,5 @@ await Promise.all([
 mkdirSync('dist/renderer', { recursive: true });
 cpSync('src/renderer/index.html', 'dist/renderer/index.html');
 cpSync('src/renderer/styles.css', 'dist/renderer/styles.css');
+cpSync('src/renderer/fonts', 'dist/renderer/fonts', { recursive: true });
 cpSync('src/main/assets', 'dist/main/assets', { recursive: true });
