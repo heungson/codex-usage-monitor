@@ -263,6 +263,20 @@ function upcomingCard(): string {
     </section>`;
 }
 
+/**
+ * A one-line legend for the even-use mark, under the CLI cards, shown only while a bar has one: the
+ * mark alone was not understood (developer, 2026-11-05).
+ */
+function evenLegend(snapshot: UsageSnapshot, now = Date.now()): string {
+  const marked = [snapshot.claude, snapshot.codex].some((source) => {
+    const shown = source.kind === 'ok' ? source.usage : source.kind === 'error' ? source.lastGood : null;
+    return shown?.windows.some((w) => evenUse(w, now) !== null) ?? false;
+  });
+  return marked
+    ? `<p class="legend"><span class="legend-mark" aria-hidden="true"></span>세로 표시는 한도 기간 중 지난 시간이에요. 막대가 표시를 넘으면 리셋 전에 한도에 닿을 수 있어요.</p>`
+    : '';
+}
+
 function usageView(): string {
   const usage = state.usage;
   if (!usage) return `<main><section class="card">${skeleton}</section></main>`;
@@ -284,6 +298,7 @@ function usageView(): string {
       ${bothFailed ? '<div class="notice error" role="alert"><p>두 CLI의 기록을 모두 읽지 못했어요.</p></div>' : ''}
       ${sourceCard('claude', usage.claude)}
       ${sourceCard('codex', usage.codex)}
+      ${evenLegend(usage)}
       ${upcomingCard()}
       <footer class="foot">
         <button class="text-button" data-action="go" data-view="claude-setup" data-key="open-setup">Claude Code 연동 안내${chevronRight}</button>

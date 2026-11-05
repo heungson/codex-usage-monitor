@@ -293,7 +293,9 @@ tray icon is back), the pace line («… 소진 예상», «리셋까지 충분�
   Claude Code title, «가장 최근 Codex 기록 10분 전» under Codex, the full time in the tooltip; the
   separate meta block at the bottom of each card is gone. The words «마지막 갱신» stay (PR-P004).
 - **Even-use mark** (Usage4Claude's pace guide): a thin mark on each bar where the bar would be if
-  the window were spent evenly until its reset. Code: `src/shared/pace.ts`.
+  the window were spent evenly until its reset. Code: `src/shared/pace.ts`. The mark alone was not
+  understood, so a one-line legend under the CLI cards explains it while any bar has one: «세로
+  표시는 한도 기간 중 지난 시간이에요. 막대가 표시를 넘으면 리셋 전에 한도에 닿을 수 있어요.»
 - **Translucent popover**: the window has macOS's `popover` vibrancy, kept active while pinned. The
   page, the top bar and the cards are tinted over it rather than clear (light cards 86% white, dark
   cards `#3a3a3c` at 72%), so text contrast stays close to the opaque values whatever is behind the

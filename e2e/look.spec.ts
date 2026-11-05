@@ -57,6 +57,8 @@ for (const scheme of ['light', 'dark'] as const) {
     await expect(page.locator('section[data-area="upcoming"]')).toContainText('전체 리셋 예정');
     await expect(page.locator('section[data-cli="codex"]')).toContainText('44%');
     await shot('usage-pin-off');
+    // The even-use mark is explained under the cards (developer, 2026-11-05).
+    await expect(page.locator('.legend')).toContainText('세로 표시는 한도 기간 중 지난 시간이에요');
     // The default data fits the popover without a scrollbar (owner, 2026-10-30).
     expect(await fitsWithoutScrolling(page)).toBe(true);
     // Only the window at or over 80% (Claude 7일, 84%) takes the warning colour, figure and bar alike.

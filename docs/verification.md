@@ -1,5 +1,14 @@
 # Verification
 
+## Legend for the even-use mark (2026-11-05)
+
+Asked for by the developer, who did not understand the mark from the screen. `npm run typecheck`,
+`npm run lint`: passed; `npm run format:check`: only the ignored `.claude/settings.local.json`.
+`npm test`: 118 passed. `npm run test:e2e`: 41 passed, 2 skipped (`e2e/look.spec.ts` now checks the
+legend and still checks the one-screen fit). `npm run test:package`: passed.
+`tmp/screens/dark-usage-pin-off-1.png` was opened: the legend sits under the Codex card in two short
+lines. Not checked: the installed app.
+
 ## CodexBar style removed (2026-11-05)
 
 The developer found the redesign worse and chose what to remove: the menu bar meter, the pace line

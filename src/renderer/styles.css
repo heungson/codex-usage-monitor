@@ -411,6 +411,25 @@ main {
   box-shadow: 0 0 0 1px var(--surface);
 }
 
+/* The legend for the even-use mark, under the CLI cards. */
+.legend {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 0 2px;
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+}
+
+.legend-mark {
+  flex: none;
+  width: 2px;
+  height: 9px;
+  margin-top: 3px;
+  border-radius: 1px;
+  background: var(--even);
+}
+
 .fill {
   height: 100%;
   border-radius: 3px;
