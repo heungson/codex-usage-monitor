@@ -1,5 +1,14 @@
 # Verification
 
+## Hover tip instead of the legend (2026-11-05)
+
+Asked for by the developer. `npm run typecheck`, `npm run lint`: passed; `npm run format:check`:
+only the ignored `.claude/settings.local.json`. `npm test`: 118 passed. `npm run test:e2e`: 41
+passed, 2 skipped; `e2e/look.spec.ts` now hovers the first mark, waits for the tip at full opacity,
+captures it, and checks it hides again. `npm run test:package`: passed.
+`tmp/screens/light-usage-even-tip-1.png` and `dark-usage-even-tip-1.png` were opened: the tip
+reads in both themes; the legend line is gone. Not checked: the installed app.
+
 ## Legend for the even-use mark (2026-11-05)
 
 Asked for by the developer, who did not understand the mark from the screen. `npm run typecheck`,

@@ -44,6 +44,9 @@
   --bar-stale: #9a9aa0;
   /* The even-use mark on a bar (developer, 2026-11-05): a graphic, at least 3:1 on --surface. */
   --even: #6e6e73;
+  /* The tip shown over the even-use mark: inverted, like a macOS help tag in dark. */
+  --tip-bg: rgba(40, 40, 42, 0.94);
+  --tip-text: #ffffff;
   --ok: #1f7a35;
   --ok-bg: rgba(52, 199, 89, 0.14);
   --warn: #8f4c00;
@@ -74,6 +77,8 @@
     --bar-high: #ff9f0a;
     --bar-stale: #6e6e73;
     --even: #c7c7cc;
+    --tip-bg: rgba(236, 236, 240, 0.96);
+    --tip-text: #1d1d1f;
     --ok: #4cd472;
     --ok-bg: rgba(48, 209, 88, 0.16);
     --warn: #ffb340;
@@ -411,23 +416,35 @@ main {
   box-shadow: 0 0 0 1px var(--surface);
 }
 
-/* The legend for the even-use mark, under the CLI cards. */
-.legend {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 0 2px;
-  color: var(--text-2);
-  font-size: var(--fs-caption);
+/* A wider area to hover than the 2-pixel mark itself. */
+.even::before {
+  content: '';
+  position: absolute;
+  inset: -4px -6px;
 }
 
-.legend-mark {
-  flex: none;
-  width: 2px;
-  height: 9px;
-  margin-top: 3px;
-  border-radius: 1px;
-  background: var(--even);
+.even-tip {
+  position: absolute;
+  z-index: 2;
+  bottom: calc(100% + 8px);
+  /* Centred on the mark, but never past either end of the bar. */
+  left: clamp(0px, calc(var(--at) - 100px), calc(100% - 200px));
+  width: 200px;
+  padding: 6px var(--s2);
+  border-radius: var(--radius-control);
+  background: var(--tip-bg);
+  color: var(--tip-text);
+  font-size: var(--fs-caption);
+  line-height: 1.4;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s;
+}
+
+.even:hover + .even-tip {
+  opacity: 1;
+  visibility: visible;
 }
 
 .fill {

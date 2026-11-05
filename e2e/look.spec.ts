@@ -57,10 +57,18 @@ for (const scheme of ['light', 'dark'] as const) {
     await expect(page.locator('section[data-area="upcoming"]')).toContainText('전체 리셋 예정');
     await expect(page.locator('section[data-cli="codex"]')).toContainText('44%');
     await shot('usage-pin-off');
-    // The even-use mark is explained under the cards (developer, 2026-11-05).
-    await expect(page.locator('.legend')).toContainText('세로 표시는 한도 기간 중 지난 시간이에요');
     // The default data fits the popover without a scrollbar (owner, 2026-10-30).
     expect(await fitsWithoutScrolling(page)).toBe(true);
+    // The even-use mark explains itself while the pointer is over it (developer, 2026-11-05).
+    const tip = page.locator('.even-tip').first();
+    await expect(tip).toBeHidden();
+    await page.locator('.even').first().hover();
+    await expect(tip).toBeVisible();
+    await expect(tip).toContainText('한도 기간 중 지난 시간');
+    await expect(tip).toHaveCSS('opacity', '1');
+    await shot('usage-even-tip');
+    await page.mouse.move(0, 0);
+    await expect(tip).toBeHidden();
     // Only the window at or over 80% (Claude 7일, 84%) takes the warning colour, figure and bar alike.
     await expect(page.locator('.fill.high')).toHaveCount(1);
     await expect(page.locator('.window-percent.high .num')).toHaveText('84%');
