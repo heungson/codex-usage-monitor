@@ -44,11 +44,14 @@ Anthropic. For the last it reads Claude Code's login from the macOS Keychain and
   only on working days, still reaching the end at the reset; 5시간 bars are unchanged. The holidays
   are listed in `src/shared/holidays-kr.ts` for 2026 and 2027; add each next year when its 월력요항 is
   published (a year not listed counts weekends only).
-- **설정 › 테마**: twenty-six looks, applied as soon as one is picked and kept across restarts: 기본
+- **설정 › 테마**: thirty-four looks, applied as soon as one is picked and kept across restarts: 기본
   (the macOS translucent look, the first state), 픽셀, 터미널, 파스텔, 네온, 고대비, 바다, 숲, 노을,
-  벚꽃, 한지, 단청, 우주, 커피, 민트, 모노, 신문, 청사진, LCD, 사탕, and six from Korean crafts and
-  painting: 색동, 청자, 백자, 자개, 일월오봉, 조각보. 터미널, 네온, 단청, 우주, 청사진, 자개 and 일월오봉
-  are always dark, 한지, 신문, LCD and 백자 always light; the others follow the Mac's light or dark setting.
+  벚꽃, 한지, 단청, 우주, 커피, 민트, 모노, 신문, 청사진, LCD, 사탕, six from Korean crafts and
+  painting (색동, 청자, 백자, 자개, 일월오봉, 조각보), and eight that each draw the bars their own way
+  (오로라, 용암, 수박, 칠판, 공책, 오락실, 옛 맥, 노선도). 터미널, 네온, 단청, 우주, 청사진, 자개,
+  일월오봉, 오로라, 용암, 칠판 and 오락실 are always dark, 한지, 신문, LCD, 백자, 공책 and 옛 맥 always
+  light; the others follow the Mac's light or dark setting. The picker lists them in three groups:
+  «맥 설정 따름», «밝은 테마», «어두운 테마».
   `test/themes.test.ts` measures every theme's contrast. 픽셀 uses Galmuri11 by Lee Minseo
   (SIL Open Font License 1.1, `src/renderer/fonts/OFL.txt`), bundled with the app.
 

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
-import { themes } from '../src/shared/themes';
+import { themeGroups, themes } from '../src/shared/themes';
 import { codexLine } from '../test/helpers';
 import { capture, launch, makeFixture } from './app';
 import { startFakeResets, type FakeServer } from './fake-resets-server';
@@ -119,7 +119,7 @@ test("«주말·공휴일 제외» starts off, changes the 7일 mark's tip, and 
   await app.close();
 });
 
-test('테마: twenty looks to pick from, applied at once and kept across a restart (developer 2026-11-05)', async () => {
+test('테마: every look to pick from in three groups, applied at once and kept across a restart (developer 2026-11-05)', async () => {
   const fixture = makeFixture();
   server = await startFakeResets(fixture.modeFile);
   let { app, page } = await launch(fixture, server.url);
@@ -129,6 +129,13 @@ test('테마: twenty looks to pick from, applied at once and kept across a resta
   await page.getByRole('button', { name: '설정' }).click();
   const group = page.getByRole('radiogroup', { name: '테마' });
   await expect(group.getByRole('radio')).toHaveCount(themes.length);
+  // Three groups (developer, 2026-11-10): follows the Mac, always light, always dark.
+  for (const { scheme, name } of themeGroups) {
+    const inGroup = themes.filter((t) => t.scheme === scheme);
+    const radios = group.getByRole('group', { name, exact: true }).getByRole('radio');
+    await expect(radios).toHaveCount(inGroup.length);
+    await expect(radios.first()).toHaveAccessibleName(inGroup[0]!.name);
+  }
   await expect(group.getByRole('radio', { name: '기본', exact: true })).toBeChecked();
   for (const { id, name } of themes.slice(1)) {
     await group.getByRole('radio', { name, exact: true }).check({ force: true });
@@ -138,6 +145,8 @@ test('테마: twenty looks to pick from, applied at once and kept across a resta
   await group.getByRole('radio', { name: '픽셀', exact: true }).check({ force: true });
   await expect.poll(theme).toBe('pixel');
   await capture(page, 'settings-theme-pixel');
+  await group.getByRole('group', { name: '어두운 테마' }).scrollIntoViewIfNeeded();
+  await capture(page, 'settings-theme-groups');
 
   await app.close();
   ({ app, page } = await launch(fixture, server.url));

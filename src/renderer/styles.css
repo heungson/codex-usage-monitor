@@ -925,6 +925,16 @@ code {
 
 /* ---------- 테마 picker on the 설정 screen ---------- */
 
+/* Three groups: follows the Mac, always light, always dark (developer, 2026-11-10). */
+.theme-group + .theme-group {
+  margin-top: var(--s2);
+}
+
+.theme-group-name {
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+}
+
 .theme-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3108,5 +3118,622 @@ code {
 
   .fill.high {
     background: repeating-linear-gradient(to right, var(--bar-high) 0 14px, #6b2418 14px 22px);
+  }
+}
+
+/* ---------- Eight more, each with its own way of drawing a bar (developer, 2026-11-10: «could you
+ * add more creative color themes for this app?»): 오로라, 용암, 수박, 칠판, 공책, 오락실, 옛 맥, 노선도. ---------- */
+
+:root[data-theme='aurora'] {
+  --window: #06121c;
+  --surface: #0d1f2d;
+  --chrome: #06121c;
+  --surface-hover: #162a39;
+  --sunken: #0b1a26;
+  --text: #e8f6f4;
+  --text-2: #a3c4c9;
+  --separator: #1f3d4d;
+  --border: #1f3d4d;
+  --accent: #7ef0c0;
+  --accent-fill: #7ef0c0;
+  --on-accent: #06121c;
+  --track: #1d3342;
+  --bar: #4ade9b;
+  --bar-high: #ff7eb6;
+  --bar-stale: #5f7a85;
+  --even: #ffffff;
+  --tip-bg: #e8f6f4;
+  --tip-text: #0d1f2d;
+  --ok: #7ef0c0;
+  --ok-bg: #173a3a;
+  --warn: #ffc46b;
+  --warn-bg: #33342f;
+  --error: #ff9aa8;
+  --error-bg: #33283a;
+  --switch-off: #47606c;
+  --bar-end: #b08cff;
+  --bar-high-end: #ffc46b;
+  --radius-card: 14px;
+  --radius-control: 8px;
+  --card-shadow: 0 0 0 1px var(--border), 0 0 24px rgba(74, 222, 155, 0.08);
+  --control-shadow: 0 0 0 1px var(--border);
+  color-scheme: dark;
+
+  .topbar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  /* Curtains of light hanging from the top of the sky. */
+  &,
+  & body {
+    background:
+      radial-gradient(120% 55% at 15% 0%, rgba(74, 222, 155, 0.22), transparent 60%),
+      radial-gradient(100% 45% at 90% 8%, rgba(176, 140, 255, 0.2), transparent 60%), var(--window);
+    background-attachment: fixed;
+  }
+
+  .topbar {
+    background: transparent;
+    border-bottom: 1px solid transparent;
+    border-image: linear-gradient(to right, #4ade9b, #5ac8fa, #b08cff) 1;
+  }
+
+  .fill {
+    background: linear-gradient(to right, var(--bar), #5ac8fa, var(--bar-end));
+    box-shadow: 0 0 8px rgba(74, 222, 155, 0.45);
+  }
+
+  .fill.high {
+    background: linear-gradient(to right, var(--bar-high), var(--bar-high-end));
+    box-shadow: 0 0 8px rgba(255, 126, 182, 0.45);
+  }
+}
+
+:root[data-theme='lava'] {
+  --window: #140c0a;
+  --surface: #221512;
+  --chrome: #140c0a;
+  --surface-hover: #2d1d19;
+  --sunken: #1b110e;
+  --text: #ffeede;
+  --text-2: #d1b3a1;
+  --separator: #45261c;
+  --border: #45261c;
+  --accent: #ffb054;
+  --accent-fill: #ffb054;
+  --on-accent: #140c0a;
+  --track: #3a2520;
+  --bar: #ff6a1f;
+  --bar-high: #ff3b3b;
+  --bar-stale: #7d6a62;
+  --even: #ffffff;
+  --tip-bg: #ffeede;
+  --tip-text: #221512;
+  --ok: #b6e37a;
+  --ok-bg: #2f3320;
+  --warn: #ffd23f;
+  --warn-bg: #40301a;
+  --error: #ff9c8f;
+  --error-bg: #452220;
+  --switch-off: #5e4a43;
+  --bar-end: #ffd23f;
+  --bar-high-end: #fff2c2;
+  --radius-card: 6px;
+  --radius-control: 4px;
+  /* A glowing crack along the bottom of each slab of basalt. */
+  --card-shadow: 0 0 0 1px var(--border), inset 0 -2px 0 #c4391a, 0 6px 14px -8px rgba(255, 106, 31, 0.7);
+  --control-shadow: 0 0 0 1px var(--border);
+  color-scheme: dark;
+
+  .topbar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .topbar {
+    border-bottom: 2px solid transparent;
+    border-image: linear-gradient(to right, #c4391a, #ffd23f, #ff6a1f, #c4391a) 1;
+  }
+
+  .track {
+    height: 6px;
+  }
+
+  .fill {
+    background: linear-gradient(to right, #c4391a, var(--bar) 40%, var(--bar-end));
+    box-shadow: 0 0 10px rgba(255, 106, 31, 0.7);
+  }
+
+  /* Over 80% the flow runs white-hot. */
+  .fill.high {
+    background: linear-gradient(to right, var(--bar-high), #ff8a3d 55%, var(--bar-high-end));
+    box-shadow: 0 0 12px rgba(255, 80, 60, 0.9);
+  }
+}
+
+:root[data-theme='watermelon'] {
+  --window: #e3f2dc;
+  --surface: #fffafa;
+  --chrome: #e3f2dc;
+  --surface-hover: #f6f0f0;
+  --sunken: #d7e8cf;
+  --text: #1f2d1a;
+  --text-2: #4b5f43;
+  --separator: #b9d8ab;
+  --border: #b9d8ab;
+  --accent: #a51c38;
+  --accent-fill: #a51c38;
+  --on-accent: #ffffff;
+  --track: #fbe4e6;
+  --bar: #e0354f;
+  --bar-high: #8a1230;
+  --bar-stale: #a8a5a0;
+  --even: #1f2d1a;
+  --tip-bg: #1f2d1a;
+  --tip-text: #fffafa;
+  --ok: #2a6b2d;
+  --ok-bg: #dcecd6;
+  --warn: #8a4b00;
+  --warn-bg: #f3e6d2;
+  --error: #a51c38;
+  --error-bg: #f7dde1;
+  --switch-off: #bfc8ba;
+  --rind: #3f9142;
+  --seed: #2a1215;
+  --radius-card: 16px;
+  --radius-control: 10px;
+  --card-shadow: 0 0 0 1px var(--border), 0 2px 0 var(--rind);
+
+  @media (prefers-color-scheme: dark) {
+    --window: #132016;
+    --surface: #1d2c20;
+    --chrome: #132016;
+    --surface-hover: #27372a;
+    --sunken: #18261b;
+    --text: #f2fbee;
+    --text-2: #b5cdb0;
+    --separator: #2f4a33;
+    --border: #2f4a33;
+    --accent: #ff8fa0;
+    --accent-fill: #ff8fa0;
+    --on-accent: #132016;
+    --track: #3a2f31;
+    --bar: #ff5c75;
+    --bar-high: #ffb86b;
+    --bar-stale: #6f7f70;
+    --even: #f2fbee;
+    --tip-bg: #f2fbee;
+    --tip-text: #1d2c20;
+    --ok: #8fe08f;
+    --ok-bg: #28452c;
+    --warn: #ffd166;
+    --warn-bg: #423d27;
+    --error: #ff9aa8;
+    --error-bg: #452c30;
+    --switch-off: #4f6152;
+    --rind: #5fbf62;
+    --seed: #1a0b0d;
+  }
+
+  .topbar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  /* A slice: green rind around the track, red flesh for the fill, a seed every 14 pixels. */
+  .track {
+    height: 10px;
+    border-radius: 5px;
+    box-shadow: 0 0 0 1.5px var(--rind);
+  }
+
+  .fill {
+    border-radius: 5px;
+    background:
+      radial-gradient(ellipse 1.5px 2.5px at 7px 50%, var(--seed) 98%, transparent) 0 0 / 14px 100%,
+      var(--bar);
+  }
+
+  .fill.high {
+    background:
+      radial-gradient(ellipse 1.5px 2.5px at 7px 50%, var(--seed) 98%, transparent) 0 0 / 14px 100%,
+      var(--bar-high);
+  }
+}
+
+:root[data-theme='chalkboard'] {
+  --window: #1f3a30;
+  --surface: #264a3c;
+  --chrome: #1f3a30;
+  --surface-hover: #2f5446;
+  --sunken: #1b332a;
+  --text: #f4f1e6;
+  --text-2: #c4d2c6;
+  --separator: #5d7f6f;
+  --border: #5d7f6f;
+  --accent: #ffe27a;
+  --accent-fill: #ffe27a;
+  --on-accent: #1f3a30;
+  --track: #32584a;
+  --bar: #f4f1e6;
+  --bar-high: #ff9d8a;
+  --bar-stale: #7f9a8c;
+  --even: #ffe27a;
+  --tip-bg: #f4f1e6;
+  --tip-text: #264a3c;
+  --ok: #b9f0c0;
+  --ok-bg: #2f5a45;
+  --warn: #ffe27a;
+  --warn-bg: #45583c;
+  --error: #ffb3a6;
+  --error-bg: #4a4a3e;
+  --switch-off: #55766a;
+  --font: 'Chalkboard SE', 'Apple SD Gothic Neo', -apple-system, sans-serif;
+  --radius-card: 4px;
+  --radius-control: 4px;
+  --card-shadow: none;
+  --control-shadow: 0 0 0 1px var(--border);
+  color-scheme: dark;
+
+  .topbar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  /* The wooden ledge under the board. */
+  .topbar {
+    border-bottom: 3px solid #8a5a2b;
+  }
+
+  /* Boxes drawn in chalk. */
+  .card {
+    outline: 1.5px dashed var(--border);
+    outline-offset: -1.5px;
+  }
+
+  .track {
+    height: 8px;
+    border-radius: 0;
+    background: none;
+    box-shadow: inset 0 -1px 0 var(--border);
+  }
+
+  /* Chalk strokes: slanted lines with the board showing through. */
+  .fill {
+    border-radius: 0;
+    background: repeating-linear-gradient(-58deg, var(--bar) 0 2px, transparent 2px 3px);
+  }
+
+  .fill.high {
+    background: repeating-linear-gradient(-58deg, var(--bar-high) 0 2px, transparent 2px 3px);
+  }
+}
+
+:root[data-theme='notebook'] {
+  --window: #f7f5ee;
+  --surface: #fffef8;
+  --chrome: #f7f5ee;
+  --surface-hover: #f3f2ec;
+  --sunken: #ecebe3;
+  --text: #1c2a4a;
+  --text-2: #4a5670;
+  --separator: #c9d6ea;
+  --border: #c9d6ea;
+  --accent: #1d4ed8;
+  --accent-fill: #1d4ed8;
+  --on-accent: #ffffff;
+  --track: #e8e8e4;
+  --bar: #1d4ed8;
+  --bar-high: #d0342c;
+  --bar-stale: #9aa0ad;
+  --even: #1c2a4a;
+  --tip-bg: #1c2a4a;
+  --tip-text: #fffef8;
+  --ok: #1f6b3a;
+  --ok-bg: #dcebdd;
+  --warn: #8a4b00;
+  --warn-bg: #f1e6cf;
+  --error: #b3261e;
+  --error-bg: #f6dcd8;
+  --switch-off: #c2c4c8;
+  --radius-card: 2px;
+  --radius-control: 3px;
+  --card-shadow: 0 0 0 1px var(--border), 1px 2px 0 rgba(28, 42, 74, 0.12);
+  color-scheme: light;
+
+  .topbar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  /* Ruled paper with a red margin line. */
+  &,
+  & body {
+    background:
+      linear-gradient(to right, transparent 0 7px, rgba(208, 52, 44, 0.35) 7px 8px, transparent 8px),
+      repeating-linear-gradient(to bottom, transparent 0 23px, rgba(29, 78, 216, 0.14) 23px 24px),
+      var(--window);
+  }
+
+  .topbar {
+    border-bottom: 1px solid var(--text);
+  }
+
+  /* A bar is a line on the page filled in with a ballpoint: close slanted strokes. */
+  .track {
+    height: 8px;
+    border-radius: 0;
+    background: none;
+    box-shadow: inset 0 -1px 0 var(--text-2);
+  }
+
+  .fill {
+    border-radius: 0;
+    background: repeating-linear-gradient(-62deg, var(--bar) 0 2.5px, transparent 2.5px 3.5px);
+  }
+
+  .fill.high {
+    background: repeating-linear-gradient(-62deg, var(--bar-high) 0 2.5px, transparent 2.5px 3.5px);
+  }
+}
+
+:root[data-theme='arcade'] {
+  --window: #0a0a12;
+  --surface: #15152a;
+  --chrome: #0a0a12;
+  --surface-hover: #202038;
+  --sunken: #101020;
+  --text: #f5f5ff;
+  --text-2: #a9a9d6;
+  --separator: #33336a;
+  --border: #33336a;
+  --accent: #ffe14d;
+  --accent-fill: #ffe14d;
+  --on-accent: #0a0a12;
+  --track: #2a2a4a;
+  --bar: #3df58a;
+  --bar-high: #ff4d6d;
+  --bar-stale: #6a6a8f;
+  --even: #ffffff;
+  --tip-bg: #ffe14d;
+  --tip-text: #0a0a12;
+  --ok: #3df58a;
+  --ok-bg: #1c3a3a;
+  --warn: #ffe14d;
+  --warn-bg: #3a3630;
+  --error: #ff8fa3;
+  --error-bg: #3a2238;
+  --switch-off: #4d4d74;
+  --font: ui-monospace, SFMono-Regular, Menlo, 'Apple SD Gothic Neo', monospace;
+  --mono: var(--font);
+  --fs-body: 12px;
+  --radius-card: 2px;
+  --radius-control: 2px;
+  /* The cabinet's side art: a hard magenta shadow. */
+  --card-shadow: 0 0 0 1px var(--border), 3px 3px 0 #b03bff;
+  --control-shadow: 0 0 0 1px var(--border);
+  color-scheme: dark;
+
+  .topbar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  /* Scanlines on the tube. */
+  &,
+  & body {
+    background:
+      repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px),
+      var(--window);
+  }
+
+  .topbar {
+    border-bottom: 2px solid #b03bff;
+  }
+
+  /* An energy meter: blocks of 8 pixels, lit ones in the fill and unlit ones in the track. */
+  .track {
+    height: 10px;
+    border-radius: 0;
+    background: repeating-linear-gradient(to right, var(--track) 0 8px, transparent 8px 10px);
+  }
+
+  .fill {
+    border-radius: 0;
+    background: repeating-linear-gradient(to right, var(--bar) 0 8px, transparent 8px 10px);
+    filter: drop-shadow(0 0 4px rgba(61, 245, 138, 0.6));
+  }
+
+  .fill.high {
+    background: repeating-linear-gradient(to right, var(--bar-high) 0 8px, transparent 8px 10px);
+    filter: drop-shadow(0 0 4px rgba(255, 77, 109, 0.7));
+  }
+}
+
+:root[data-theme='classicmac'] {
+  --window: #d9d9d9;
+  --surface: #ffffff;
+  --chrome: #ffffff;
+  --surface-hover: #ececec;
+  --sunken: #e6e6e6;
+  --text: #000000;
+  --text-2: #3a3a3a;
+  --separator: #000000;
+  --border: #000000;
+  --accent: #000000;
+  --accent-fill: #000000;
+  --on-accent: #ffffff;
+  --track: #ffffff;
+  --bar: #000000;
+  --bar-high: #000000;
+  --bar-stale: #8a8a8a;
+  --even: #000000;
+  --tip-bg: #000000;
+  --tip-text: #ffffff;
+  /* One bit: black on white. What colour said, the chip's words and the bar's pattern say. */
+  --ok: #000000;
+  --ok-bg: #e6e6e6;
+  --warn: #000000;
+  --warn-bg: #e6e6e6;
+  --error: #000000;
+  --error-bg: #e6e6e6;
+  --switch-off: #9a9a9a;
+  --font: Geneva, 'Apple SD Gothic Neo', sans-serif;
+  --mono: Monaco, ui-monospace, monospace;
+  --fs-body: 12px;
+  --radius-card: 0;
+  --radius-control: 0;
+  /* A window's border and its hard drop shadow. */
+  --card-shadow: 0 0 0 1px #000000, 2px 2px 0 1px #000000;
+  --control-shadow: 0 0 0 1px #000000;
+  color-scheme: light;
+
+  .topbar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  /* The desktop's grey was a pattern of dots. */
+  &,
+  & body {
+    background:
+      radial-gradient(rgba(0, 0, 0, 0.16) 0.5px, transparent 0.6px) 0 0 / 3px 3px,
+      var(--window);
+  }
+
+  & body {
+    -webkit-font-smoothing: none;
+  }
+
+  /* The menu bar's rule, doubled like a title bar's. */
+  .topbar {
+    border-bottom: 1px solid #000000;
+    box-shadow:
+      0 2px 0 #ffffff,
+      0 3px 0 #000000;
+  }
+
+  .track {
+    height: 10px;
+    border-radius: 0;
+    box-shadow: inset 0 0 0 1px #000000;
+  }
+
+  /* 50% grey as a 1-bit screen drew it: a checkerboard. Over 80% the bar is solid black. */
+  .fill {
+    border-radius: 0;
+    background: repeating-conic-gradient(#000000 0 25%, #ffffff 0 50%) 0 0 / 2px 2px;
+    box-shadow: inset 0 0 0 1px #000000;
+  }
+
+  .fill.high {
+    background: #000000;
+  }
+
+  .chip,
+  .notice,
+  .theme-swatch,
+  .chip.ok::before {
+    border-radius: 0;
+  }
+}
+
+:root[data-theme='subway'] {
+  --window: #f3f4f6;
+  --surface: #ffffff;
+  --chrome: #f3f4f6;
+  --surface-hover: #f1f2f4;
+  --sunken: #e8eaed;
+  --text: #1a1d23;
+  --text-2: #555b66;
+  --separator: #d9dde3;
+  --border: #d9dde3;
+  --accent: #0052a4;
+  --accent-fill: #0052a4;
+  --on-accent: #ffffff;
+  --track: #e6e8eb;
+  --bar: #009246;
+  --bar-high: #d31145;
+  --bar-stale: #a0a5ad;
+  --even: #1a1d23;
+  --tip-bg: #1a1d23;
+  --tip-text: #ffffff;
+  --ok: #00713a;
+  --ok-bg: #d9eee2;
+  --warn: #8a4b00;
+  --warn-bg: #f3e6d2;
+  --error: #b80f3c;
+  --error-bg: #f8dbe3;
+  --switch-off: #c1c5cb;
+  --line-claude: #0052a4;
+  --station: #ffffff;
+  --radius-card: 8px;
+  --radius-control: 6px;
+
+  @media (prefers-color-scheme: dark) {
+    --window: #14161a;
+    --surface: #1f2228;
+    --chrome: #14161a;
+    --surface-hover: #2a2d34;
+    --sunken: #1a1c21;
+    --text: #f1f3f6;
+    --text-2: #a9b0bc;
+    --separator: #343943;
+    --border: #343943;
+    --accent: #6aa9ff;
+    --accent-fill: #6aa9ff;
+    --on-accent: #14161a;
+    --track: #33373f;
+    --bar: #2fd07a;
+    --bar-high: #ff6b8b;
+    --bar-stale: #6b727d;
+    --even: #f1f3f6;
+    --tip-bg: #f1f3f6;
+    --tip-text: #1f2228;
+    --ok: #6fe0a0;
+    --ok-bg: #24402f;
+    --warn: #ffc46b;
+    --warn-bg: #40382a;
+    --error: #ff9ab0;
+    --error-bg: #45282f;
+    --switch-off: #4f545d;
+    --line-claude: #5b9dff;
+    --station: #1f2228;
+  }
+
+  .topbar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  /* Each CLI is a line on the map: Codex green, Claude Code blue. The card carries its line's colour. */
+  section[data-cli='claude'] {
+    --bar: var(--line-claude);
+  }
+
+  .card {
+    box-shadow:
+      inset 4px 0 0 var(--bar),
+      0 0 0 1px var(--border);
+  }
+
+  .track {
+    height: 8px;
+    border-radius: 4px;
+  }
+
+  /* The line so far, with a station every 16 pixels. */
+  .fill {
+    border-radius: 4px;
+    background:
+      radial-gradient(circle at 8px 50%, var(--station) 0 2px, transparent 2.5px) 0 0 / 16px 100%,
+      var(--bar);
+  }
+
+  .fill.high {
+    background:
+      radial-gradient(circle at 8px 50%, var(--station) 0 2px, transparent 2.5px) 0 0 / 16px 100%,
+      var(--bar-high);
   }
 }

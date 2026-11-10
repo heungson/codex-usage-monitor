@@ -1,5 +1,36 @@
 # Verification
 
+## The theme picker in three groups (2026-11-10)
+
+No PRS issue; asked for by the developer. The PRS MCP servers did not connect, so no
+`record_verification` entry was written.
+
+- `npm run typecheck`, `npm run lint`, `npm run format:check`: passed.
+- `npm test`: 198 passed. New in `test/themes.test.ts`: the groups hold 17, 6 and 11 themes, and each
+  theme's `scheme` matches its block in `styles.css`.
+- `npm run test:e2e`: 77 passed, 2 skipped. `e2e/settings.spec.ts` now checks each group's radios
+  and still picks every theme.
+- Capture opened: `tmp/e2e-shots/settings-theme-groups-2.png` (the three groups, in 픽셀).
+- `npm run test:package`: passed. The bundle replaced `~/Applications/Usage Limit Monitor.app` (the
+  old one kept in `tmp/installed-backup-20261110-094814/`); its signature verified and it launched.
+- Not checked: the popover of the installed app opened from the menu bar and the picker looked at
+  there; that needs a real click.
+
+## Eight themes that each draw the bars their own way (2026-11-10)
+
+No PRS issue; asked for by the developer. The PRS MCP servers did not connect, so no
+`record_verification` entry was written. The live endpoint was not called.
+
+- `npm run typecheck`, `npm run lint`, `npm run format:check`: passed.
+- `npm test`: 164 passed (`test/themes.test.ts` now 34 themes; the eight new ones passed the contrast
+  pairs at first try).
+- `npm run test:e2e`: 77 passed, 2 skipped, including `e2e/look.spec.ts` for each new theme in light
+  and dark (fits the popover, the tip shows, the 예정 리셋 card matches the others).
+- Captures opened: `tmp/screens/creative-themes-a.png` and `-b.png` (the usage screen in all eight,
+  수박 and 노선도 also in dark) and `tmp/screens/theme-subway-light-settings-2.png` (the picker).
+- Not checked: the 설정 screen in each new theme beyond the one capture (the package and the
+  installed app: see the section above); 노선도's Claude Code line colour is not measured by the contrast test.
+
 ## Dragging the pinned window (2026-11-05)
 
 No PRS issue; asked for by the developer («why can't I drag the window?», then «it is not moving»).

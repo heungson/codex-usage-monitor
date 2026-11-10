@@ -329,6 +329,48 @@ when the even-use mark moves. Decided while building it and confirmed by the dev
 - Off until turned on; kept with «항상 위» in `window-settings.json`. With it on, the mark's tip adds
   «주말과 공휴일에는 멈춰요.»
 
+## The theme picker in three groups (developer, 2026-11-10)
+
+Asked for by the developer: «divide the theme into light themes and dark themes.» Seventeen themes
+are neither: they follow the Mac's setting. Asked how to place them, the developer chose three
+groups over listing them under the Mac's current look or splitting each into two fixed themes.
+
+- The picker shows «맥 설정 따름» (17), «밝은 테마» (6) and «어두운 테마» (11), in that order, each a
+  three-column grid inside the one radio group. No theme's look or id changed.
+- Each theme's group is its `scheme` in `src/shared/themes.ts`; `test/themes.test.ts` checks it
+  against what the theme's block in `styles.css` does (a dark media block, or a fixed
+  `color-scheme`).
+
+## Eight themes that each draw the bars their own way (developer, 2026-11-10)
+
+Asked for by the developer: «could you add more creative color themes for this app?» No number or
+subjects were given; the agent chose eight, thirty-four themes in all. Not yet confirmed by the
+developer.
+
+- **오로라**: a night sky with two curtains of light behind the cards; bars run green to blue to
+  violet and glow. Always dark.
+- **용암**: basalt slabs with a glowing crack along each card's bottom edge; bars are a molten
+  gradient that runs white-hot over 80%. Always dark.
+- **수박**: a slice of watermelon as the bar: a green rind around the track, red flesh for the fill,
+  a seed every 14 pixels. Follows the Mac.
+- **칠판**: a green board with a wooden ledge under the top bar, cards boxed in dashed chalk, bars as
+  slanted chalk strokes, the Chalkboard SE font for Latin text. Always dark.
+- **공책**: ruled paper with a red margin line; a bar is a line on the page filled in with slanted
+  ballpoint strokes, blue, and red over 80%. Always light.
+- **오락실**: an arcade cabinet: scanlines, a hard magenta shadow, monospace type, and bars as an
+  energy meter of 8-pixel blocks, lit in the fill and unlit in the track. Always dark.
+- **옛 맥**: a 1-bit black-and-white screen: Geneva without smoothing, a dotted grey desktop, cards as
+  windows with a hard shadow, bars as a 50% checkerboard that turns solid black over 80%. It has
+  no warning colour by nature: the chip's words and the bar's pattern say what colour said
+  elsewhere. Always light.
+- **노선도**: a subway map: each CLI is a line (Codex green, Claude Code blue) with its colour along
+  the card's left edge, and the bar is the line so far with a station every 16 pixels. Follows the
+  Mac.
+- All eight pass `test/themes.test.ts`. As with 색동 and 조각보, the token measured is the bar's main
+  colour; seeds, stations and the gaps between strokes are decoration. 노선도's Claude Code line
+  colour (`--line-claude`) is not read by the test; #0052a4 on white and #5b9dff on #1f2228 were
+  chosen darker and lighter than the measured green.
+
 ## Six themes from Korean crafts and painting (developer, 2026-11-05)
 
 Asked for by the developer: «could you add more Korean cultures or traditions inspired color

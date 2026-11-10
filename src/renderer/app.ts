@@ -2,7 +2,7 @@
 // and 설정 (developer, 2026-11-04; no PRS screen).
 // Built from plan v3: the layout and elements follow the wireframe; the look is the app's own CSS.
 
-import { isThemeId, themes } from '../shared/themes';
+import { isThemeId, themeGroups, themes, type Theme } from '../shared/themes';
 import {
   currentPercent,
   describePast,
@@ -532,23 +532,39 @@ function settingsView(): string {
     </main>`;
 }
 
-/** 테마 (developer, 2026-11-05): one radio group; the look changes as soon as one is picked. */
+/**
+ * 테마 (developer, 2026-11-05): one radio group; the look changes as soon as one is picked. The
+ * options stand in three groups (developer, 2026-11-10): themes that follow the Mac's light or dark
+ * setting, always-light ones, always-dark ones.
+ */
 function themeCard(): string {
-  // Twenty themes: three columns of swatch and name; the short description is the tooltip.
-  const options = themes
-    .map((theme) => {
-      const [bg, panel, bar, accent] = theme.swatch;
-      return `<label class="theme-option" title="${theme.note}">
+  // Three columns of swatch and name; the short description is the tooltip.
+  const option = (theme: Theme): string => {
+    const [bg, panel, bar, accent] = theme.swatch;
+    return `<label class="theme-option" title="${theme.note}">
           <input type="radio" name="theme" value="${theme.id}" data-key="theme-${theme.id}"
                  ${state.window.theme === theme.id ? 'checked' : ''} />
           <span class="theme-swatch" aria-hidden="true" style="--sw-bg:${bg};--sw-panel:${panel};--sw-bar:${bar};--sw-accent:${accent}"><i></i></span>
           <span class="theme-name">${theme.name}</span>
         </label>`;
-    })
+  };
+  const groups = themeGroups
+    .map(
+      ({
+        scheme,
+        name,
+      }) => `<div class="theme-group" role="group" aria-label="${name}" data-scheme="${scheme}">
+          <p class="theme-group-name" aria-hidden="true">${name}</p>
+          <div class="theme-grid">${themes
+            .filter((theme) => theme.scheme === scheme)
+            .map(option)
+            .join('')}</div>
+        </div>`,
+    )
     .join('');
   return `<section class="card" data-area="theme" aria-label="테마">
       <div class="card-head"><h2 id="theme-name">테마</h2></div>
-      <div class="theme-grid" role="radiogroup" aria-labelledby="theme-name">${options}</div>
+      <div role="radiogroup" aria-labelledby="theme-name">${groups}</div>
     </section>`;
 }
 
