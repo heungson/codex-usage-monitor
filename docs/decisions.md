@@ -123,6 +123,24 @@ the developer:
 - The button takes no height in the title line (negative margins): with 20 px of its own, 고대비 no
   longer fit the popover (`e2e/look.spec.ts`).
 
+## The menu bar clock counts down the 5시간 window (developer, 2026-11-11)
+
+The developer asked whether the clock-like menu bar icon showed the time left until the Claude Code
+5시간 reset. It did not: it was a fixed picture (`src/main/assets/trayTemplate*.png`). Asked whether
+it should show time or usage, the developer answered «Time. The current clock like icon is ok.»
+
+- The icon keeps the old picture's ring and wedge (measured from the 32-px asset) and is drawn by
+  the app (`src/main/tray-icon.ts`). The wedge is the share of the five hours left until the
+  Claude Code 5시간 reset, filled clockwise from 12 o'clock, so it empties toward the reset.
+- Past the reset, or with no 5시간 window or reset time, only the ring is drawn: no window is running
+  until Claude Code is used again. A last good value after a failed read still counts down.
+- With Claude Code turned off on 설정 › 메뉴 막대, only the ring is drawn.
+- Redrawn with the menu bar title (each usage change and once a minute), and only when the picture
+  changes: steps of 1/120 of a turn, every 2½ minutes.
+- The old PNGs and `scripts/make-icon.mjs` stay in the repository but are no longer loaded.
+  Not to be confused with the usage meter removed on 2026-11-05 (`88f58cd`): this shows time, not
+  usage, and looks as before.
+
 ## Fable on the Claude Code card (developer, 2026-11-11)
 
 Asked for by the developer («add fable usage guage too», with Anthropic's page showing «Fable · Up

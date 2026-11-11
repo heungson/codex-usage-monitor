@@ -465,6 +465,44 @@ test('설정 › 메뉴 막대 leaves a CLI out of the menu bar title, and keeps
   await app.close();
 });
 
+test('the menu bar clock shows the time left in the Claude Code 5시간 window (developer 2026-11-11)', async () => {
+  // The 5시간 reset is 2 h 15 min away: 45% of the five hours is left.
+  writeClaude(fixture, 23, 61);
+  writeCodex(fixture, 44);
+  const { app, page } = await launch(fixture, server.url);
+  await expect(card(page, 'claude')).toContainText('23% 사용');
+  await app.evaluate(({ Tray }) => {
+    const g = globalThis as unknown as { clock?: { png: string; template: boolean; alpha: number[] } };
+    const setImage = Tray.prototype.setImage;
+    Tray.prototype.setImage = function (this: Electron.Tray, image: Electron.NativeImage | string) {
+      if (typeof image !== 'string') {
+        const bitmap = image.toBitmap({ scaleFactor: 2 });
+        const at = (x: number, y: number) => bitmap[(y * 32 + x) * 4 + 3]!;
+        // 3 o'clock and 9 o'clock inside the wedge's radius, and the ring at 9 o'clock.
+        g.clock = {
+          png: image.toPNG({ scaleFactor: 2 }).toString('base64'),
+          template: image.isTemplateImage(),
+          alpha: [at(22, 16), at(10, 16), at(3, 16)],
+        };
+      }
+      return setImage.call(this, image);
+    };
+  });
+  // Turning Claude Code off and on for the menu bar draws the clock again.
+  await page.evaluate(async () => {
+    await window.monitor.setShownInMenuBar('claude', false);
+    await window.monitor.setShownInMenuBar('claude', true);
+  });
+  const clock = await app.evaluate(
+    () => (globalThis as unknown as { clock?: { png: string; template: boolean; alpha: number[] } }).clock,
+  );
+  expect(clock?.template).toBe(true);
+  expect(clock?.alpha).toEqual([255, 0, 255]);
+  mkdirSync(join('tmp', 'e2e-shots'), { recursive: true });
+  writeFileSync(join('tmp', 'e2e-shots', 'tray-clock@2x.png'), Buffer.from(clock!.png, 'base64'));
+  await app.close();
+});
+
 const mode = (value: object) =>
   writeFileSync(fixture.modeFile, JSON.stringify({ status: 'ok', history: 'ok', ...value }));
 const upcoming = (page: import('@playwright/test').Page) => page.locator('section[data-area="upcoming"]');

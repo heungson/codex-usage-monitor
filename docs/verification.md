@@ -1,5 +1,21 @@
 # Verification
 
+## The menu bar clock (2026-11-11)
+
+No PRS issue; asked for by the developer (decision of 2026-11-11 in `docs/decisions.md`). The PRS
+MCP servers did not connect, so no `record_verification` entry was written.
+
+- `npm run typecheck`, `npm run lint`, `npm run format:check`: passed.
+- `npm test`: 214 passed. New `test/tray-icon.test.ts`: share of five hours left (½ at 2½ hours,
+  0 past the reset, null without a window or reset time, last good value used), steps of 1/120,
+  pixels of the ring and the wedge at 3 and 9 o'clock, and `MenuBarTitle` redraws only on a change
+  and draws no window with Claude Code turned off.
+- `npm run test:e2e`: 81 passed, 2 skipped. New in `e2e/usage.spec.ts`: the running app's tray image with the
+  reset 2 h 15 min away is a template image, filled at 3 o'clock and empty at 9 o'clock, ring drawn;
+  saved as `tmp/e2e-shots/tray-clock@2x.png` and read back as text art: the wedge ends near 5:24, 45%
+  of a turn.
+- Not checked: the installed app's real menu bar (not rebuilt yet).
+
 ## Fable on the Claude Code card (2026-11-11)
 
 No PRS issue; asked for by the developer (decision of 2026-11-11 in `docs/decisions.md`). The PRS

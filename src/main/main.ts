@@ -26,6 +26,7 @@ import { dataFiles, resolvePaths } from './paths';
 import { ResetAlerts, resetCheckIntervalMs } from './reset-alerts';
 import { resetsApi, resetsSite } from './resets-api';
 import { ResetsService } from './resets-service';
+import { clockBitmap, iconPoints, iconScale } from './tray-icon';
 import { MenuBarTitle } from './tray-title';
 import { WindowSettingsStore } from './window-settings';
 
@@ -66,7 +67,22 @@ const quitItem: Electron.MenuItemConstructorOptions = { label: '종료', click: 
 /** The menu bar item's right-click menu: only «종료». */
 let quitMenu: Menu;
 /** The menu bar text: usage, and the time left to a scheduled Codex reset (LHS-5 개발 항목 5). */
-const menuBarTitle = new MenuBarTitle((title) => tray?.setTitle(title));
+const menuBarTitle = new MenuBarTitle(
+  (title) => tray?.setTitle(title),
+  Date.now,
+  (share) => tray?.setImage(clockImage(share)),
+);
+
+/** The menu bar clock: time left in the Claude Code 5시간 window (src/main/tray-icon.ts). */
+function clockImage(share: number | null): Electron.NativeImage {
+  const image = nativeImage.createFromBitmap(clockBitmap(share), {
+    width: iconPoints * iconScale,
+    height: iconPoints * iconScale,
+    scaleFactor: iconScale,
+  });
+  image.setTemplateImage(true);
+  return image;
+}
 
 const send = (channel: string, payload: unknown) => {
   if (popover && !popover.isDestroyed()) popover.webContents.send(channel, payload);
@@ -390,7 +406,7 @@ app.whenReady().then(() => {
   popover = createPopover();
   applyWindowSettings();
 
-  tray = new Tray(nativeImage.createFromPath(join(__dirname, 'assets', 'trayTemplate.png')));
+  tray = new Tray(clockImage(null));
   tray.setToolTip('사용량 한도 모니터');
   quitMenu = Menu.buildFromTemplate([quitItem]);
   // A click opens 사용량 현황 as before; a right click or Control-click opens the «종료» menu

@@ -7,6 +7,7 @@
 
 import { claudeStale, currentPercent, isOverallWindow, shorterFirst } from '../shared/format';
 import type { AreaState, CliId, CliUsage, ResetStatus, SourceState, UsageSnapshot } from '../shared/types';
+import { shareStep, timeLeftShare } from './tray-icon';
 
 const separator = ' · ';
 const minute = 60_000;
@@ -95,12 +96,19 @@ export class MenuBarTitle {
   private usage: UsageSnapshot | null = null;
   private status: AreaState<ResetStatus> | null = null;
   private hidden: readonly CliId[] = [];
+  /** The clock's last drawn step; undefined until it is first drawn. */
+  private drawnShare: number | null | undefined = undefined;
   private minuteTimer: NodeJS.Timeout | null = null;
   private dueTimer: NodeJS.Timeout | null = null;
 
   constructor(
     private readonly show: (title: string) => void,
     private readonly now: () => number = Date.now,
+    /**
+     * Draws the clock icon with the share of the Claude Code 5시간 window left (src/main/tray-icon.ts),
+     * only when the picture changes (developer, 2026-11-11).
+     */
+    private readonly showClock: (share: number | null) => void = () => undefined,
   ) {}
 
   setUsage(usage: UsageSnapshot): void {
@@ -134,6 +142,12 @@ export class MenuBarTitle {
     if (!this.usage) return;
     const now = this.now();
     this.show(fullTitle(this.usage, this.status, now, this.hidden));
+    // With Claude Code turned off for the menu bar the clock shows no window either.
+    const share = this.hidden.includes('claude') ? null : shareStep(timeLeftShare(this.usage.claude, now));
+    if (share !== this.drawnShare) {
+      this.drawnShare = share;
+      this.showClock(share);
+    }
     if (this.dueTimer) clearTimeout(this.dueTimer);
     this.dueTimer = null;
     const due = this.hidden.includes('codex') ? null : scheduledDue(this.status, now);
