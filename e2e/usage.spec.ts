@@ -420,6 +420,39 @@ test('each usage card folds to its title line, keeps its percentages, and stays 
   await app.close();
 });
 
+test('설정 › 메뉴 막대 leaves a CLI out of the menu bar title, and keeps that after a restart (developer 2026-11-11)', async () => {
+  writeClaude(fixture, 20, 14);
+  writeCodex(fixture, 44);
+  const shown = (page: import('@playwright/test').Page, name: string) =>
+    page.locator('section[data-area="menu-bar"]').getByRole('switch', { name });
+
+  let { app, page } = await launch(fixture, server.url);
+  await watchTray(app, page);
+  await expect.poll(() => trayTitle(app)).toMatch(/^CC 20\/14% · CX 44%/);
+  await page.getByRole('button', { name: '설정' }).click();
+  await expect(shown(page, 'Claude Code')).toBeChecked();
+  await expect(shown(page, 'Codex')).toBeChecked();
+  await shown(page, 'Codex').uncheck({ force: true });
+  await expect(shown(page, 'Codex')).not.toBeChecked();
+  await expect.poll(() => trayTitle(app)).toBe('CC 20/14%');
+  await capture(page, 'settings-menu-bar');
+  // The usage screen still shows Codex.
+  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await expect(card(page, 'codex')).toContainText('44%');
+
+  await app.close();
+  ({ app, page } = await launch(fixture, server.url));
+  await watchTray(app, page);
+  await expect.poll(() => trayTitle(app)).toBe('CC 20/14%');
+  await page.getByRole('button', { name: '설정' }).click();
+  await expect(shown(page, 'Codex')).not.toBeChecked();
+  await shown(page, 'Claude Code').uncheck({ force: true });
+  await expect.poll(() => trayTitle(app)).toBe('');
+  await shown(page, 'Codex').check({ force: true });
+  await expect.poll(() => trayTitle(app)).toMatch(/^CX 44%/);
+  await app.close();
+});
+
 const mode = (value: object) =>
   writeFileSync(fixture.modeFile, JSON.stringify({ status: 'ok', history: 'ok', ...value }));
 const upcoming = (page: import('@playwright/test').Page) => page.locator('section[data-area="upcoming"]');

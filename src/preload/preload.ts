@@ -32,6 +32,7 @@ const api: MonitorApi = {
   setWorkdaysOnly: (on) => ipcRenderer.invoke('window:workdays-only', on),
   setTheme: (theme) => ipcRenderer.invoke('window:theme', theme),
   setCollapsed: (card, collapsed) => ipcRenderer.invoke('window:collapse', card, collapsed),
+  setShownInMenuBar: (cli, shown) => ipcRenderer.invoke('window:menu-bar', cli, shown),
   getLoginItem: () => ipcRenderer.invoke('login-item:get'),
   setOpenAtLogin: (on) => ipcRenderer.invoke('login-item:set', on),
   openLoginItemSettings: () => ipcRenderer.invoke('login-item:open-settings'),

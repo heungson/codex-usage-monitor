@@ -159,6 +159,12 @@ export interface WindowSettings {
    * alerts stay as they are. None until one is folded.
    */
   collapsed: UsageCard[];
+  /**
+   * CLIs left out of the menu bar title (developer, 2026-11-11: someone who does not use Codex).
+   * Without Codex the Codex reset countdown goes too. The popover and the alerts do not change.
+   * None until one is turned off on the 설정 screen.
+   */
+  menuBarHidden: CliId[];
 }
 
 /** «로그인 시 자동 실행» on the 설정 screen, as macOS reports it (developer, 2026-11-04). */
@@ -200,6 +206,7 @@ export interface MonitorApi {
   setWorkdaysOnly(on: boolean): Promise<WindowSettings>;
   setTheme(theme: ThemeId): Promise<WindowSettings>;
   setCollapsed(card: UsageCard, collapsed: boolean): Promise<WindowSettings>;
+  setShownInMenuBar(cli: CliId, shown: boolean): Promise<WindowSettings>;
   getLoginItem(): Promise<LoginItemStatus>;
   setOpenAtLogin(on: boolean): Promise<LoginItemStatus>;
   /** System Settings › General › Login Items, where macOS asks to allow the item. */

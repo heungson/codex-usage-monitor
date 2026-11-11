@@ -1,5 +1,21 @@
 # Verification
 
+## 설정 › 메뉴 막대 (2026-11-11)
+
+No PRS issue; asked for by the developer (decision of 2026-11-11 in `docs/decisions.md`). The PRS
+MCP servers did not connect, so no `record_verification` entry was written.
+
+- `npm run typecheck`, `npm run lint`, `npm run format:check`: passed.
+- `npm test`: 204 passed. New: `test/window-settings.test.ts` keeps the CLIs turned off and ignores
+  unknown ones; `test/menu-bar-title.test.ts` leaves out Claude Code, Codex with its countdown, or
+  both (empty title), and `MenuBarTitle.setHidden` redraws at once.
+- `npm run test:e2e`: 79 passed, 1 failed, 2 skipped. New in `e2e/usage.spec.ts`: turning Codex off
+  on 설정 gives «CC 20/14%», the usage screen still shows Codex, the choice survives a restart, both
+  off gives an empty title. The failure was `e2e/dev-display.spec.ts` (the front application changed
+  during the run); run alone twice it passed, 2 of 2 each time. Capture
+  `tmp/e2e-shots/settings-menu-bar-1.png` opened.
+- Not checked: the installed app's real menu bar (not rebuilt yet).
+
 ## Folding usage cards (2026-11-11)
 
 No PRS issue; asked for by the developer (decision of 2026-11-11 in `docs/decisions.md`). The PRS

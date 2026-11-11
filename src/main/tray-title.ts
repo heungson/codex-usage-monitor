@@ -6,7 +6,7 @@
 // never shortened for space; macOS hides the item when the menu bar is full (LHS-5 개발 항목 5).
 
 import { claudeStale, currentPercent, shorterFirst } from '../shared/format';
-import type { AreaState, CliUsage, ResetStatus, SourceState, UsageSnapshot } from '../shared/types';
+import type { AreaState, CliId, CliUsage, ResetStatus, SourceState, UsageSnapshot } from '../shared/types';
 
 const separator = ' · ';
 const minute = 60_000;
@@ -34,8 +34,19 @@ function percents(usage: CliUsage, now: number): string {
   return values.length === 0 ? '–' : `${values.join('/')}%`;
 }
 
-export function trayTitle(snapshot: UsageSnapshot, now: number = Date.now()): string {
-  return `CC ${part(snapshot.claude, now)}${separator}CX ${part(snapshot.codex, now)}`;
+/**
+ * «CC … · CX …», without the CLIs turned off on the 설정 screen (developer, 2026-11-11); empty when
+ * both are, which leaves the icon alone.
+ */
+export function trayTitle(
+  snapshot: UsageSnapshot,
+  now: number = Date.now(),
+  hidden: readonly CliId[] = [],
+): string {
+  const parts: string[] = [];
+  if (!hidden.includes('claude')) parts.push(`CC ${part(snapshot.claude, now)}`);
+  if (!hidden.includes('codex')) parts.push(`CX ${part(snapshot.codex, now)}`);
+  return parts.join(separator);
 }
 
 /** Time left, rounded down to whole days, else hours, else minutes; under a minute «1분 미만» (PR-P026). */
@@ -58,11 +69,17 @@ export function scheduledDue(status: AreaState<ResetStatus> | null, now: number)
   return due !== null && due > now ? due : null;
 }
 
-export function fullTitle(usage: UsageSnapshot, status: AreaState<ResetStatus> | null, now: number): string {
-  const due = scheduledDue(status, now);
-  return due === null
-    ? trayTitle(usage, now)
-    : `${trayTitle(usage, now)}${separator}↻ ${timeLeft(due - now)}`;
+/** The Codex reset countdown goes with Codex when Codex is turned off (developer, 2026-11-11). */
+export function fullTitle(
+  usage: UsageSnapshot,
+  status: AreaState<ResetStatus> | null,
+  now: number,
+  hidden: readonly CliId[] = [],
+): string {
+  const due = hidden.includes('codex') ? null : scheduledDue(status, now);
+  const parts = [trayTitle(usage, now, hidden)];
+  if (due !== null) parts.push(`↻ ${timeLeft(due - now)}`);
+  return parts.filter((p) => p !== '').join(separator);
 }
 
 /**
@@ -73,6 +90,7 @@ export function fullTitle(usage: UsageSnapshot, status: AreaState<ResetStatus> |
 export class MenuBarTitle {
   private usage: UsageSnapshot | null = null;
   private status: AreaState<ResetStatus> | null = null;
+  private hidden: readonly CliId[] = [];
   private minuteTimer: NodeJS.Timeout | null = null;
   private dueTimer: NodeJS.Timeout | null = null;
 
@@ -91,6 +109,12 @@ export class MenuBarTitle {
     this.render();
   }
 
+  /** The CLIs turned off for the menu bar on the 설정 screen. */
+  setHidden(hidden: readonly CliId[]): void {
+    this.hidden = [...hidden];
+    this.render();
+  }
+
   start(): void {
     this.minuteTimer ??= setInterval(() => this.render(), minute);
   }
@@ -105,10 +129,10 @@ export class MenuBarTitle {
   private render(): void {
     if (!this.usage) return;
     const now = this.now();
-    this.show(fullTitle(this.usage, this.status, now));
+    this.show(fullTitle(this.usage, this.status, now, this.hidden));
     if (this.dueTimer) clearTimeout(this.dueTimer);
     this.dueTimer = null;
-    const due = scheduledDue(this.status, now);
+    const due = this.hidden.includes('codex') ? null : scheduledDue(this.status, now);
     // A timer at the reset time; further away than a day, the minute ticks set it later.
     if (due !== null && due - now <= day) this.dueTimer = setTimeout(() => this.render(), due - now);
   }

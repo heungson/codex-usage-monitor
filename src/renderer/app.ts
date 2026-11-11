@@ -67,7 +67,7 @@ const state: {
   integration: null,
   applying: false,
   resets: null,
-  window: { alwaysOnTop: false, workdaysOnly: false, theme: 'default', collapsed: [] },
+  window: { alwaysOnTop: false, workdaysOnly: false, theme: 'default', collapsed: [], menuBarHidden: [] },
   loginItem: null,
   savingLoginItem: false,
 };
@@ -577,8 +577,27 @@ function settingsView(): string {
         </div>
         <p class="sub">켜면 7일 한도 막대의 세로 표시가 토·일요일과 공휴일에는 멈추고, 평일에만 움직여 리셋 시각에 끝에 이르러요. 5시간 한도는 그대로예요.</p>
       </section>
+      ${menuBarCard()}
       ${themeCard()}
     </main>`;
+}
+
+/** Which CLIs the menu bar title shows (developer, 2026-11-11); both until one is turned off. */
+function menuBarCard(): string {
+  const row = (cli: CliId) => `
+        <div class="setting-row">
+          <span class="setting-name" id="menu-bar-${cli}-name">${cliNames[cli]}</span>
+          <label class="switch">
+            <input type="checkbox" role="switch" data-key="menu-bar" data-cli="${cli}" aria-labelledby="menu-bar-${cli}-name"
+                   ${state.window.menuBarHidden.includes(cli) ? '' : 'checked'} />
+            <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+          </label>
+        </div>`;
+  return `<section class="card" data-area="menu-bar" aria-label="메뉴 막대">
+      <div class="card-head"><h2>메뉴 막대</h2></div>
+      ${row('claude')}${row('codex')}
+      <p class="sub">끄면 메뉴 막대 글자에서 빠져요. Codex를 끄면 예정 리셋까지 남은 시간도 빠져요. 사용량 화면과 알림은 그대로예요.</p>
+    </section>`;
 }
 
 /**
@@ -795,6 +814,13 @@ root.addEventListener('change', (event) => {
   if (input.name === 'theme') {
     if (!isThemeId(input.value)) return;
     void monitor.setTheme(input.value).then((settings) => {
+      state.window = settings;
+      render();
+    });
+    return;
+  }
+  if (input.dataset.key === 'menu-bar') {
+    void monitor.setShownInMenuBar(input.dataset.cli as CliId, input.checked).then((settings) => {
       state.window = settings;
       render();
     });

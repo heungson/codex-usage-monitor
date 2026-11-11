@@ -6,14 +6,17 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 import { isThemeId, type ThemeId } from '../shared/themes';
-import { usageCards, type UsageCard, type WindowSettings } from '../shared/types';
+import { usageCards, type CliId, type UsageCard, type WindowSettings } from '../shared/types';
 
 export const defaultWindowSettings: WindowSettings = {
   alwaysOnTop: false,
   workdaysOnly: false,
   theme: 'default',
   collapsed: [],
+  menuBarHidden: [],
 };
+
+const clis: readonly CliId[] = ['claude', 'codex'];
 
 export class WindowSettingsStore {
   private value: WindowSettings;
@@ -23,7 +26,11 @@ export class WindowSettingsStore {
   }
 
   get current(): WindowSettings {
-    return { ...this.value, collapsed: [...this.value.collapsed] };
+    return {
+      ...this.value,
+      collapsed: [...this.value.collapsed],
+      menuBarHidden: [...this.value.menuBarHidden],
+    };
   }
 
   setAlwaysOnTop(on: boolean): WindowSettings {
@@ -48,6 +55,13 @@ export class WindowSettingsStore {
     return this.save({ ...this.value, collapsed: next });
   }
 
+  /** A CLI in the menu bar title, or left out of it (developer, 2026-11-11). */
+  setShownInMenuBar(cli: CliId, shown: boolean): WindowSettings {
+    const others = this.value.menuBarHidden.filter((c) => c !== cli);
+    const next = clis.filter((c) => others.includes(c) || (!shown && c === cli));
+    return this.save({ ...this.value, menuBarHidden: next });
+  }
+
   private save(value: WindowSettings): WindowSettings {
     this.value = value;
     mkdirSync(dirname(this.file), { recursive: true });
@@ -67,6 +81,9 @@ export class WindowSettingsStore {
         theme: isThemeId(raw.theme) ? raw.theme : 'default',
         // A file from before folding, or one naming a card this version lacks, folds nothing extra.
         collapsed: Array.isArray(raw.collapsed) ? usageCards.filter((c) => raw.collapsed!.includes(c)) : [],
+        menuBarHidden: Array.isArray(raw.menuBarHidden)
+          ? clis.filter((c) => raw.menuBarHidden!.includes(c))
+          : [],
       };
     } catch {
       return { ...defaultWindowSettings };

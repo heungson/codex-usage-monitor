@@ -15,6 +15,7 @@ describe('WindowSettingsStore', () => {
       workdaysOnly: false,
       theme: 'default',
       collapsed: [],
+      menuBarHidden: [],
     });
   });
 
@@ -28,6 +29,7 @@ describe('WindowSettingsStore', () => {
       workdaysOnly: false,
       theme: 'default',
       collapsed: [],
+      menuBarHidden: [],
     });
   });
 
@@ -46,6 +48,7 @@ describe('WindowSettingsStore', () => {
       workdaysOnly: true,
       theme: 'default',
       collapsed: [],
+      menuBarHidden: [],
     });
     // A file from before the setting existed reads as off.
     writeFileSync(file, JSON.stringify({ alwaysOnTop: true }));
@@ -76,5 +79,18 @@ describe('WindowSettingsStore', () => {
     expect(new WindowSettingsStore(file).current.collapsed).toEqual([]);
     writeFileSync(file, JSON.stringify({ collapsed: ['gone', 'claude', 7] }));
     expect(new WindowSettingsStore(file).current.collapsed).toEqual(['claude']);
+  });
+
+  it('keeps the CLIs turned off for the menu bar, and ignores unknown ones (developer, 2026-11-11)', () => {
+    const file = join(tempDir(), 'window-settings.json');
+    new WindowSettingsStore(file).setShownInMenuBar('codex', false);
+    new WindowSettingsStore(file).setShownInMenuBar('claude', false);
+    expect(new WindowSettingsStore(file).current.menuBarHidden).toEqual(['claude', 'codex']);
+    new WindowSettingsStore(file).setShownInMenuBar('claude', true);
+    expect(JSON.parse(readFileSync(file, 'utf8')).menuBarHidden).toEqual(['codex']);
+    writeFileSync(file, JSON.stringify({ menuBarHidden: ['gone', 'codex'] }));
+    expect(new WindowSettingsStore(file).current.menuBarHidden).toEqual(['codex']);
+    writeFileSync(file, JSON.stringify({}));
+    expect(new WindowSettingsStore(file).current.menuBarHidden).toEqual([]);
   });
 });

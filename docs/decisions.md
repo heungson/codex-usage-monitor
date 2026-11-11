@@ -123,6 +123,18 @@ the developer:
 - The button takes no height in the title line (negative margins): with 20 px of its own, 고대비 no
   longer fit the popover (`e2e/look.spec.ts`).
 
+## 설정 › 메뉴 막대 (developer, 2026-11-11)
+
+Asked for by the developer («yes» to leaving a CLI out of the menu bar, offered after folding):
+folding stays a screen setting, and 설정 has a card «메뉴 막대» with one switch per CLI, both on until
+turned off. Settled in the coding session, to confirm with the developer:
+
+- A CLI turned off is left out of the menu bar title; turning Codex off also leaves out the Codex
+  reset countdown («↻ 2일»). With both off the title is empty and the icon stays alone.
+- The usage screen, the 80% alerts and the new reset notifications do not change.
+- Kept as `menuBarHidden` in `window-settings.json` across restarts. Code: `fullTitle` and
+  `MenuBarTitle.setHidden` in `src/main/tray-title.ts`.
+
 ## 설정 › «로그인 시 자동 실행» (developer, 2026-11-04)
 
 Asked for directly by the developer 이흥선 in the coding session; no PRS item. A 설정 screen, opened

@@ -153,6 +153,7 @@ const resetAlerts = new ResetAlerts(
 );
 
 const windowSettings = new WindowSettingsStore(join(paths.dataDir, dataFiles.windowSettings));
+menuBarTitle.setHidden(windowSettings.current.menuBarHidden);
 // «로그인 시 자동 실행» (developer, 2026-11-04): only an installed app registers itself; the checks
 // use a file (ULM_FAKE_LOGIN_ITEM) so they never touch the developer's real login items.
 const loginItem = new LoginItem(
@@ -358,6 +359,12 @@ ipcMain.handle('window:workdays-only', (_event, on: unknown) =>
 ipcMain.handle('window:theme', (_event, theme: unknown) =>
   isThemeId(theme) ? windowSettings.setTheme(theme) : windowSettings.current,
 );
+ipcMain.handle('window:menu-bar', (_event, cli: unknown, shown: unknown) => {
+  if ((cli !== 'claude' && cli !== 'codex') || typeof shown !== 'boolean') return windowSettings.current;
+  const settings = windowSettings.setShownInMenuBar(cli, shown);
+  menuBarTitle.setHidden(settings.menuBarHidden);
+  return settings;
+});
 ipcMain.handle('window:collapse', (_event, card: unknown, collapsed: unknown) =>
   usageCards.includes(card as UsageCard) && typeof collapsed === 'boolean'
     ? windowSettings.setCollapsed(card as UsageCard, collapsed)

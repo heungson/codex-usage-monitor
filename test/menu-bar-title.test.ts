@@ -142,6 +142,27 @@ describe('menu bar title', () => {
     expect(fullTitle(usage, ok(status(now)), now)).toBe('CC 92/84% · CX 12/44%');
   });
 
+  it('leaves out the CLIs turned off on 설정, and the Codex countdown with Codex (developer, 2026-11-11)', () => {
+    const now = Date.parse('2026-10-30T10:00:00Z');
+    const scheduled = ok(status(now + 2 * day + hour));
+    expect(fullTitle(usage, scheduled, now, ['codex'])).toBe('CC 92/84%');
+    expect(fullTitle(usage, scheduled, now, ['claude'])).toBe('CX 12/44% · ↻ 2일');
+    expect(fullTitle(usage, scheduled, now, ['claude', 'codex'])).toBe('');
+    expect(fullTitle(usage, ok(status(null, false)), now, ['claude'])).toBe('CX 12/44%');
+    const titles: string[] = [];
+    const title = new MenuBarTitle(
+      (t) => titles.push(t),
+      () => now,
+    );
+    title.setUsage(usage);
+    title.setStatus(scheduled);
+    title.setHidden(['codex']);
+    expect(titles.at(-1)).toBe('CC 92/84%');
+    title.setHidden([]);
+    expect(titles.at(-1)).toBe('CC 92/84% · CX 12/44% · ↻ 2일');
+    title.stop();
+  });
+
   it('keeps the suffix and works the time out again each minute while a check is held, without a request; a failed check removes it (LHS-5 검증 14)', async () => {
     vi.useFakeTimers({ now: Date.parse('2026-10-30T10:00:00Z') });
     const api = fakeApi();
