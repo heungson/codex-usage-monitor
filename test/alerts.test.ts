@@ -13,7 +13,7 @@ import {
 } from '../src/main/notifier';
 import { ResetAlerts } from '../src/main/reset-alerts';
 import type { ResetsApi } from '../src/main/resets-api';
-import type { CliUsage, ResetEntry } from '../src/shared/types';
+import type { CliUsage, ResetEntry, ResetWatch } from '../src/shared/types';
 import { tempDir } from './helpers';
 
 function recordingNotifier(result: () => SendResult = () => 'shown') {
@@ -202,6 +202,55 @@ describe('ResetAlerts', () => {
   let file: string;
   beforeEach(() => {
     file = join(tempDir(), 'reset-alerts.json');
+  });
+
+  it('notifies each new reset watch once across restarts, not one there at the first check (developer, 2026-11-11)', async () => {
+    const watch = (url: string): ResetWatch => ({
+      level: 'elevated',
+      chancePercent: 65,
+      observedAt: Date.now() - 3_600_000,
+      expiresAt: Date.now() + 2 * 86_400_000,
+      text: 'Thursday is feeling codexy to me.',
+      sourceUrl: url,
+    });
+    let current: ResetWatch | null = watch('https://x.com/s/1');
+    let shown: 'shown' | 'denied' = 'shown';
+    const { notifier, sent } = recordingNotifier(() => shown);
+    const withWatch: ResetsApi = {
+      status: async () => ({
+        latest: reset('r1', '2026-10-26T07:00:00Z'),
+        scheduled: null,
+        watch: current,
+        avgIntervalDays: 6,
+        daysSinceLast: 1,
+        total: 1,
+      }),
+      history: async () => ({ entries: [], nextCursor: null }),
+    };
+    let alerts = new ResetAlerts(file, withWatch, notifier);
+    await alerts.check(); // baseline, with the watch already there
+    await alerts.check();
+    expect(sent).toHaveLength(0);
+
+    current = watch('https://x.com/s/2');
+    shown = 'denied';
+    await alerts.check();
+    expect(sent).toHaveLength(1); // refused: tried again next time, with no notice in the app
+    expect(alerts.currentNotice).toBeNull();
+    shown = 'shown';
+    alerts = new ResetAlerts(file, withWatch, notifier);
+    await alerts.check();
+    expect(sent).toHaveLength(2);
+    expect(sent[1]?.title).toBe('Codex 리셋 신호가 떴어요');
+    expect(sent[1]?.body).toContain('가능성 65%');
+    expect(sent[1]?.body).toContain('아직 공지된 리셋은 아니에요');
+    await new ResetAlerts(file, withWatch, notifier).check();
+    expect(sent).toHaveLength(2);
+
+    // A watch that has ended is not notified.
+    current = { ...watch('https://x.com/s/3'), expiresAt: Date.now() - 1 };
+    await alerts.check();
+    expect(sent).toHaveLength(2);
   });
 
   it('treats the first check as the baseline and alerts each later reset once, across restarts (검증 1, 3, 4)', async () => {

@@ -141,8 +141,13 @@ with the developer:
   status still shows.
 - `forecast_window` («by end of Thursday») is not shown: it is English in the poster's time zone;
   `expires_at` gives the same end as a local time.
-- Not changed: the menu bar countdown and the new reset notifications, which stay for announced
-  resets only.
+- Not changed: the menu bar countdown, which stays for announced resets only.
+- Notified too (developer, «yes» the same day to an earlier heads-up): «Codex 리셋 신호가 떴어요» with
+  «가능성 65% · <expires_at>까지 · 아직 공지된 리셋은 아니에요 · 출처: codex-resets.com», once per watch
+  (told apart by its post), across restarts, in the same 15-minute check as new resets
+  (`src/main/reset-alerts.ts`). A watch there at the first check is part of the baseline. One macOS
+  will not show is tried at the next check while it lasts, with no notice in the app: the 예정 리셋
+  card already shows it. An ended watch is not notified.
 
 ## The menu bar clock counts down the 5시간 window (developer, 2026-11-11)
 

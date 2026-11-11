@@ -1,5 +1,19 @@
 # Verification
 
+## Codex reset watch notification (2026-11-11)
+
+Asked for by the developer (decision of 2026-11-11 in `docs/decisions.md`). No PRS entry (servers
+not connected).
+
+- `npm run typecheck`, `npm run lint`, `npm run format:check`: passed.
+- `npm test`: 216 passed. New in `test/alerts.test.ts`: a watch at the first check is not notified;
+  a new one is, once, across restarts; one macOS refused is sent at the next check, with no notice
+  in the app; an ended one is not.
+- `npm run test:e2e`: 83 passed, 2 skipped. New in `e2e/screens.spec.ts`: after the baseline the fake site
+  starts a watch; one notification «Codex 리셋 신호가 떴어요» with «가능성 65%» and the site link, none
+  more over 4 seconds of 1.5-second checks, none after a restart.
+- Not checked: a real macOS notification from the installed app (not rebuilt yet).
+
 ## Codex reset watch (2026-11-11)
 
 Asked for by the developer (decision of 2026-11-11 in `docs/decisions.md`). No PRS entry (servers

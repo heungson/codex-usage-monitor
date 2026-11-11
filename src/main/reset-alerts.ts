@@ -5,12 +5,17 @@
 // 예정 리셋 area is refreshed by it too (v3, owner decision 2026-10-30). The first successful check only sets
 // the baseline: resets announced before it are not notified. Each later reset is notified once,
 // across restarts. One that could not be shown stays pending and is tried again at the next check.
+//
+// A reset watch (codex-resets.com's «Possible reset», `active_watch`) is notified too, once per
+// watch, across restarts (developer, 2026-11-11, «yes» to an earlier heads-up). A watch already
+// there at the first check is part of the baseline. One macOS would not show is tried again at the
+// next check while the watch lasts; the 예정 리셋 card shows it meanwhile, so no notice in the app.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-import { formatDateTime } from '../shared/format';
-import type { ResetEntry } from '../shared/types';
+import { currentWatch, formatDateTime, watchName } from '../shared/format';
+import type { ResetEntry, ResetWatch } from '../shared/types';
 import type { Notifier } from './notifier';
 import { resetsSite, type ResetsApi } from './resets-api';
 
@@ -20,7 +25,12 @@ interface Store {
   baselineAt: number | null;
   delivered: string[];
   pending: ResetEntry[];
+  /** Reset watches already notified or in the baseline; absent from files before 2026-11-11. */
+  watches?: string[];
 }
+
+/** A watch is told apart by its post, or by when it was posted when it names none. */
+const watchKey = (watch: ResetWatch) => watch.sourceUrl ?? `observed:${watch.observedAt}`;
 
 const typeNames: Record<string, string> = { regular: '전체 리셋', banked: '적립형 리셋' };
 
@@ -98,8 +108,11 @@ export class ResetAlerts {
 
   private async checkOnce(): Promise<void> {
     let latest: ResetEntry | null;
+    let watch: ResetWatch | null;
     try {
-      latest = (await this.api.status()).latest;
+      const status = await this.api.status();
+      latest = status.latest;
+      watch = currentWatch(status);
     } catch {
       await this.deliverPending();
       return;
@@ -108,9 +121,11 @@ export class ResetAlerts {
     if (this.store.baselineAt === null) {
       this.store.baselineAt = latest?.announcedAt ?? Date.now();
       if (latest) this.store.delivered.push(latest.id);
+      if (watch) this.store.watches = [watchKey(watch)];
       this.save();
       return;
     }
+    await this.deliverWatch(watch);
 
     if (
       latest &&
@@ -122,6 +137,24 @@ export class ResetAlerts {
       this.save();
     }
     await this.deliverPending();
+  }
+
+  /** Notifies a watch not notified before; one macOS would not show is tried at the next check. */
+  private async deliverWatch(watch: ResetWatch | null): Promise<void> {
+    if (watch === null) return;
+    const key = watchKey(watch);
+    const seen = this.store.watches ?? [];
+    if (seen.includes(key)) return;
+    const chance = watch.chancePercent === null ? '' : `가능성 ${watch.chancePercent}% · `;
+    const result = await this.notifier.send({
+      title: `Codex ${watchName(watch)}가 떴어요`,
+      body: `${chance}${formatDateTime(watch.expiresAt)}까지 · 아직 공지된 리셋은 아니에요 · 출처: codex-resets.com`,
+      url: resetsSite,
+    });
+    if (result !== 'shown') return;
+    // The last 20 are enough to tell a watch from the ones before it.
+    this.store.watches = [...seen, key].slice(-20);
+    this.save();
   }
 
   /** Tries every pending reset once, and says in the app which ones macOS would not show. */

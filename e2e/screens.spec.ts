@@ -349,3 +349,34 @@ test('new reset notifications: baseline first, then once per reset, held while r
   expect(log().filter((n) => n.outcome === 'shown')).toHaveLength(1);
   await app.close();
 });
+
+test('a new reset watch is notified once; one there at the first check is not (developer 2026-11-11)', async () => {
+  const log = () =>
+    existsSync(join(fixture.dataDir, 'notifications.log'))
+      ? readFileSync(join(fixture.dataDir, 'notifications.log'), 'utf8')
+          .trim()
+          .split('\n')
+          .filter(Boolean)
+          .map((l) => JSON.parse(l))
+      : [];
+  // The first check is the baseline: no watch yet.
+  let { app } = await launch(fixture, server.url, { ULM_RESET_CHECK_MS: '1500' });
+  await expect
+    .poll(() => existsSync(join(fixture.dataDir, 'reset-alerts.json')), { timeout: 10_000 })
+    .toBe(true);
+  // A watch appears.
+  mode({ watchEndsInMs: 2 * 86_400_000 });
+  await expect.poll(() => log().filter((n) => n.outcome === 'shown').length, { timeout: 10_000 }).toBe(1);
+  const shown = log().find((n) => n.outcome === 'shown');
+  expect(shown.title).toBe('Codex 리셋 신호가 떴어요');
+  expect(shown.body).toContain('가능성 65%');
+  expect(shown.url).toBe('https://codex-resets.com');
+  await new Promise((r) => setTimeout(r, 4000));
+  expect(log().filter((n) => n.outcome === 'shown')).toHaveLength(1);
+  await app.close();
+  // Not again after a restart.
+  ({ app } = await launch(fixture, server.url, { ULM_RESET_CHECK_MS: '1500' }));
+  await new Promise((r) => setTimeout(r, 4000));
+  expect(log().filter((n) => n.outcome === 'shown')).toHaveLength(1);
+  await app.close();
+});
