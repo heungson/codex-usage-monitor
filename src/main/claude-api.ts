@@ -119,6 +119,38 @@ function toWindow(key: string, minutes: number, raw: ApiWindow | null | undefine
   };
 }
 
+interface ApiLimitRow {
+  kind?: unknown;
+  percent?: unknown;
+  resets_at?: unknown;
+  scope?: { model?: { display_name?: unknown } | null } | null;
+}
+
+/**
+ * A model's own weekly window from the answer's `limits` rows (developer, 2026-11-11: «add fable
+ * usage gauge»). Claude Code reads them the same way: `kind` «weekly_scoped» with
+ * `scope.model.display_name` («Fable»), `percent` and an ISO `resets_at` (Claude Code 2.1.322). The
+ * status line input has no such row, so only the account gives it.
+ */
+function modelWindows(rows: unknown): UsageWindow[] {
+  if (!Array.isArray(rows)) return [];
+  return (rows as ApiLimitRow[]).flatMap((row) => {
+    const name = row?.scope?.model?.display_name;
+    if (row?.kind !== 'weekly_scoped' || typeof name !== 'string' || name === '') return [];
+    if (typeof row.percent !== 'number') return [];
+    const resetsAt = typeof row.resets_at === 'string' ? Date.parse(row.resets_at) : NaN;
+    return [
+      {
+        key: `model:${name.toLowerCase()}`,
+        windowMinutes: 10080,
+        usedPercent: row.percent,
+        resetsAt: Number.isNaN(resetsAt) ? null : resetsAt,
+        model: name,
+      },
+    ];
+  });
+}
+
 export interface AccountUsageOptions {
   login: LoginSource;
   baseUrl: string;
@@ -153,7 +185,7 @@ export async function fetchAccountUsage(options: AccountUsageOptions): Promise<C
     throw new RateLimitedError(parseRetryAfter(response.headers.get('retry-after'), now()));
   if (!response.ok) throw new Error(`Anthropic 사용량을 받지 못했어요 (HTTP ${response.status})`);
 
-  let body: { five_hour?: ApiWindow | null; seven_day?: ApiWindow | null };
+  let body: { five_hour?: ApiWindow | null; seven_day?: ApiWindow | null; limits?: unknown };
   try {
     body = (await response.json()) as typeof body;
   } catch {
@@ -164,7 +196,7 @@ export async function fetchAccountUsage(options: AccountUsageOptions): Promise<C
     toWindow('seven_day', 10080, body.seven_day),
   ].filter((w): w is UsageWindow => w !== null);
   if (windows.length === 0) throw new Error('Anthropic 사용량 응답에 한도가 없어요');
-  return { windows, updatedAt: now(), source: 'account' };
+  return { windows: [...windows, ...modelWindows(body.limits)], updatedAt: now(), source: 'account' };
 }
 
 export interface ClaudeSourceOptions extends AccountUsageOptions {
@@ -257,7 +289,11 @@ export function claudeSource(options: ClaudeSourceOptions): (read?: ReadOptions)
     const recordNewer = record !== null && (record.updatedAt ?? 0) > (account?.updatedAt ?? -Infinity);
     if (account && !recordNewer) return current === null ? account : { ...account, ...note };
     if (recordError && !account) throw recordError;
-    if (record) return { ...record, source: 'statusline', ...note };
+    if (record) {
+      // The record has no model windows (Fable); the last account answer's stay beside it.
+      const models = account?.windows.filter((w) => w.model !== undefined) ?? [];
+      return { ...record, windows: [...record.windows, ...models], source: 'statusline', ...note };
+    }
     if (current === null) return null;
     throw new Error(current.problem);
   };

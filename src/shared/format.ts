@@ -11,6 +11,15 @@ export function windowLabel(minutes: number | null): string {
   return `${minutes}분`;
 }
 
+/** «5시간», «7일», or «Fable 7일» for a model's own window (developer, 2026-11-11). */
+export function windowName(window: Pick<UsageWindow, 'windowMinutes' | 'model'>): string {
+  const length = windowLabel(window.windowMinutes);
+  return window.model ? `${window.model} ${length}` : length;
+}
+
+/** The menu bar title and a folded card show the 5시간 and 7일 windows, not a model's own. */
+export const isOverallWindow = (window: UsageWindow) => window.model === undefined;
+
 /**
  * Shorter window first, the same for both CLIs and in both places: 5시간 then 7일 on the usage screen
  * (owner, 2026-10-30) and in the menu bar title (LHS-5 개발 항목 5, WF-P005).

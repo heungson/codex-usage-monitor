@@ -1,5 +1,23 @@
 # Verification
 
+## Fable on the Claude Code card (2026-11-11)
+
+No PRS issue; asked for by the developer (decision of 2026-11-11 in `docs/decisions.md`). The PRS
+MCP servers did not connect, so no `record_verification` entry was written.
+
+- Shape of the rows: the live answer of 2026-11-10 (HTTP 200) listed `limits` with «session»,
+  «weekly_all» and «weekly_scoped» at 20%, the value Anthropic's page shows for Fable. A request on
+  2026-11-11 to read the full row got HTTP 429, so `scope.model.display_name` is taken from Claude
+  Code 2.1.322's bundled code (`/opt/homebrew/Caskroom/claude-code@latest/2.1.322/claude`), which
+  reads Fable rows that way, and its status line documentation, which lists no model rows.
+- `npm run typecheck`, `npm run lint`, `npm run format:check`: passed.
+- `npm test`: 208 passed. New: Fable mapped from `limits` while session, weekly_all, surface rows and
+  unreadable rows are skipped; Fable kept beside a newer record; the alert title «Claude Code Fable
+  7일 한도 81% 사용»; the menu bar title without Fable.
+- `npm run test:e2e`: 80 passed, 2 skipped. `e2e/usage.spec.ts` now answers with a Fable row and checks the third
+  bar «Fable 7일 한도 · 20% 사용»; capture `tmp/e2e-shots/usage-claude-account-1.png` opened.
+- Not checked: the installed app against the live endpoint (not rebuilt yet).
+
 ## 설정 › 메뉴 막대 (2026-11-11)
 
 No PRS issue; asked for by the developer (decision of 2026-11-11 in `docs/decisions.md`). The PRS

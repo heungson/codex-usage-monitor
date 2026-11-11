@@ -56,6 +56,30 @@ describe('LimitAlerts', () => {
     expect(sent).toHaveLength(2);
   });
 
+  it('names a model window in the alert: «Claude Code Fable 7일 한도» (developer, 2026-11-11)', async () => {
+    const { notifier, sent } = recordingNotifier();
+    const alerts = new LimitAlerts(
+      file,
+      notifier,
+      () => undefined,
+      () => now,
+    );
+    await alerts.evaluate('claude', {
+      windows: [
+        { key: 'seven_day', windowMinutes: 10080, usedPercent: 40, resetsAt: now + 86_400_000 },
+        {
+          key: 'model:fable',
+          windowMinutes: 10080,
+          usedPercent: 81,
+          resetsAt: now + 86_400_000,
+          model: 'Fable',
+        },
+      ],
+      updatedAt: now,
+    });
+    expect(sent.map((n) => n.title)).toEqual(['Claude Code Fable 7일 한도 81% 사용']);
+  });
+
   it('does not alert on a value from before the window reset (developer, 2026-11-05)', async () => {
     const { notifier, sent } = recordingNotifier();
     const alerts = new LimitAlerts(

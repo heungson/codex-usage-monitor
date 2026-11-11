@@ -13,7 +13,8 @@ import {
   formatDuration,
   resetPassed,
   shorterFirst,
-  windowLabel,
+  windowName,
+  isOverallWindow,
 } from '../shared/format';
 import { nearLimit } from '../shared/limits';
 import { evenUse } from '../shared/pace';
@@ -134,11 +135,11 @@ function windowsHtml(usage: CliUsage, now = Date.now()): string {
       return `
         <div class="window">
           <div class="window-top">
-            <span class="window-name">${windowLabel(w.windowMinutes)} 한도</span>
+            <span class="window-name">${escapeHtml(windowName(w))} 한도</span>
             <span class="window-percent ${tone}"><span class="num">${Math.round(used)}%</span> 사용</span>
           </div>
           <div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(percent)}"
-               aria-label="${windowLabel(w.windowMinutes)} 한도 사용 비율">
+               aria-label="${escapeHtml(windowName(w))} 한도 사용 비율">
             <div class="fill ${tone}" style="width:${percent}%"></div>${even}
           </div>
           <div class="sub">${resetLine(w, now)}</div>
@@ -218,7 +219,11 @@ function collapseButton(card: UsageCard): string {
 function foldedSummary(usage: CliUsage | null): string {
   if (!usage || usage.windows.length === 0) return '';
   const now = Date.now();
-  const values = [...usage.windows].sort(shorterFirst).map((w) => Math.round(currentPercent(w, now)));
+  const values = usage.windows
+    .filter(isOverallWindow)
+    .sort(shorterFirst)
+    .map((w) => Math.round(currentPercent(w, now)));
+  if (values.length === 0) return '';
   return `<span class="head-summary">${values.join('/')}%</span>`;
 }
 

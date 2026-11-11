@@ -123,6 +123,26 @@ the developer:
 - The button takes no height in the title line (negative margins): with 20 px of its own, 고대비 no
   longer fit the popover (`e2e/look.spec.ts`).
 
+## Fable on the Claude Code card (developer, 2026-11-11)
+
+Asked for by the developer («add fable usage guage too», with Anthropic's page showing «Fable · Up
+to 50% of your weekly limit · 20% used»). Settled in the coding session, to confirm with the
+developer:
+
+- Source: the account answer's `limits` rows. A row with `kind` «weekly_scoped» and
+  `scope.model.display_name` is a model's own weekly window; `percent` and the ISO `resets_at` give
+  the bar. This is how Claude Code 2.1.322 reads them (its bundled code, read on 2026-11-11). Rows
+  scoped to a surface, not a model, are not shown. The status line input has no such row
+  (`rate_limits` carries only `five_hour`, `seven_day` and `spend_limit`), so the record cannot give
+  it.
+- Any model the account names is shown the same way, «<name> 7일 한도», under 7일; Fable is the one
+  today. Its 80% alert reads «Claude Code Fable 7일 한도 80% 사용».
+- The menu bar title and a folded card keep showing only 5시간 and 7일.
+- When the status line record is newer and shown, the last account answer's model window stays on
+  the card beside it, with the age of that answer.
+- Not shown: Anthropic's «Up to 50% of your weekly limit». The rows have no such text, and the share
+  is not given as a number.
+
 ## 설정 › 메뉴 막대 (developer, 2026-11-11)
 
 Asked for by the developer («yes» to leaving a CLI out of the menu bar, offered after folding):

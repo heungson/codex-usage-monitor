@@ -81,6 +81,49 @@ describe('fetchAccountUsage', () => {
     });
   });
 
+  it('adds each model weekly window from `limits`, as Fable (developer, 2026-11-11)', async () => {
+    // The rows as the endpoint lists them (seen 2026-11-10, HTTP 200), with rows that are not a
+    // model's own window and rows that cannot be read.
+    const limits = [
+      { kind: 'session', group: 'session', percent: 75, resets_at: '2026-11-10T10:19:59Z', scope: null },
+      { kind: 'weekly_all', group: 'weekly', percent: 14, resets_at: '2026-11-16T11:59:59Z', scope: null },
+      {
+        kind: 'weekly_scoped',
+        group: 'weekly',
+        percent: 20,
+        resets_at: '2026-11-16T11:59:59Z',
+        scope: { model: { display_name: 'Fable' } },
+        severity: 'normal',
+        is_active: false,
+      },
+      { kind: 'weekly_scoped', percent: 5, resets_at: null, scope: { surface: { display_name: 'Cowork' } } },
+      { kind: 'weekly_scoped', percent: '9', scope: { model: { display_name: 'Odd' } } },
+      null,
+    ];
+    const usage = await fetchAccountUsage({
+      login: login(),
+      baseUrl: 'https://api.test',
+      fetch: fakeFetch([{ status: 200, body: { ...answer, limits } }]).impl,
+      now: () => t0,
+    });
+    expect(usage.windows.map((w) => w.key)).toEqual(['five_hour', 'seven_day', 'model:fable']);
+    expect(usage.windows[2]).toEqual({
+      key: 'model:fable',
+      windowMinutes: 10080,
+      usedPercent: 20,
+      resetsAt: Date.parse('2026-11-16T11:59:59Z'),
+      model: 'Fable',
+    });
+    // A body without rows, or with something else there, has no model window.
+    const without = await fetchAccountUsage({
+      login: login(),
+      baseUrl: 'https://api.test',
+      fetch: fakeFetch([{ status: 200, body: { ...answer, limits: { odd: true } } }]).impl,
+      now: () => t0,
+    });
+    expect(without.windows).toHaveLength(2);
+  });
+
   it('sends nothing with an expired login, and says Claude Code renews it', async () => {
     const { impl, calls } = fakeFetch([{ status: 200, body: answer }]);
     await expect(
@@ -318,6 +361,34 @@ describe('claudeSource', () => {
     const shown = await read();
     expect(shown?.source).toBe('statusline');
     expect(shown?.windows[0]?.usedPercent).toBe(12);
+  });
+
+  it("keeps the account answer's Fable window beside a newer status line record (2026-11-11)", async () => {
+    let now = t0;
+    let written = t0 - minute;
+    const fable = {
+      kind: 'weekly_scoped',
+      percent: 20,
+      resets_at: '2026-11-09T11:59:59Z',
+      scope: { model: { display_name: 'Fable' } },
+    };
+    const read = claudeSource({
+      login: login(),
+      baseUrl: 'https://api.test',
+      fetch: fakeFetch([{ status: 200, body: { ...answer, limits: [fable] } }]).impl,
+      now: () => now,
+      record: async () => record(12, written),
+      minIntervalMs: minute,
+    });
+    expect((await read())?.source).toBe('account');
+    now += 20_000;
+    written = now;
+    const shown = await read();
+    expect(shown?.source).toBe('statusline');
+    expect(shown?.windows.map((w) => [w.key, w.usedPercent])).toEqual([
+      ['five_hour', 12],
+      ['model:fable', 20],
+    ]);
   });
 
   it('keeps the account answer when the record cannot be read', async () => {

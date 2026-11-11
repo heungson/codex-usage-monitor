@@ -292,6 +292,15 @@ test('Claude Code limits come from the account without a session, and fall back 
     body: {
       five_hour: { utilization: 10.0, resets_at: iso(Date.now() + 4 * hour) },
       seven_day: { utilization: 36.0, resets_at: iso(Date.now() + 5 * 24 * hour) },
+      limits: [
+        {
+          kind: 'weekly_scoped',
+          group: 'weekly',
+          percent: 20,
+          resets_at: iso(Date.now() + 5 * 24 * hour),
+          scope: { model: { display_name: 'Fable' } },
+        },
+      ],
     },
   }));
   try {
@@ -303,6 +312,9 @@ test('Claude Code limits come from the account without a session, and fall back 
     await watchTray(app, page);
     await expect(card(page, 'claude')).toContainText('10% 사용');
     await expect(card(page, 'claude')).toContainText('36% 사용');
+    // Fable's own weekly window, on the card only (developer, 2026-11-11).
+    await expect(card(page, 'claude').locator('.window').nth(2)).toContainText('Fable 7일 한도');
+    await expect(card(page, 'claude').locator('.window').nth(2)).toContainText('20% 사용');
     await expect(card(page, 'claude')).toContainText('· Anthropic 계정');
     await expect(card(page, 'claude')).toContainText('정상');
     await expect.poll(() => trayTitle(app)).toMatch(/^CC 10\/36% /);

@@ -13,6 +13,12 @@ export interface UsageWindow {
   usedPercent: number;
   /** Epoch milliseconds, or null when the source gave none. */
   resetsAt: number | null;
+  /**
+   * Claude Code only: the model a weekly window is for, as Anthropic names it («Fable»), when the
+   * account lists one apart from the all-models 7일 window (developer, 2026-11-11). Shown on the card
+   * and in alerts; not in the menu bar title.
+   */
+  model?: string;
 }
 
 export interface CliUsage {

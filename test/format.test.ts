@@ -60,6 +60,11 @@ describe('trayTitle', () => {
     expect(title(bothCc, ok(win(10080, 30)))).toBe('CC 92/84% · CX 30%');
   });
 
+  it('leaves a model window (Fable) out of the menu bar title (developer, 2026-11-11)', () => {
+    const fable: UsageWindow = { ...win(10080, 95), key: 'model:fable', model: 'Fable' };
+    expect(title(ok(win(300, 20), win(10080, 21), fable), bothCx)).toBe('CC 20/21% · CX 12/44%');
+  });
+
   it('marks Claude Code values over 10 minutes old with ? while Anthropic cannot be asked (2026-11-11)', () => {
     const now = Date.parse('2026-11-11T01:00:00Z');
     const claude = (age: number, note: object): SourceState => ({

@@ -13,7 +13,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 import type { CliId, CliUsage, UsageWindow } from '../shared/types';
-import { currentPercent, describeReset, formatDateTime, windowLabel } from '../shared/format';
+import { currentPercent, describeReset, formatDateTime, windowName } from '../shared/format';
 import { limitAlertPercent } from '../shared/limits';
 import { sameResetWindow as sameWindow } from '../shared/windows';
 import type { Notifier } from './notifier';
@@ -85,7 +85,7 @@ export class LimitAlerts {
       this.sent[key] = { resetsAt: window.resetsAt, at };
       this.save();
 
-      const label = windowLabel(window.windowMinutes);
+      const label = windowName(window);
       const percent = Math.round(window.usedPercent);
       const result = await this.notifier.send({
         title: `${cliNames[cli]} ${label} 한도 ${percent}% 사용`,

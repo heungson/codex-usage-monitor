@@ -5,7 +5,7 @@
 // scheduled, the time left follows with the same separator: «… · ↻ 2일» (PR-P026). The title is
 // never shortened for space; macOS hides the item when the menu bar is full (LHS-5 개발 항목 5).
 
-import { claudeStale, currentPercent, shorterFirst } from '../shared/format';
+import { claudeStale, currentPercent, isOverallWindow, shorterFirst } from '../shared/format';
 import type { AreaState, CliId, CliUsage, ResetStatus, SourceState, UsageSnapshot } from '../shared/types';
 
 const separator = ' · ';
@@ -30,7 +30,11 @@ function part(state: SourceState, now: number): string {
 
 /** «92/84%», shorter window first; «30%» with one window. A window past its reset counts 0%. */
 function percents(usage: CliUsage, now: number): string {
-  const values = [...usage.windows].sort(shorterFirst).map((w) => Math.round(currentPercent(w, now)));
+  // A model's own window (Fable) stays on the card (developer, 2026-11-11).
+  const values = usage.windows
+    .filter(isOverallWindow)
+    .sort(shorterFirst)
+    .map((w) => Math.round(currentPercent(w, now)));
   return values.length === 0 ? '–' : `${values.join('/')}%`;
 }
 
