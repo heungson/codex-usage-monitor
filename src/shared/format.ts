@@ -1,6 +1,6 @@
 // Korean wording for windows and times, shared by the popover and the notifications.
 
-import type { CliUsage, UsageWindow } from './types';
+import type { CliUsage, ResetStatus, ResetWatch, UsageWindow } from './types';
 
 const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -105,3 +105,12 @@ export function claudeStale(usage: CliUsage, now: number = Date.now()): boolean 
   const accountBlocked = usage.accountProblem != null || usage.accountRetryAt != null;
   return accountBlocked && usage.updatedAt !== null && now - usage.updatedAt > claudeStaleAfterMs;
 }
+
+/** The reset watch while it lasts: one past `expires_at` is no longer shown (developer, 2026-11-11). */
+export function currentWatch(status: ResetStatus, now: number = Date.now()): ResetWatch | null {
+  const watch = status.watch ?? null;
+  return watch !== null && watch.expiresAt > now ? watch : null;
+}
+
+/** «리셋 신호» or «강한 리셋 신호», as codex-resets.com grades a watch («elevated», «strong»). */
+export const watchName = (watch: ResetWatch) => (watch.level === 'strong' ? '강한 리셋 신호' : '리셋 신호');

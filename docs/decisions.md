@@ -123,6 +123,27 @@ the developer:
 - The button takes no height in the title line (negative margins): with 20 px of its own, 고대비 no
   longer fit the popover (`e2e/look.spec.ts`).
 
+## Codex reset watch (developer, 2026-11-11)
+
+The developer, with codex-resets.com showing «Reset watch · Elevated signal · Possible reset within
+2 days · by Fri, Nov 13, 5:00 PM» beside the app's «예정 리셋 없음»: «the app does not show reset
+information correctly.» The app read the status correctly (`scheduled_reset` was null) but did not
+know the newer field `active_watch` (OpenAPI schema `Watch`: `level` elevated or strong,
+`reset_chance_percent`, `forecast_window`, `observed_at`, `expires_at`, `text`, `source`; read from
+https://codex-resets.com/api/openapi.json on 2026-11-11). Settled in the coding session, to confirm
+with the developer:
+
+- With no reset announced, the 예정 리셋 card shows the watch: «리셋 신호 · 가능성 65%» («강한 리셋 신호»
+  for strong) with «<expires_at>까지», the post's first line, and «공지된 리셋은 아직 없어요.» An
+  announced reset still takes the card.
+- The reset screen's status adds a row «리셋 신호 · 가능성 65% · <expires_at>까지» with a link to the post.
+- A watch past `expires_at` is not shown. A watch that cannot be read is left out; the rest of the
+  status still shows.
+- `forecast_window` («by end of Thursday») is not shown: it is English in the poster's time zone;
+  `expires_at` gives the same end as a local time.
+- Not changed: the menu bar countdown and the new reset notifications, which stay for announced
+  resets only.
+
 ## The menu bar clock counts down the 5시간 window (developer, 2026-11-11)
 
 The developer asked whether the clock-like menu bar icon showed the time left until the Claude Code

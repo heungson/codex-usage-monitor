@@ -1,7 +1,7 @@
 // The codex-resets.com public API (PR-P018): no key, nothing about the person is sent.
 // Data from it is shown with a link back to https://codex-resets.com, as the API terms ask.
 
-import type { ResetEntry, ResetStatus, ScheduledReset } from '../shared/types';
+import type { ResetEntry, ResetStatus, ResetWatch, ScheduledReset } from '../shared/types';
 
 export const resetsSite = 'https://codex-resets.com';
 
@@ -49,6 +49,35 @@ function scheduledFrom(raw: unknown): ScheduledReset | null {
   return { ...entry, scheduledFor: Number.isNaN(scheduledFor) ? null : scheduledFor };
 }
 
+/**
+ * `active_watch`: a hint that a reset may come, not an announcement (developer, 2026-11-11: the site
+ * showed «Possible reset within 2 days» while the card said 예정 리셋 없음). Read from the API's
+ * own schema (`Watch` in https://codex-resets.com/api/openapi.json, read 2026-11-11). The field is
+ * new, so one that cannot be read is left out rather than failing the whole status.
+ */
+function watchFrom(raw: unknown): ResetWatch | null {
+  if (raw === null || typeof raw !== 'object') return null;
+  const value = raw as {
+    level?: unknown;
+    reset_chance_percent?: unknown;
+    observed_at?: unknown;
+    expires_at?: unknown;
+    text?: unknown;
+    source?: { url?: unknown } | null;
+  };
+  const observedAt = typeof value.observed_at === 'string' ? Date.parse(value.observed_at) : NaN;
+  const expiresAt = typeof value.expires_at === 'string' ? Date.parse(value.expires_at) : NaN;
+  if (typeof value.level !== 'string' || Number.isNaN(observedAt) || Number.isNaN(expiresAt)) return null;
+  return {
+    level: value.level,
+    chancePercent: typeof value.reset_chance_percent === 'number' ? value.reset_chance_percent : null,
+    observedAt,
+    expiresAt,
+    text: typeof value.text === 'string' ? value.text : '',
+    sourceUrl: typeof value.source?.url === 'string' ? value.source.url : null,
+  };
+}
+
 export function resetsApi(baseUrl: string, fetchImpl: typeof fetch = fetch): ResetsApi {
   async function get(path: string): Promise<unknown> {
     let response: Response;
@@ -77,6 +106,7 @@ export function resetsApi(baseUrl: string, fetchImpl: typeof fetch = fetch): Res
       return {
         latest: entryFrom(data.latest_reset),
         scheduled: scheduledFrom(data.scheduled_reset),
+        watch: watchFrom(data.active_watch),
         avgIntervalDays: typeof stats.avg_interval_days === 'number' ? stats.avg_interval_days : null,
         daysSinceLast: typeof stats.days_since_last === 'number' ? stats.days_since_last : null,
         total: typeof stats.total === 'number' ? stats.total : 0,
@@ -99,5 +129,10 @@ export function resetsApi(baseUrl: string, fetchImpl: typeof fetch = fetch): Res
 
 /** True when the status has nothing to show: 결과 없음 (WF-S003). */
 export function statusIsEmpty(status: ResetStatus): boolean {
-  return status.latest === null && status.scheduled === null && status.total === 0;
+  return (
+    status.latest === null &&
+    status.scheduled === null &&
+    (status.watch ?? null) === null &&
+    status.total === 0
+  );
 }

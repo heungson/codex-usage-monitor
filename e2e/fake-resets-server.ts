@@ -1,6 +1,6 @@
 // A stand-in for codex-resets.com, so checks can make the API slow, empty or failing.
 // The mode is read from a JSON file on every request:
-// { status: Mode, history: Mode, delayMs?: number, scheduledInMs?: number | null }. `scheduledInMs` is how
+// { status: Mode, history: Mode, delayMs?: number, scheduledInMs?: number | null, watchEndsInMs?: number }. `scheduledInMs` is how
 // far ahead the scheduled reset's `scheduled_for` lies (default 2 days 23 hours 30 minutes); null sends
 // a scheduled reset with no time (`scheduled_for: null`).
 
@@ -45,6 +45,8 @@ export async function startFakeResets(modeFile: string): Promise<FakeServer> {
       history: Mode;
       delayMs?: number;
       scheduledInMs?: number | null;
+      /** Sends a reset watch (`active_watch`) ending this far ahead; negative: one already ended. */
+      watchEndsInMs?: number;
     };
     const reply = (code: number, body: unknown) =>
       setTimeout(() => {
@@ -76,6 +78,22 @@ export async function startFakeResets(modeFile: string): Promise<FakeServer> {
                   source: { type: 'x_post', url: 'https://x.com/thsottiaux/status/2115330127886463299' },
                 }
               : null,
+          active_watch:
+            mode.watchEndsInMs === undefined
+              ? null
+              : {
+                  level: 'elevated',
+                  reset_chance_percent: 65,
+                  forecast_window: 'by end of Thursday',
+                  observed_at: new Date(Date.now() - 3_600_000).toISOString(),
+                  expires_at: new Date(Date.now() + mode.watchEndsInMs).toISOString(),
+                  text: 'Thursday is feeling codexy to me. Perhaps also a good time for a banked reset.',
+                  source: {
+                    type: 'x_post',
+                    author: 'thsottiaux',
+                    url: 'https://x.com/thsottiaux/status/2120410480204525936',
+                  },
+                },
           stats: {
             total: 68,
             last_reset_at: entries[0]!.announced_at,

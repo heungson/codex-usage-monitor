@@ -3,8 +3,9 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { resetsApi, type ResetsApi } from '../src/main/resets-api';
+import { resetsApi, statusIsEmpty, type ResetsApi } from '../src/main/resets-api';
 import { ResetsService, statusFreshMs } from '../src/main/resets-service';
+import { currentWatch } from '../src/shared/format';
 import type { ResetEntry, ResetStatus } from '../src/shared/types';
 
 const entry = (id: string, at: string): ResetEntry => ({
@@ -304,6 +305,47 @@ describe('resetsApi', () => {
     await expect(
       resetsApi('https://codex-resets.com', respond({}, 500) as unknown as typeof fetch).status(),
     ).rejects.toThrow('500');
+  });
+
+  it('reads the reset watch, leaves out one it cannot read, and hides one that ended (2026-11-11)', async () => {
+    // As the live API sent it on 2026-11-11.
+    const watch = {
+      level: 'elevated',
+      reset_chance_percent: 65,
+      forecast_window: 'by end of Thursday',
+      observed_at: '2026-11-11T06:57:08.000Z',
+      expires_at: '2026-11-13T08:00:00.000Z',
+      text: 'Thursday is feeling codexy to me. Perhaps also a good time for a banked reset.',
+      source: {
+        type: 'x_post',
+        author: 'thsottiaux',
+        url: 'https://x.com/thsottiaux/status/2120410480204525936',
+      },
+    };
+    const read = (activeWatch: unknown) =>
+      resetsApi(
+        'https://codex-resets.com',
+        respond({
+          data: { latest_reset: null, scheduled_reset: null, active_watch: activeWatch, stats: { total: 0 } },
+        }) as unknown as typeof fetch,
+      ).status();
+    const value = await read(watch);
+    expect(value.watch).toEqual({
+      level: 'elevated',
+      chancePercent: 65,
+      observedAt: Date.parse('2026-11-11T06:57:08.000Z'),
+      expiresAt: Date.parse('2026-11-13T08:00:00.000Z'),
+      text: watch.text,
+      sourceUrl: watch.source.url,
+    });
+    // A watch alone is something to show, not 결과 없음.
+    expect(statusIsEmpty(value)).toBe(false);
+    expect(currentWatch(value, Date.parse('2026-11-13T07:59:00Z'))).not.toBeNull();
+    expect(currentWatch(value, Date.parse('2026-11-13T08:00:00Z'))).toBeNull();
+    expect((await read({ ...watch, expires_at: 'soon' })).watch).toBeNull();
+    expect((await read(null)).watch).toBeNull();
+    expect((await read(undefined)).watch).toBeNull();
+    expect(statusIsEmpty(await read(null))).toBe(true);
   });
 
   it('passes the cursor and reads the next cursor', async () => {

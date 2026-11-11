@@ -830,3 +830,28 @@ test('the menu bar title shows both windows of each CLI, one when only one is re
   await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toBe('CC 92/84% · CX 30%');
   await app.close();
 });
+
+test("with no reset announced, the 예정 리셋 card and the reset screen show the site's reset watch (developer 2026-11-11)", async () => {
+  writeClaude(fixture, 23, 61);
+  writeCodex(fixture, 44);
+  mode({ watchEndsInMs: 2 * 24 * hour });
+  const { app, page } = await launch(fixture, server.url);
+  await expect(upcoming(page)).toContainText('리셋 신호 · 가능성 65%');
+  await expect(upcoming(page)).toContainText('까지');
+  await expect(upcoming(page)).toContainText('Thursday is feeling codexy to me.');
+  await expect(upcoming(page)).toContainText('공지된 리셋은 아직 없어요.');
+  await expect(upcoming(page)).not.toContainText('예정 리셋 없음');
+  await capture(page, 'usage-reset-watch');
+  await clickUpcomingArea(page);
+  const facts = page.locator('section[data-area="status"]');
+  await expect(facts).toContainText('리셋 신호');
+  await expect(facts).toContainText('가능성 65%');
+  await capture(page, 'resets-reset-watch');
+  await app.close();
+
+  // A watch past its end is not shown.
+  mode({ watchEndsInMs: -60_000 });
+  const again = await launch(fixture, server.url);
+  await expect(upcoming(again.page)).toContainText('예정 리셋 없음');
+  await again.app.close();
+});

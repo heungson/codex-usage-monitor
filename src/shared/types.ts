@@ -102,9 +102,27 @@ export interface ScheduledReset extends ResetEntry {
   scheduledFor: number | null;
 }
 
+/**
+ * A reset hinted at but not announced: codex-resets.com's «Reset watch» (`active_watch`, in its
+ * OpenAPI schema `Watch`; seen 2026-11-11 as «Possible reset within 2 days»).
+ */
+export interface ResetWatch {
+  /** «elevated» or «strong», as the site grades the hint. */
+  level: string;
+  /** The site's guess, 0–100, or null when it gives none. */
+  chancePercent: number | null;
+  /** When the hint was posted, and when the site stops showing it (epoch ms). */
+  observedAt: number;
+  expiresAt: number;
+  text: string;
+  sourceUrl: string | null;
+}
+
 export interface ResetStatus {
   latest: ResetEntry | null;
   scheduled: ScheduledReset | null;
+  /** The current reset watch, or null; absent from values saved before 2026-11-11. */
+  watch?: ResetWatch | null;
   avgIntervalDays: number | null;
   daysSinceLast: number | null;
   total: number;

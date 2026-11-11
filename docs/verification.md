@@ -1,5 +1,23 @@
 # Verification
 
+## Codex reset watch (2026-11-11)
+
+Asked for by the developer (decision of 2026-11-11 in `docs/decisions.md`). No PRS entry (servers
+not connected).
+
+- Live API, `GET https://codex-resets.com/api/v1/status` at 17:11 KST: `scheduled_reset: null`,
+  `active_watch` elevated, 65%, expires 2026-11-13T08:00:00Z. The OpenAPI document lists `Watch`.
+- `npm run typecheck`, `npm run lint`, `npm run format:check`: passed.
+- `npm test`: 215 passed. New in `test/resets.test.ts`: the live watch is read as is; one with an
+  unreadable time, null or absent gives none; a watch alone is not 결과 없음; it is shown until
+  `expires_at` and not after.
+- `npm run test:e2e`: 82 passed, 2 skipped. The local fake of codex-resets.com can now send a watch
+  (`watchEndsInMs`). New in `e2e/usage.spec.ts`: the card shows «리셋 신호 · 가능성 65%», «…까지», the
+  post's line and «공지된 리셋은 아직 없어요.»; the reset screen shows the row; an ended watch gives
+  «예정 리셋 없음». Captures `tmp/e2e-shots/usage-reset-watch-1.png` and
+  `resets-reset-watch-1.png` opened.
+- Not checked: the installed app (not rebuilt yet).
+
 ## The menu bar clock fills toward the reset (2026-11-11)
 
 Asked for by the developer after using the installed app: the clock emptied toward the reset and

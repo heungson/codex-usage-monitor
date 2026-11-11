@@ -5,6 +5,8 @@
 import { isThemeId, themeGroups, themes, type Theme } from '../shared/themes';
 import {
   claudeStale,
+  currentWatch,
+  watchName,
   currentPercent,
   describePast,
   describeReset,
@@ -28,6 +30,7 @@ import type {
   ResetEntry,
   ResetHistory,
   ResetStatus,
+  ResetWatch,
   ResetsSnapshot,
   SourceState,
   UsageWindow,
@@ -284,12 +287,28 @@ const resetTypeNames: Record<string, string> = { regular: '전체 리셋', banke
 const typeName = (type: string) => resetTypeNames[type] ?? type;
 const firstLine = (text: string) => text.split('\n')[0] ?? '';
 
+/**
+ * With no reset announced, the site's reset watch when there is one (developer, 2026-11-11: the site
+ * said «Possible reset within 2 days» while this card said 예정 리셋 없음): the grade and chance, until
+ * when it holds, and the post it comes from. It is a hint, not a scheduled reset, so it says so.
+ */
+function watchBody(watch: ResetWatch): string {
+  const chance = watch.chancePercent === null ? '' : ` · 가능성 ${watch.chancePercent}%`;
+  const line = `${formatDateTime(watch.observedAt)} 신호${watch.text ? ` · ${escapeHtml(firstLine(watch.text))}` : ''}`;
+  return `<p class="upcoming-main"><span>${watchName(watch)}${chance}</span><span class="due">${formatDateTime(watch.expiresAt)}까지</span></p>
+    <p class="sub one-line" title="${line}">${line}</p>
+    <p class="sub">공지된 리셋은 아직 없어요.</p>`;
+}
+
 /** The scheduled reset only; the rest of the status is on the reset screen (PR-P015, FC-F008). */
 function upcomingBody(value: ResetStatus): string {
   const next = value.scheduled;
-  if (!next)
+  if (!next) {
+    const watch = currentWatch(value);
+    if (watch) return watchBody(watch);
     return `<p class="upcoming-main">예정 리셋 없음</p>
       <p class="sub">새 리셋이 공지되면 알림으로 알려 드려요.</p>`;
+  }
   // The due time when the announcement gives one, the same time the menu bar counts down to (LHS-5 검증 16).
   const due =
     next.scheduledFor === null ? '' : `<span class="due">${formatDateTime(next.scheduledFor)}</span>`;
@@ -468,9 +487,17 @@ function statusBody(value: ResetStatus): string {
     value.daysSinceLast === null
       ? ''
       : `<p class="sub facts-note">마지막 리셋 후 ${formatDuration(value.daysSinceLast * 86_400_000)} 지났어요 · 지금까지 ${value.total}번</p>`;
+  const watch = currentWatch(value);
+  const watchRow = watch
+    ? `<div><dt>${watchName(watch)}</dt><dd>${watch.chancePercent === null ? '' : `가능성 ${watch.chancePercent}% · `}${formatDateTime(watch.expiresAt)}까지${
+        watch.sourceUrl
+          ? ` <button class="link small-link" data-action="external" data-url="${escapeHtml(watch.sourceUrl)}">원문</button>`
+          : ''
+      }</dd></div>`
+    : '';
   return `<dl class="facts">
       <div><dt>최근 전체 리셋</dt><dd>${latest}</dd></div>
-      <div><dt>예정된 전체 리셋</dt><dd>${scheduled}</dd></div>
+      <div><dt>예정된 전체 리셋</dt><dd>${scheduled}</dd></div>${watchRow}
       <div><dt>리셋 간 평균 간격</dt><dd>${average}</dd></div>
     </dl>${since}`;
 }
