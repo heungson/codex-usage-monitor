@@ -3,8 +3,11 @@
 
 import type { CliUsage, SourceState } from '../shared/types';
 
-/** Returns the usage, or null when there is no record yet (수집 대기). Throws when reading fails. */
-export type Reader = () => Promise<CliUsage | null>;
+/**
+ * Returns the usage, or null when there is no record yet (수집 대기). Throws when reading fails.
+ * `manual`: a person asked (새로 고침, opening the popover), not the timer.
+ */
+export type Reader = (options?: { manual?: boolean }) => Promise<CliUsage | null>;
 
 export interface CollectorOptions {
   intervalMs: number;
@@ -51,13 +54,15 @@ export class Collector {
   /**
    * Reads now. Concurrent callers share one read. `automatic` is the interval's re-read: after a
    * failure it is the automatic retry, shown as 자동 재시도 중 while it runs (LHS-6 검증 10).
+   * `manual`: a person asked, which the Claude Code reader may answer by asking Anthropic during a
+   * 429 backoff (developer, 2026-11-11).
    */
-  refresh(automatic = false): Promise<SourceState> {
+  refresh(automatic = false, manual = false): Promise<SourceState> {
     if (automatic && !this.inFlight && this.current.kind === 'error' && !this.current.retrying) {
       this.current = { ...this.current, retrying: true };
       this.options.onChange(this.current);
     }
-    this.inFlight ??= this.readOnce().finally(() => {
+    this.inFlight ??= this.readOnce(manual).finally(() => {
       this.inFlight = null;
     });
     return this.inFlight;
@@ -69,11 +74,11 @@ export class Collector {
     return null;
   }
 
-  private async readOnce(): Promise<SourceState> {
+  private async readOnce(manual: boolean): Promise<SourceState> {
     if (this.options.delayMs) await new Promise((resolve) => setTimeout(resolve, this.options.delayMs));
     let next: SourceState;
     try {
-      const usage = await this.read();
+      const usage = await this.read(manual ? { manual } : undefined);
       next = usage === null ? { kind: 'waiting' } : { kind: 'ok', usage, readAt: this.now() };
     } catch (error) {
       next = {

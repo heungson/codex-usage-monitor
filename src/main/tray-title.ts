@@ -5,7 +5,7 @@
 // scheduled, the time left follows with the same separator: «… · ↻ 2일» (PR-P026). The title is
 // never shortened for space; macOS hides the item when the menu bar is full (LHS-5 개발 항목 5).
 
-import { currentPercent, shorterFirst } from '../shared/format';
+import { claudeStale, currentPercent, shorterFirst } from '../shared/format';
 import type { AreaState, CliUsage, ResetStatus, SourceState, UsageSnapshot } from '../shared/types';
 
 const separator = ' · ';
@@ -20,7 +20,9 @@ function part(state: SourceState, now: number): string {
     case 'waiting':
       return '–';
     case 'ok':
-      return percents(state.usage, now);
+      // Claude Code values over 10 minutes old that Anthropic would not refresh are not current
+      // either (developer, 2026-11-11).
+      return claudeStale(state.usage, now) ? `${percents(state.usage, now)}?` : percents(state.usage, now);
     case 'error':
       return state.lastGood ? `${percents(state.lastGood, now)}?` : '!';
   }

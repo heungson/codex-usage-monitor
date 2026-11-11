@@ -4,6 +4,7 @@
 
 import { isThemeId, themeGroups, themes, type Theme } from '../shared/themes';
 import {
+  claudeStale,
   currentPercent,
   describePast,
   describeReset,
@@ -156,13 +157,23 @@ function freshnessHtml(cli: CliId, usage: CliUsage | null, now = Date.now()): st
   return `<p class="card-sub"${full}>마지막 갱신 ${age} · ${from}</p>`;
 }
 
-/** Why the account could not be asked, when the status line record is shown instead. */
-function accountProblemHtml(usage: CliUsage): string {
+/**
+ * Why the account could not be asked, and, once the values are over 10 minutes old, how old they
+ * are and why the record falls behind (developer, 2026-11-11: the card said 정상 on a 14-hour-old
+ * record while Anthropic's page showed more use).
+ */
+function accountProblemHtml(usage: CliUsage, now = Date.now()): string {
+  let line = '';
   if (usage.accountProblem)
-    return `<p class="card-note">계정에서 받지 못했어요: ${escapeHtml(usage.accountProblem)}.</p>`;
-  if (usage.accountRetryAt)
-    return `<p class="card-note quiet">Anthropic이 잠시 조회를 막았어요 (429) · ${formatClock(usage.accountRetryAt)}에 다시 물어봐요.</p>`;
-  return '';
+    line = `<p class="card-note">계정에서 받지 못했어요: ${escapeHtml(usage.accountProblem)}.</p>`;
+  else if (usage.accountRetryAt)
+    line = `<p class="card-note quiet">Anthropic이 잠시 조회를 막았어요 (429) · ${formatClock(usage.accountRetryAt)}에 다시 물어봐요.</p>`;
+  if (!claudeStale(usage, now) || usage.updatedAt === null) return line;
+  const why =
+    usage.source === 'statusline'
+      ? ' Claude 앱과 VS Code에서 쓴 양은 상태 표시줄 기록에 들어가지 않아요.'
+      : '';
+  return `${line}<p class="card-note">${formatDuration(now - usage.updatedAt)} 전 값이라 지금과 다를 수 있어요.${why}</p>`;
 }
 
 function waitingHtml(cli: CliId): string {
@@ -198,7 +209,11 @@ function sourceCard(cli: CliId, source: SourceState): string {
       break;
     case 'ok':
       // The record shown because the account could not be asked may be hours old: say so.
-      badge = source.usage.accountProblem ? chip('계정 조회 실패', 'warn') : chip('정상', 'ok');
+      badge = source.usage.accountProblem
+        ? chip('계정 조회 실패', 'warn')
+        : claudeStale(source.usage)
+          ? chip('오래된 값', 'warn')
+          : chip('정상', 'ok');
       body = windowsHtml(source.usage) + accountProblemHtml(source.usage);
       break;
     case 'error':

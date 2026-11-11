@@ -3,7 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { trayTitle } from '../src/main/tray-title';
 import { alertThresholdPercent } from '../src/main/limit-alerts';
 import { nearLimit } from '../src/shared/limits';
-import { currentPercent, describeReset, formatDuration, windowLabel } from '../src/shared/format';
+import {
+  claudeStale,
+  currentPercent,
+  describeReset,
+  formatDuration,
+  windowLabel,
+} from '../src/shared/format';
 import type { SourceState, UsageWindow } from '../src/shared/types';
 
 describe('format', () => {
@@ -52,6 +58,24 @@ describe('trayTitle', () => {
     expect(title(ok(win(300, 92)), bothCx)).toBe('CC 92% · CX 12/44%');
     expect(title(ok(win(10080, 84)), bothCx)).toBe('CC 84% · CX 12/44%');
     expect(title(bothCc, ok(win(10080, 30)))).toBe('CC 92/84% · CX 30%');
+  });
+
+  it('marks Claude Code values over 10 minutes old with ? while Anthropic cannot be asked (2026-11-11)', () => {
+    const now = Date.parse('2026-11-11T01:00:00Z');
+    const claude = (age: number, note: object): SourceState => ({
+      kind: 'ok',
+      readAt: now,
+      usage: { updatedAt: now - age, windows: [win(300, 20), win(10080, 14)], source: 'statusline', ...note },
+    });
+    const at = (state: SourceState) =>
+      trayTitle({ claude: state, codex: bothCx, alertNotice: null, resetNotice: null }, now);
+    const paused = { accountProblem: null, accountRetryAt: now + 60_000 };
+    expect(at(claude(10 * 60_000, paused))).toBe('CC 20/14% · CX 12/44%');
+    expect(at(claude(10 * 60_000 + 1, paused))).toBe('CC 20/14%? · CX 12/44%');
+    expect(at(claude(60 * 60_000, { accountProblem: 'HTTP 500' }))).toBe('CC 20/14%? · CX 12/44%');
+    // No login: the record is the only source, so its age alone does not mark it.
+    expect(at(claude(14 * 60 * 60_000, { accountProblem: null }))).toBe('CC 20/14% · CX 12/44%');
+    expect(claudeStale({ updatedAt: null, windows: [], accountRetryAt: now }, now)).toBe(false);
   });
 
   it('gives each CLI its own –, … or ?, and keeps the other CLI as it is (LHS-5 검증 21)', () => {

@@ -309,10 +309,13 @@ test('Claude Code limits come from the account without a session, and fall back 
     expect(account.auth[0]).toBe('Bearer test-token');
     await capture(page, 'usage-claude-account');
 
+    // A failure keeps the last account answer, which is newer than the 20-hour-old record
+    // (developer, 2026-11-11: the card fell back to a 14-hour-old record after a 429).
     status = 401;
-    await expect(card(page, 'claude')).toContainText('35% 사용', { timeout: 10_000 });
-    await expect(card(page, 'claude')).toContainText('계정에서 받지 못했어요');
+    await expect(card(page, 'claude')).toContainText('계정에서 받지 못했어요', { timeout: 10_000 });
     await expect(card(page, 'claude')).toContainText('계정 조회 실패');
+    await expect(card(page, 'claude')).toContainText('10% 사용');
+    await expect(card(page, 'claude')).not.toContainText('35% 사용');
     await capture(page, 'usage-claude-account-refused');
 
     // A 429 with the record to show is a pause: 정상, and a quiet line with when it asks next.
@@ -329,7 +332,8 @@ test('Claude Code limits come from the account without a session, and fall back 
       join(fixture.dataDir, 'claude-rate-limits.json'),
       JSON.stringify({
         version: 1,
-        updatedAt: new Date(Date.now() - 8 * 60_000).toISOString(),
+        // Newer than the last account answer, so the record is what is shown.
+        updatedAt: new Date(Date.now() - 1_000).toISOString(),
         fiveHour: { usedPercentage: 71, resetsAt: Date.now() - 5 * 60_000 },
         sevenDay: { usedPercentage: 60, resetsAt: Date.now() + 4 * 24 * hour },
       }),
@@ -340,6 +344,30 @@ test('Claude Code limits come from the account without a session, and fall back 
     await expect(card(page, 'claude')).not.toContainText('71%');
     await expect.poll(() => trayTitle(app), { timeout: 10_000 }).toMatch(/^CC 0\/60% /);
     await capture(page, 'usage-claude-reset-passed');
+    await app.close();
+  } finally {
+    await account.close();
+  }
+});
+
+test('Claude Code values over 10 minutes old that Anthropic will not refresh are marked 오래된 값 (developer 2026-11-11)', async () => {
+  writeClaude(fixture, 35, 14, new Date(Date.now() - 14 * hour));
+  writeCodex(fixture, 44);
+  writeFileSync(
+    fixture.claudeLoginFile,
+    JSON.stringify({ claudeAiOauth: { accessToken: 'test-token', expiresAt: Date.now() + hour } }),
+  );
+  const account = await fakeAccount(() => ({ status: 429 }));
+  try {
+    const { app, page } = await launch(fixture, server.url, { ULM_CLAUDE_API_BASE_URL: account.url });
+    await watchTray(app, page);
+    await expect(card(page, 'claude')).toContainText('오래된 값');
+    await expect(card(page, 'claude')).not.toContainText('정상');
+    await expect(card(page, 'claude')).toContainText('잠시 조회를 막았어요 (429)');
+    await expect(card(page, 'claude')).toContainText('14시간 전 값이라 지금과 다를 수 있어요');
+    await expect(card(page, 'claude')).toContainText('Claude 앱과 VS Code에서 쓴 양은');
+    await expect.poll(() => trayTitle(app)).toMatch(/^CC 35\/14%\? /);
+    await capture(page, 'usage-claude-stale');
     await app.close();
   } finally {
     await account.close();

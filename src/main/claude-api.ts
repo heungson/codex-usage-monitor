@@ -41,13 +41,14 @@ export function parseRetryAfter(value: string | null, now: number): number | nul
 }
 
 /**
- * The least wait after the n-th 429 in a row: 2, 4, 8, 16, then 30 minutes (developer, 2026-11-05).
- * Asking again every minute kept the app shut out (seen 2026-11-05). A longer Retry-After is kept;
- * a shorter one is not, since Anthropic answers this endpoint's 429 with «Retry-After: 0» and keeps
- * refusing (anthropics/claude-code issues 30930, 31637).
+ * The least wait after the n-th 429 in a row: 2, 4, 8, then 10 minutes. Asking again every minute
+ * kept the app shut out (seen 2026-11-05). A longer Retry-After is kept; a shorter one is not, since
+ * Anthropic answers this endpoint's 429 with «Retry-After: 0» and keeps refusing (anthropics/
+ * claude-code issues 30930, 31637). The cap was 30 minutes until 2026-11-11 (developer): with the
+ * account the only source that counts the Claude app and VS Code, 30 minutes left values far behind.
  */
 export function rateLimitBackoffMs(consecutive: number): number {
-  return Math.min(2 ** Math.max(1, consecutive), 30) * 60_000;
+  return Math.min(2 ** Math.max(1, consecutive), 10) * 60_000;
 }
 
 function parseLogin(text: string): ClaudeLogin | null {
@@ -176,6 +177,11 @@ export interface ClaudeSourceOptions extends AccountUsageOptions {
   minIntervalMs: number;
 }
 
+/** A person asked (새로 고침, or opening the popover), rather than the timer. */
+export interface ReadOptions {
+  manual?: boolean;
+}
+
 /**
  * The Claude Code reader: the account's limits when they can be had, else the status line record
  * with the reason. Whichever was updated last wins, so a Claude Code session drawing its status line
@@ -183,16 +189,26 @@ export interface ClaudeSourceOptions extends AccountUsageOptions {
  *
  * Fewer requests (developer, 2026-11-05, after «계정 조회 실패 · 429» on 2026-11-05): no request
  * while the record is fresh, and after a 429 none until Retry-After or the backoff has passed.
+ *
+ * Changed 2026-11-11 (developer, after the card showed 14% from a 14-hour-old record while
+ * Anthropic's page said 21%): a failed request no longer throws away the last account answer, which
+ * is often far newer than the record, since the Claude app and VS Code never draw a status line.
+ * And a person asking (새로 고침, opening the popover) asks once even during a 429 backoff, at most
+ * once per interval.
  */
-export function claudeSource(options: ClaudeSourceOptions): () => Promise<CliUsage | null> {
+export function claudeSource(options: ClaudeSourceOptions): (read?: ReadOptions) => Promise<CliUsage | null> {
   const now = options.now ?? Date.now;
-  let last: { usage: CliUsage | null; problem: string | null; retryAt: number | null } | null = null;
+  let account: CliUsage | null = null;
+  let failure: { problem: string; retryAt: number | null } | null = null;
+  let lastAskAt = -Infinity;
   let nextAskAt = 0;
   let rateLimited = 0;
 
   async function ask(at: number): Promise<void> {
+    lastAskAt = at;
     try {
-      last = { usage: await fetchAccountUsage(options), problem: null, retryAt: null };
+      account = await fetchAccountUsage(options);
+      failure = null;
       rateLimited = 0;
       nextAskAt = at + options.minIntervalMs;
     } catch (error) {
@@ -207,11 +223,11 @@ export function claudeSource(options: ClaudeSourceOptions): () => Promise<CliUsa
       } else {
         nextAskAt = at + options.minIntervalMs;
       }
-      last = { usage: null, problem, retryAt };
+      failure = { problem, retryAt };
     }
   }
 
-  return async () => {
+  return async (read = {}) => {
     const at = now();
     let record: CliUsage | null = null;
     let recordError: unknown = null;
@@ -221,28 +237,28 @@ export function claudeSource(options: ClaudeSourceOptions): () => Promise<CliUsa
       recordError = error;
     }
     const recordFresh = record?.updatedAt != null && at - record.updatedAt < options.minIntervalMs;
-    if (!recordFresh && at >= nextAskAt) await ask(at);
+    const due = at >= nextAskAt || (read.manual === true && at - lastAskAt >= options.minIntervalMs);
+    if (!recordFresh && due) await ask(at);
 
-    const account = last?.usage ?? null;
-    if (account) {
-      // The account answer stands when the record is broken or older.
-      return record && (record.updatedAt ?? 0) > (account.updatedAt ?? 0)
-        ? { ...record, source: 'statusline' }
-        : account;
-    }
-    if (recordError) throw recordError;
     // No login at all (an API key user, or never signed in) is the record-only setup, not a failure.
     // A fresh record is current, so an earlier failure to ask the account does not matter now.
-    const problem = recordFresh || last?.problem === noLogin ? null : (last?.problem ?? null);
-    if (record) {
-      // A 429 with the record to show is a pause, not a failure (developer, 2026-11-05: «just fix
-      // this» on «계정 조회 실패 · 429»): the record is shown as usual with when the account is
-      // asked next.
-      if (problem !== null && last?.retryAt != null)
-        return { ...record, source: 'statusline', accountProblem: null, accountRetryAt: last.retryAt };
-      return { ...record, source: 'statusline', accountProblem: problem };
-    }
-    if (problem === null) return null;
-    throw new Error(problem);
+    const current = recordFresh || failure?.problem === noLogin ? null : failure;
+    // A 429 with a value to show is a pause, not a failure (developer, 2026-11-05: «just fix this»
+    // on «계정 조회 실패 · 429»): the value is shown as usual with when the account is asked next.
+    const note =
+      current === null
+        ? { accountProblem: null }
+        : current.retryAt !== null
+          ? { accountProblem: null, accountRetryAt: current.retryAt }
+          : { accountProblem: current.problem };
+
+    // The newer of the last account answer and the record; the account stands when the record is
+    // broken.
+    const recordNewer = record !== null && (record.updatedAt ?? 0) > (account?.updatedAt ?? -Infinity);
+    if (account && !recordNewer) return current === null ? account : { ...account, ...note };
+    if (recordError && !account) throw recordError;
+    if (record) return { ...record, source: 'statusline', ...note };
+    if (current === null) return null;
+    throw new Error(current.problem);
   };
 }

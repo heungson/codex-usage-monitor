@@ -1,6 +1,6 @@
 // Korean wording for windows and times, shared by the popover and the notifications.
 
-import type { UsageWindow } from './types';
+import type { CliUsage, UsageWindow } from './types';
 
 const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -78,4 +78,21 @@ export function describeReset(resetsAt: number, now: number = Date.now()): strin
 /** «오늘 14:28 (3분 전)». */
 export function describePast(at: number, now: number = Date.now()): string {
   return `${formatDateTime(at, now)} (${formatDuration(now - at)} 전)`;
+}
+
+/**
+ * Claude Code values older than this, while Anthropic cannot be asked, are marked 오래된 값
+ * (developer, 2026-11-11).
+ */
+export const claudeStaleAfterMs = 10 * 60_000;
+
+/**
+ * True when the Claude Code values shown are more than 10 minutes old and the account could not be
+ * asked (a 429 pause or a failure). Before 2026-11-11 the card said 정상 on a value 14 hours old
+ * (developer, «it happened again»): the Claude app and VS Code never draw a status line, so the
+ * record stops while the use goes on. With no login the record is the only source and is not marked.
+ */
+export function claudeStale(usage: CliUsage, now: number = Date.now()): boolean {
+  const accountBlocked = usage.accountProblem != null || usage.accountRetryAt != null;
+  return accountBlocked && usage.updatedAt !== null && now - usage.updatedAt > claudeStaleAfterMs;
 }

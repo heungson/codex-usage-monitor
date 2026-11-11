@@ -33,6 +33,24 @@ the app's earlier rule «uses no token, sends nothing»; the planner has not see
   read stays as it was; only what is shown is worked out at the time (`currentPercent` in
   `src/shared/format.ts`). A 1-point difference on a window still running (60% here, 61% on the
   page) is the record's age: it is the value when Claude Code last drew its status line.
+- Changed 2026-11-11 (developer, «we tried to fix this issue multiple times but it still
+  persists», then «it happened again»: the card said 정상 on 14% from a record 14 hours old while
+  Anthropic's page said 21%, and the day before 18% from a record 46 minutes old against 74%).
+  Found: this Mac runs Claude Code mostly inside the Claude app and the VS Code extension, both
+  started with `--output-format stream-json`, which never draw a status line, so the record stops
+  while use goes on; and a single 429 threw away the last account answer, so the card fell back to
+  that old record. A request from this session with Python and with Node's `fetch` got HTTP 200 at
+  the same time, so the 429 is not tied to the client. The developer chose all three of:
+  - A failed request keeps the last account answer; the newer of it and the record is shown.
+  - Values more than 10 minutes old while Anthropic cannot be asked show the badge «오래된 값» (or
+    «계정 조회 실패» for other failures), a line «N 전 값이라 지금과 다를 수 있어요», with «Claude 앱과
+    VS Code에서 쓴 양은 상태 표시줄 기록에 들어가지 않아요» when the record is shown, and a trailing «?»
+    in the menu bar. With no login the record is the only source and is not marked
+    (`claudeStale` in `src/shared/format.ts`).
+  - The 429 backoff is 2, 4, 8, then 10 minutes (was up to 30), and 새로 고침, opening the popover or
+    다시 시도 asks once even during the backoff, at most once a minute.
+  - Accepted: nothing else can count use in the Claude app or VS Code. claude.ai's own usage
+    request needs the browser's cookies, so the account endpoint stays the only such source.
 - The login is only read. The app never uses the refresh token: renewing replaces the stored login
   and could sign Claude Code out. A login past `expiresAt` is not sent; the card says Claude Code
   renews it when run.

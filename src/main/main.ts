@@ -283,11 +283,12 @@ function applyWindowSettings(): void {
 ipcMain.handle('usage:get', () => usageSnapshot());
 ipcMain.handle('usage:refresh', async (_event, automatic: unknown) => {
   const auto = automatic === true;
-  await Promise.all([collectors.claude.refresh(auto), collectors.codex.refresh(auto)]);
+  // Not the screen's timer: 새로 고침 or opening the popover, so a person asked (developer, 2026-11-11).
+  await Promise.all([collectors.claude.refresh(auto, !auto), collectors.codex.refresh(auto)]);
   return usageSnapshot();
 });
 ipcMain.handle('usage:retry', async (_event, cli: CliId) => {
-  await collectors[cli].refresh();
+  await collectors[cli].refresh(false, true);
   return usageSnapshot();
 });
 ipcMain.handle('reset-alerts:dismiss', () => {

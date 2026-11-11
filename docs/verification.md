@@ -1,5 +1,29 @@
 # Verification
 
+## Claude Code values no longer fall back to an old record after a 429 (2026-11-11)
+
+No PRS issue; asked for by the developer after the card twice showed values far behind Anthropic's
+page (decision of 2026-11-11 in `docs/decisions.md`). The PRS MCP servers did not connect, so no
+`record_verification` entry was written.
+
+- Live endpoint, four requests from this session with the Keychain login: 2026-11-10 18:34 Python
+  HTTP 200 (5시간 75%, 7일 14%); 2026-11-11 10:18 Python HTTP 200 (21%, 21%), Node `fetch` with its
+  default User-Agent HTTP 200, and with `claude-code/2.1.321` HTTP 200. The installed app showed a
+  429 pause at the same time.
+- Processes on 2026-11-10: Claude Code sessions in Claude.app and the VS Code extension ran with
+  `--output-format stream-json`; the record stayed 46 minutes old while their transcripts changed.
+- `npm run typecheck`, `npm run lint`, `npm run format:check`: passed.
+- `npm test`: 201 passed. New in `test/claude-api.test.ts`: the account answer is kept through a
+  429 against a 14-hour-old record; a person's ask during a backoff asks once, at most once a minute;
+  the backoff is 2, 4, 8, 10, 10 minutes. New in `test/format.test.ts`: «?» in the menu bar after 10
+  minutes while paused or failed, not with no login.
+- `npm run test:e2e`: 78 passed, 2 skipped. `e2e/usage.spec.ts` changed: after a 401 the card keeps
+  the account's 10% and says «계정 조회 실패»; new test for «오래된 값», the age line, the Claude 앱 and
+  VS Code line and «CC 35/14%?». Captures `tmp/e2e-shots/usage-claude-stale-1.png` and
+  `usage-claude-account-paused-1.png` opened and looked at.
+- Not checked: the installed app (not rebuilt or reinstalled); how often Anthropic answers 429 with
+  the new 10-minute cap over a day.
+
 ## The theme picker in three groups (2026-11-10)
 
 No PRS issue; asked for by the developer. The PRS MCP servers did not connect, so no
