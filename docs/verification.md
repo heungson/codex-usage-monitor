@@ -1,5 +1,22 @@
 # Verification
 
+## Folding usage cards (2026-11-11)
+
+No PRS issue; asked for by the developer (decision of 2026-11-11 in `docs/decisions.md`). The PRS
+MCP servers did not connect, so no `record_verification` entry was written.
+
+- `npm run typecheck`, `npm run lint`, `npm run format:check`: passed.
+- `npm test`: 202 passed. New in `test/window-settings.test.ts`: folded cards are kept in screen
+  order, unfolding removes one, and a file from before folding or with an unknown card reads safely.
+- `npm run test:e2e`: 79 passed, 2 skipped. New in `e2e/usage.spec.ts`: Codex and 예정 리셋 fold, Codex keeps
+  «44%» and 정상, the fold button on 예정 리셋 does not open the reset screen while the rest of the
+  card still does, both stay folded after a restart, and Codex opens again.
+- The first full run failed «theme contrast»: the 20 px button made each title line taller and the
+  usage screen no longer fit 600 px. Fixed with negative margins; before and after captures of 고대비
+  compared side by side (`tmp/contrast-compare.png`) match in height. Captures opened:
+  `tmp/e2e-shots/usage-folded-1.png`, arcade dark and pixel light usage screens.
+- Not checked: the installed app (not rebuilt or reinstalled).
+
 ## Claude Code values no longer fall back to an old record after a 429 (2026-11-11)
 
 No PRS issue; asked for by the developer after the card twice showed values far behind Anthropic's

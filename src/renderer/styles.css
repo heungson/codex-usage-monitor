@@ -301,6 +301,32 @@ main {
   gap: var(--s1);
 }
 
+/* Folds the card to its title line (developer, 2026-11-11); as small as the header's other marks. */
+.collapse-toggle {
+  width: 20px;
+  height: 20px;
+  /* A 20 px target that takes no height of its own: 고대비 overflowed the popover by a few pixels. */
+  margin: -4px -4px -4px 0;
+}
+
+.collapse-toggle .icon {
+  width: 12px;
+  height: 12px;
+}
+
+/* Up while open (fold it up), down while folded (open it down): never the › of the reset screen. */
+.collapse-toggle[aria-expanded='true'] .icon {
+  transform: rotate(180deg);
+}
+
+/* Folded, the usage card keeps its percentages beside the badge. */
+.head-summary {
+  color: var(--text);
+  font-size: var(--fs-small);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
 .card-actions {
   display: flex;
   gap: var(--s2);

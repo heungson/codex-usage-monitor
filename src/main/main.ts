@@ -5,7 +5,14 @@ import { join } from 'node:path';
 
 import electron, { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron';
 
-import type { CliId, SourceState, UsageSnapshot, View } from '../shared/types';
+import {
+  usageCards,
+  type CliId,
+  type SourceState,
+  type UsageCard,
+  type UsageSnapshot,
+  type View,
+} from '../shared/types';
 import { isThemeId } from '../shared/themes';
 import { claudeSource, fileLogin, keychainLogin } from './claude-api';
 import { claudeReader } from './claude-reader';
@@ -350,6 +357,11 @@ ipcMain.handle('window:workdays-only', (_event, on: unknown) =>
 );
 ipcMain.handle('window:theme', (_event, theme: unknown) =>
   isThemeId(theme) ? windowSettings.setTheme(theme) : windowSettings.current,
+);
+ipcMain.handle('window:collapse', (_event, card: unknown, collapsed: unknown) =>
+  usageCards.includes(card as UsageCard) && typeof collapsed === 'boolean'
+    ? windowSettings.setCollapsed(card as UsageCard, collapsed)
+    : windowSettings.current,
 );
 ipcMain.handle('login-item:get', () => loginItem.status());
 ipcMain.handle('login-item:set', (_event, on: unknown) =>

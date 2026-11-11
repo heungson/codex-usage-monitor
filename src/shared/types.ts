@@ -139,6 +139,10 @@ export interface ResetsSnapshot {
 
 export type View = 'usage' | 'claude-setup' | 'resets' | 'settings';
 
+/** The usage screen's three cards, each of which can be folded to its title line (developer, 2026-11-11). */
+export type UsageCard = 'claude' | 'codex' | 'upcoming';
+export const usageCards: readonly UsageCard[] = ['claude', 'codex', 'upcoming'];
+
 /** Window settings shared by the three screens and kept across restarts (FC-F019). */
 export interface WindowSettings {
   alwaysOnTop: boolean;
@@ -149,6 +153,12 @@ export interface WindowSettings {
   workdaysOnly: boolean;
   /** The look chosen on the 설정 screen (developer, 2026-11-05); 기본 until changed. */
   theme: ThemeId;
+  /**
+   * Usage screen cards folded to their title line (developer, 2026-11-11: «some user might need
+   * Claude Code but not Codex or Codex Reset»). Only the screen changes; the menu bar title and the
+   * alerts stay as they are. None until one is folded.
+   */
+  collapsed: UsageCard[];
 }
 
 /** «로그인 시 자동 실행» on the 설정 screen, as macOS reports it (developer, 2026-11-04). */
@@ -189,6 +199,7 @@ export interface MonitorApi {
   setAlwaysOnTop(on: boolean): Promise<WindowSettings>;
   setWorkdaysOnly(on: boolean): Promise<WindowSettings>;
   setTheme(theme: ThemeId): Promise<WindowSettings>;
+  setCollapsed(card: UsageCard, collapsed: boolean): Promise<WindowSettings>;
   getLoginItem(): Promise<LoginItemStatus>;
   setOpenAtLogin(on: boolean): Promise<LoginItemStatus>;
   /** System Settings › General › Login Items, where macOS asks to allow the item. */

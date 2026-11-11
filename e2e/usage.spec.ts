@@ -374,6 +374,52 @@ test('Claude Code values over 10 minutes old that Anthropic will not refresh are
   }
 });
 
+test('each usage card folds to its title line, keeps its percentages, and stays folded after a restart (developer 2026-11-11)', async () => {
+  writeClaude(fixture, 20, 14);
+  writeCodex(fixture, 44);
+  const fold = (page: import('@playwright/test').Page, name: string) =>
+    page.getByRole('button', { name: `${name} 접기` });
+  const unfold = (page: import('@playwright/test').Page, name: string) =>
+    page.getByRole('button', { name: `${name} 펼치기` });
+  const upcomingCard = (page: import('@playwright/test').Page) =>
+    page.locator('section[data-area="upcoming"]');
+
+  let { app, page } = await launch(fixture, server.url);
+  await expect(card(page, 'codex')).toContainText('7일 한도');
+  await expect(upcomingCard(page)).toContainText('예정 리셋 없음');
+  await expect(fold(page, 'Codex')).toHaveAttribute('aria-expanded', 'true');
+
+  await fold(page, 'Codex').click();
+  await expect(card(page, 'codex')).not.toContainText('7일 한도');
+  await expect(card(page, 'codex')).toContainText('44%');
+  await expect(card(page, 'codex')).toContainText('정상');
+  await expect(unfold(page, 'Codex')).toHaveAttribute('aria-expanded', 'false');
+  // The fold button on 예정 리셋 folds it; it does not open the reset screen like the rest of the card.
+  await fold(page, 'Codex 예정 리셋').click();
+  await expect(page.locator('h1')).toHaveText('사용량 현황');
+  await expect(upcomingCard(page)).not.toContainText('예정 리셋 없음');
+  await expect(upcomingCard(page)).not.toContainText('codex-resets.com');
+  await expect(card(page, 'claude')).toContainText('5시간 한도');
+  await capture(page, 'usage-folded');
+
+  await app.close();
+  ({ app, page } = await launch(fixture, server.url));
+  await expect(unfold(page, 'Codex')).toBeVisible();
+  await expect(card(page, 'codex')).not.toContainText('7일 한도');
+  await expect(unfold(page, 'Codex 예정 리셋')).toBeVisible();
+  expect(JSON.parse(readFileSync(join(fixture.dataDir, 'window-settings.json'), 'utf8')).collapsed).toEqual([
+    'codex',
+    'upcoming',
+  ]);
+  // The rest of a folded 예정 리셋 card still opens the reset screen.
+  await clickUpcomingArea(page);
+  await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
+  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await unfold(page, 'Codex').click();
+  await expect(card(page, 'codex')).toContainText('7일 한도');
+  await app.close();
+});
+
 const mode = (value: object) =>
   writeFileSync(fixture.modeFile, JSON.stringify({ status: 'ok', history: 'ok', ...value }));
 const upcoming = (page: import('@playwright/test').Page) => page.locator('section[data-area="upcoming"]');

@@ -6,12 +6,13 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 import { isThemeId, type ThemeId } from '../shared/themes';
-import type { WindowSettings } from '../shared/types';
+import { usageCards, type UsageCard, type WindowSettings } from '../shared/types';
 
 export const defaultWindowSettings: WindowSettings = {
   alwaysOnTop: false,
   workdaysOnly: false,
   theme: 'default',
+  collapsed: [],
 };
 
 export class WindowSettingsStore {
@@ -22,7 +23,7 @@ export class WindowSettingsStore {
   }
 
   get current(): WindowSettings {
-    return { ...this.value };
+    return { ...this.value, collapsed: [...this.value.collapsed] };
   }
 
   setAlwaysOnTop(on: boolean): WindowSettings {
@@ -37,6 +38,14 @@ export class WindowSettingsStore {
   /** The look on the 설정 screen (developer, 2026-11-05). */
   setTheme(theme: ThemeId): WindowSettings {
     return this.save({ ...this.value, theme });
+  }
+
+  /** A usage screen card folded to its title line, or opened again (developer, 2026-11-11). */
+  setCollapsed(card: UsageCard, collapsed: boolean): WindowSettings {
+    const others = this.value.collapsed.filter((c) => c !== card);
+    // Kept in screen order, so the file reads the same however the cards were folded.
+    const next = usageCards.filter((c) => others.includes(c) || (collapsed && c === card));
+    return this.save({ ...this.value, collapsed: next });
   }
 
   private save(value: WindowSettings): WindowSettings {
@@ -56,6 +65,8 @@ export class WindowSettingsStore {
         workdaysOnly: raw.workdaysOnly === true,
         // A file from before themes, or one naming a theme this version lacks, gets 기본.
         theme: isThemeId(raw.theme) ? raw.theme : 'default',
+        // A file from before folding, or one naming a card this version lacks, folds nothing extra.
+        collapsed: Array.isArray(raw.collapsed) ? usageCards.filter((c) => raw.collapsed!.includes(c)) : [],
       };
     } catch {
       return { ...defaultWindowSettings };

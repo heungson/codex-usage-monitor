@@ -14,6 +14,7 @@ describe('WindowSettingsStore', () => {
       alwaysOnTop: false,
       workdaysOnly: false,
       theme: 'default',
+      collapsed: [],
     });
   });
 
@@ -26,6 +27,7 @@ describe('WindowSettingsStore', () => {
       alwaysOnTop: false,
       workdaysOnly: false,
       theme: 'default',
+      collapsed: [],
     });
   });
 
@@ -43,6 +45,7 @@ describe('WindowSettingsStore', () => {
       alwaysOnTop: true,
       workdaysOnly: true,
       theme: 'default',
+      collapsed: [],
     });
     // A file from before the setting existed reads as off.
     writeFileSync(file, JSON.stringify({ alwaysOnTop: true }));
@@ -58,5 +61,20 @@ describe('WindowSettingsStore', () => {
     expect(new WindowSettingsStore(file).current.theme).toBe('default');
     writeFileSync(file, JSON.stringify({ alwaysOnTop: true }));
     expect(new WindowSettingsStore(file).current.theme).toBe('default');
+  });
+
+  it('keeps folded usage cards in screen order, and ignores unknown ones (developer, 2026-11-11)', () => {
+    const file = join(tempDir(), 'window-settings.json');
+    new WindowSettingsStore(file).setCollapsed('upcoming', true);
+    new WindowSettingsStore(file).setCollapsed('codex', true);
+    new WindowSettingsStore(file).setCollapsed('codex', true);
+    expect(new WindowSettingsStore(file).current.collapsed).toEqual(['codex', 'upcoming']);
+    new WindowSettingsStore(file).setCollapsed('upcoming', false);
+    expect(JSON.parse(readFileSync(file, 'utf8')).collapsed).toEqual(['codex']);
+    // A file from before folding, or with a card this version lacks.
+    writeFileSync(file, JSON.stringify({ alwaysOnTop: true }));
+    expect(new WindowSettingsStore(file).current.collapsed).toEqual([]);
+    writeFileSync(file, JSON.stringify({ collapsed: ['gone', 'claude', 7] }));
+    expect(new WindowSettingsStore(file).current.collapsed).toEqual(['claude']);
   });
 });

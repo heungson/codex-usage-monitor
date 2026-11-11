@@ -106,6 +106,23 @@ old. The renderer is plain TypeScript without a UI framework: three small screen
 Bundled with esbuild; unit tests with Vitest; the app is driven end to end with Playwright's
 Electron support.
 
+## Folding usage cards (developer, 2026-11-11)
+
+Asked for by the developer: «could you add buttons to collapse sections? For example, some user
+might need Claude Code but not Codex or Codex Reset.» Settled in the coding session, to confirm with
+the developer:
+
+- Each of the three usage screen cards (Claude Code, Codex, Codex 예정 리셋) has a button at the end of
+  its title line, «… 접기» / «… 펼치기», with `aria-expanded`. Its arrow points up while open and down
+  while folded, so it never looks like the › that opens the reset screen.
+- A folded card keeps its title line: the name, the badge and, for Claude Code and Codex, the
+  percentages as the menu bar shows them («44%», «20/14%»). The rest of a folded 예정 리셋 card still
+  opens the reset screen.
+- Folding is a screen setting, kept with the others in `window-settings.json` (`collapsed`) across
+  restarts. The menu bar title and the alerts do not change; hiding a CLI from them is not done.
+- The button takes no height in the title line (negative margins): with 20 px of its own, 고대비 no
+  longer fit the popover (`e2e/look.spec.ts`).
+
 ## 설정 › «로그인 시 자동 실행» (developer, 2026-11-04)
 
 Asked for directly by the developer 이흥선 in the coding session; no PRS item. A 설정 screen, opened

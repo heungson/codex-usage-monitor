@@ -30,6 +30,7 @@ import type {
   ResetsSnapshot,
   SourceState,
   UsageWindow,
+  UsageCard,
   UsageSnapshot,
   View,
   WindowSettings,
@@ -66,7 +67,7 @@ const state: {
   integration: null,
   applying: false,
   resets: null,
-  window: { alwaysOnTop: false, workdaysOnly: false, theme: 'default' },
+  window: { alwaysOnTop: false, workdaysOnly: false, theme: 'default', collapsed: [] },
   loginItem: null,
   savingLoginItem: false,
 };
@@ -81,6 +82,8 @@ const cliNames: Record<CliId, string> = { claude: 'Claude Code', codex: 'Codex' 
 
 const chevronRight =
   '<svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" /></svg>';
+const chevronDown =
+  '<svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6 8 10.5 12.5 6" /></svg>';
 const refreshIcon =
   '<svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.46-3.54" /><path d="M13 2.5v3h-3" /></svg>';
 const gearIcon =
@@ -194,6 +197,31 @@ function retryLine(cli: CliId, source: Extract<SourceState, { kind: 'error' }>):
     </div>`;
 }
 
+const cardNames: Record<UsageCard, string> = { ...cliNames, upcoming: 'Codex 예정 리셋' };
+
+const isCollapsed = (card: UsageCard) => state.window.collapsed.includes(card);
+
+/**
+ * Folds a usage screen card to its title line, or opens it (developer, 2026-11-11). The arrow
+ * points up while open and down while folded, so it never looks like the › that opens the reset
+ * screen.
+ */
+function collapseButton(card: UsageCard): string {
+  const collapsed = isCollapsed(card);
+  const label = `${cardNames[card]} ${collapsed ? '펼치기' : '접기'}`;
+  return `<button class="icon-button collapse-toggle" data-action="collapse" data-card="${card}"
+            data-key="collapse-${card}" aria-expanded="${!collapsed}" aria-label="${label}" title="${label}">
+            ${chevronDown}</button>`;
+}
+
+/** Folded, the usage card keeps its windows as «20/14%», shorter first, as the menu bar does. */
+function foldedSummary(usage: CliUsage | null): string {
+  if (!usage || usage.windows.length === 0) return '';
+  const now = Date.now();
+  const values = [...usage.windows].sort(shorterFirst).map((w) => Math.round(currentPercent(w, now)));
+  return `<span class="head-summary">${values.join('/')}%</span>`;
+}
+
 function sourceCard(cli: CliId, source: SourceState): string {
   let badge = '';
   let body = '';
@@ -238,11 +266,12 @@ function sourceCard(cli: CliId, source: SourceState): string {
   }
   const shown = source.kind === 'ok' ? source.usage : source.kind === 'error' ? source.lastGood : null;
   const plan = shown?.planType ? `<span class="head-note">요금제 ${escapeHtml(shown.planType)}</span>` : '';
+  const collapsed = isCollapsed(cli);
   return `
-    <section class="card${stale ? ' is-stale' : ''}" data-cli="${cli}" aria-label="${cliNames[cli]}">
-      <div class="card-head"><h2>${cliNames[cli]}${plan}</h2>${badge}</div>
-      ${freshnessHtml(cli, shown)}
-      ${body}
+    <section class="card${stale ? ' is-stale' : ''}${collapsed ? ' is-collapsed' : ''}" data-cli="${cli}" aria-label="${cliNames[cli]}">
+      <div class="card-head"><h2>${cliNames[cli]}${collapsed ? '' : plan}</h2>
+        <span class="head-end">${collapsed ? foldedSummary(shown) : ''}${badge}${collapseButton(cli)}</span></div>
+      ${collapsed ? '' : freshnessHtml(cli, shown) + body}
     </section>`;
 }
 
@@ -292,16 +321,21 @@ function upcomingCard(): string {
       areaError('status', s, '예정 리셋') +
       (s.lastGood ? `<div class="stale">${upcomingBody(s.lastGood)}</div>` : '');
   }
+  const collapsed = isCollapsed('upcoming');
   return `
-    <section class="card upcoming" data-area="upcoming" data-action="go" data-view="resets" aria-label="Codex 예정 리셋">
+    <section class="card upcoming${collapsed ? ' is-collapsed' : ''}" data-area="upcoming" data-action="go" data-view="resets" aria-label="Codex 예정 리셋">
       <button class="upcoming-open" data-action="go" data-view="resets" data-key="open-resets"
               aria-label="Codex 전체 리셋 자세히 보기" title="Codex 전체 리셋 자세히 보기"></button>
       <div class="card-head">
         <h2>Codex 예정 리셋</h2>
-        <span class="head-end">${badge}<span class="chevron" aria-hidden="true">${chevronRight}</span></span>
+        <span class="head-end">${badge}<span class="chevron" aria-hidden="true">${chevronRight}</span>${collapseButton('upcoming')}</span>
       </div>
-      ${content}
-      <p class="source">출처 <button class="link" data-action="external" data-url="${resetsSite}">codex-resets.com</button></p>
+      ${
+        collapsed
+          ? ''
+          : `${content}
+      <p class="source">출처 <button class="link" data-action="external" data-url="${resetsSite}">codex-resets.com</button></p>`
+      }
     </section>`;
 }
 
@@ -686,6 +720,13 @@ root.addEventListener('click', (event) => {
   if (!target) return;
   const { action } = target.dataset;
   if (action === 'go') void go(target.dataset.view as View);
+  if (action === 'collapse' && target.dataset.card) {
+    const card = target.dataset.card as UsageCard;
+    void monitor.setCollapsed(card, !isCollapsed(card)).then((settings) => {
+      state.window = settings;
+      render();
+    });
+  }
   if (action === 'refresh' && !state.refreshing) {
     void monitor.retryResets('status').then((snapshot) => {
       state.resets = snapshot;
