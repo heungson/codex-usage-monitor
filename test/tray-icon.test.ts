@@ -1,8 +1,8 @@
-// The menu bar clock: time left in the Claude Code 5시간 window (developer, 2026-11-11).
+// The menu bar clock: fuller as the Claude Code 5시간 reset nears (developer, 2026-11-11).
 
 import { describe, expect, it } from 'vitest';
 
-import { clockBitmap, iconPoints, iconScale, shareStep, timeLeftShare } from '../src/main/tray-icon';
+import { clockBitmap, iconPoints, iconScale, shareStep, elapsedShare } from '../src/main/tray-icon';
 import { MenuBarTitle } from '../src/main/tray-title';
 import type { SourceState, UsageSnapshot, UsageWindow } from '../src/shared/types';
 
@@ -35,17 +35,19 @@ function alphaAt(pixels: Buffer, clockHour: number, radius: number): number {
   return pixels[(y * size + x) * 4 + 3]!;
 }
 
-describe('timeLeftShare', () => {
-  it('is the share of five hours left until the 5시간 reset', () => {
-    expect(timeLeftShare(ok(five(now + 2.5 * hour), week), now)).toBe(0.5);
-    expect(timeLeftShare(ok(week, five(now + 5 * hour)), now)).toBe(1);
+describe('elapsedShare', () => {
+  it('is the share of five hours gone, growing toward the 5시간 reset', () => {
+    expect(elapsedShare(ok(five(now + 2.5 * hour), week), now)).toBe(0.5);
+    expect(elapsedShare(ok(five(now + 4 * hour)), now)).toBeCloseTo(0.2);
+    expect(elapsedShare(ok(five(now + 30 * 60_000)), now)).toBeCloseTo(0.9);
+    expect(elapsedShare(ok(week, five(now + 5 * hour)), now)).toBe(0);
   });
 
   it('is 0 past the reset, and null without a 5시간 window or reset time', () => {
-    expect(timeLeftShare(ok(five(now - 60_000)), now)).toBe(0);
-    expect(timeLeftShare(ok(week), now)).toBeNull();
-    expect(timeLeftShare(ok(five(null)), now)).toBeNull();
-    expect(timeLeftShare({ kind: 'waiting' }, now)).toBeNull();
+    expect(elapsedShare(ok(five(now - 60_000)), now)).toBe(0);
+    expect(elapsedShare(ok(week), now)).toBeNull();
+    expect(elapsedShare(ok(five(null)), now)).toBeNull();
+    expect(elapsedShare({ kind: 'waiting' }, now)).toBeNull();
   });
 
   it('uses the last good value after a failed read', () => {
@@ -56,7 +58,7 @@ describe('timeLeftShare', () => {
       nextRetryAt: null,
       retrying: false,
     };
-    expect(timeLeftShare(failed, now)).toBe(0.2);
+    expect(elapsedShare(failed, now)).toBe(0.8);
   });
 
   it('rounds to steps of 1/120 of a turn', () => {
@@ -66,7 +68,7 @@ describe('timeLeftShare', () => {
 });
 
 describe('clockBitmap', () => {
-  it("draws the ring always, and the wedge clockwise from 12 o'clock for the share left", () => {
+  it("draws the ring always, and the wedge clockwise from 12 o'clock for the share given", () => {
     const half = clockBitmap(0.5);
     expect(half).toHaveLength(size * size * 4);
     expect(alphaAt(half, 9, 12.5)).toBe(255); // ring
@@ -101,7 +103,7 @@ describe('MenuBarTitle clock', () => {
     expect(drawn).toEqual([0.5]);
     at += 2.5 * 60_000;
     title.setUsage(snapshot(ok(five(now + 2.5 * hour))));
-    expect(drawn).toEqual([0.5, shareStep(0.5 - 1 / 120)]);
+    expect(drawn).toEqual([0.5, shareStep(0.5 + 1 / 120)]);
     title.setHidden(['claude']);
     expect(drawn.at(-1)).toBeNull();
     title.stop();

@@ -130,8 +130,11 @@ The developer asked whether the clock-like menu bar icon showed the time left un
 it should show time or usage, the developer answered «Time. The current clock like icon is ok.»
 
 - The icon keeps the old picture's ring and wedge (measured from the 32-px asset) and is drawn by
-  the app (`src/main/tray-icon.ts`). The wedge is the share of the five hours left until the
-  Claude Code 5시간 reset, filled clockwise from 12 o'clock, so it empties toward the reset.
+  the app (`src/main/tray-icon.ts`). The wedge is the share of the five hours gone, filled
+  clockwise from 12 o'clock, so the fuller the clock, the closer the Claude Code 5시간 reset; it is
+  full at the reset. Changed the same day (developer, after the installed app: «more the clock is
+  filled, reset is closer. I think it works in the opposite way currently»): the first version
+  showed the share left and emptied toward the reset.
 - Past the reset, or with no 5시간 window or reset time, only the ring is drawn: no window is running
   until Claude Code is used again. A last good value after a failed read still counts down.
 - With Claude Code turned off on 설정 › 메뉴 막대, only the ring is drawn.

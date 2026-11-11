@@ -465,8 +465,9 @@ test('설정 › 메뉴 막대 leaves a CLI out of the menu bar title, and keeps
   await app.close();
 });
 
-test('the menu bar clock shows the time left in the Claude Code 5시간 window (developer 2026-11-11)', async () => {
-  // The 5시간 reset is 2 h 15 min away: 45% of the five hours is left.
+test('the menu bar clock fills as the Claude Code 5시간 reset nears (developer 2026-11-11)', async () => {
+  // The 5시간 reset is 2 h 15 min away: 55% of the five hours is gone, so the wedge passes 3 o'clock
+  // and stops before 9 o'clock.
   writeClaude(fixture, 23, 61);
   writeCodex(fixture, 44);
   const { app, page } = await launch(fixture, server.url);

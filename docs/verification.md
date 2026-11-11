@@ -1,5 +1,19 @@
 # Verification
 
+## The menu bar clock fills toward the reset (2026-11-11)
+
+Asked for by the developer after using the installed app: the clock emptied toward the reset and
+should fill instead (decision of 2026-11-11 in `docs/decisions.md`). No PRS entry (servers not
+connected).
+
+- `npm run typecheck`, `npm run lint`, `npm run format:check`: passed.
+- `npm test`: 214 passed. `test/tray-icon.test.ts` now checks the share gone: 0 at the start of the
+  window, ½ at 2½ hours left, 0.9 with 30 minutes left, 0 past the reset, null without a window.
+- `npm run test:e2e`: 81 passed, 2 skipped. The tray image with the reset 2 h 15 min away, read back from
+  `tmp/e2e-shots/tray-clock@2x.png` as text art, is filled from 12 o'clock to just past 6 o'clock
+  (55%).
+- Not checked: the installed app's real menu bar (not rebuilt yet).
+
 ## The menu bar clock (2026-11-11)
 
 No PRS issue; asked for by the developer (decision of 2026-11-11 in `docs/decisions.md`). The PRS

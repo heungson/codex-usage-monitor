@@ -73,7 +73,7 @@ const menuBarTitle = new MenuBarTitle(
   (share) => tray?.setImage(clockImage(share)),
 );
 
-/** The menu bar clock: time left in the Claude Code 5시간 window (src/main/tray-icon.ts). */
+/** The menu bar clock: fuller as the Claude Code 5시간 reset nears (src/main/tray-icon.ts). */
 function clockImage(share: number | null): Electron.NativeImage {
   const image = nativeImage.createFromBitmap(clockBitmap(share), {
     width: iconPoints * iconScale,

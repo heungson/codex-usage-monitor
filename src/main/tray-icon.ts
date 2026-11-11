@@ -1,8 +1,10 @@
 // The menu bar icon as a clock of the Claude Code 5시간 window (developer, 2026-11-11: «Does the
 // timer like icon actually reflect how much time is left until the 5 hour reset?» — it did not; it
 // was a fixed picture — then «Time. The current clock like icon is ok.»). The same ring and wedge as
-// the old fixed icon; the wedge is the share of the five hours still left, filled clockwise from
-// 12 o'clock, so it empties toward the reset. A template image, so macOS tints it for the menu bar.
+// the old fixed icon; the wedge is the share of the five hours gone, filled clockwise from
+// 12 o'clock, so the fuller the clock, the closer the reset (developer, 2026-11-11: «more the clock
+// is filled, reset is closer»; the first version emptied toward the reset). A template image, so
+// macOS tints it for the menu bar.
 
 import { isOverallWindow } from '../shared/format';
 import type { SourceState } from '../shared/types';
@@ -10,15 +12,16 @@ import type { SourceState } from '../shared/types';
 const fiveHoursMs = 5 * 60 * 60_000;
 
 /**
- * The share of the Claude Code 5시간 window still left, 0 to 1; 0 once its reset has passed (no
- * window runs until Claude Code is used again); null without a 5시간 window or its reset time.
- * A last good value after a failed read still has a reset time worth showing.
+ * The share of the Claude Code 5시간 window gone, 0 to 1, reaching 1 at the reset; 0 once the reset
+ * has passed (no window runs until Claude Code is used again); null without a 5시간 window or its
+ * reset time. A last good value after a failed read still has a reset time worth showing.
  */
-export function timeLeftShare(state: SourceState, now: number): number | null {
+export function elapsedShare(state: SourceState, now: number): number | null {
   const usage = state.kind === 'ok' ? state.usage : state.kind === 'error' ? state.lastGood : null;
   const window = usage?.windows.find((w) => isOverallWindow(w) && w.windowMinutes === 300);
   if (!window || window.resetsAt === null) return null;
-  return Math.max(0, Math.min(1, (window.resetsAt - now) / fiveHoursMs));
+  if (window.resetsAt <= now) return 0;
+  return Math.max(0, Math.min(1, 1 - (window.resetsAt - now) / fiveHoursMs));
 }
 
 /** Icon size in points, and the pixels per point it is drawn at (the old asset's 16 pt, @2x). */
