@@ -968,6 +968,16 @@ code {
   margin-top: var(--s1);
 }
 
+/* 설정 › 언어 (developer, 2026-11-12): the theme picker's options, four names in two columns. */
+.language-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.language-option {
+  justify-content: center;
+  padding-block: 6px;
+}
+
 .theme-option {
   position: relative;
   min-width: 0;

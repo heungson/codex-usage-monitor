@@ -19,7 +19,7 @@ Anthropic. For the last it reads Claude Code's login from the macOS Keychain and
   current without a Claude Code session open. The endpoint is not a documented API and may change.
   When it cannot be asked (no login, an expired login, offline, refused), the card says why and shows
   the status line record instead: Claude Code passes `rate_limits.five_hour` /
-  `rate_limits.seven_day` to its status line command, and «Claude Code 연동 안내 › 연동 적용» makes
+  `rate_limits.seven_day` to its status line command, and «도움말 › Claude Code 연동 안내 › 연동 적용» makes
   this app's hook that command; the hook records the limits and then runs your previous status line
   command, so your status line looks the same. An expired login is renewed by Claude Code the next
   time it runs; the app does not renew it, since that would replace the login Claude Code holds.
@@ -35,6 +35,11 @@ Anthropic. For the last it reads Claude Code's login from the macOS Keychain and
   other windows and can be dragged by its top bar (anywhere but its buttons and switch, also when
   another app is in front); the choice is kept in
   `~/Library/Application Support/usage-limit-monitor/window-settings.json`.
+- **설정 › 언어 · Language**: 한국어 (the default), English, 日本語 or 简体中文, first on 설정 and
+  named in each language. Screens, the menu bar's words, notifications and messages change at once
+  and the choice is kept across restarts. A notice already on screen keeps the words it was made in.
+- **도움말**: the «?» in 사용량 현황's top bar. It holds «Claude Code 연동 안내» and the note on what
+  the Claude Code login is used for; the setup guide's back button returns to 도움말.
 - **설정 › 로그인 시 자동 실행**: the gear in 사용량 현황's top bar opens 설정. On, macOS opens the app
   at login (a login item; macOS keeps the setting, and it also shows in System Settings › General ›
   Login Items). Off until turned on. Only the installed app can turn it on; run from this folder
@@ -95,8 +100,8 @@ The bundle is locally ad-hoc signed, for use on this Mac; it is not a notarized 
 Each packaging run replaces the generated bundle in `tmp/package/`, not an installed copy.
 To update, quit the installed app, build again, and replace it in Applications.
 
-Move the app to its final location **before** applying Claude Code integration. Open «Claude Code
-연동 안내» and apply it from the installed app so the status line command points inside that bundle.
+Move the app to its final location **before** applying Claude Code integration. Open «도움말 ›
+Claude Code 연동 안내» and apply it from the installed app so the status line command points inside that bundle.
 If you previously applied integration from `npm start`, apply it again from the installed app before
 removing this repository. After moving the installed app, apply integration again to update the path.
 
@@ -164,8 +169,8 @@ Used by the checks to point the app at temporary folders. Normal use needs none.
 src/main/       Electron main process: collectors, readers, integration, alerts, reset API
 src/hook/       The status line hook Claude Code runs
 src/preload/    The bridge the popover page uses
-src/renderer/   The popover page: 사용량 현황, Claude Code 연동 안내, Codex 전체 리셋, 설정; styles.css holds the look's tokens and the themes; fonts/ the 픽셀 font
-src/shared/     Types, the Claude record format, Korean time wording
+src/renderer/   The popover page: 사용량 현황, 도움말, Claude Code 연동 안내, Codex 전체 리셋, 설정; styles.css holds the look's tokens and the themes; fonts/ the 픽셀 font
+src/shared/     Types, the Claude record format, time wording, i18n.ts and messages/ (한국어, English, 日本語, 简体中文)
 test/           Unit tests (Vitest)
 e2e/            App checks (Playwright + Electron), a fake codex-resets.com, light/dark captures (look.spec.ts)
 scripts/        Build and icon scripts

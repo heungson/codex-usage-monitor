@@ -13,6 +13,7 @@ import {
   type UsageSnapshot,
   type View,
 } from '../shared/types';
+import { isLanguage, setLanguage, t } from '../shared/i18n';
 import { isThemeId } from '../shared/themes';
 import { claudeSource, fileLogin, keychainLogin } from './claude-api';
 import { claudeReader } from './claude-reader';
@@ -63,7 +64,10 @@ let popover: BrowserWindow | null = null;
  * «종료», in the menu bar item's right-click menu and the app menu (developer, 2026-10-30, comment on
  * LHS-5). app.quit() rather than the quit role, whose native item cannot be driven by the checks.
  */
-const quitItem: Electron.MenuItemConstructorOptions = { label: '종료', click: () => app.quit() };
+const quitItem = (): Electron.MenuItemConstructorOptions => ({
+  label: t('menu.quit'),
+  click: () => app.quit(),
+});
 /** The menu bar item's right-click menu: only «종료». */
 let quitMenu: Menu;
 /** The menu bar text: usage, and the time left to a scheduled Codex reset (LHS-5 개발 항목 5). */
@@ -169,6 +173,8 @@ const resetAlerts = new ResetAlerts(
 );
 
 const windowSettings = new WindowSettingsStore(join(paths.dataDir, dataFiles.windowSettings));
+// Every text the main process makes (menus, notifications, messages) is in this language (2026-11-12).
+setLanguage(windowSettings.current.language);
 menuBarTitle.setHidden(windowSettings.current.menuBarHidden);
 // «로그인 시 자동 실행» (developer, 2026-11-04): only an installed app registers itself; the checks
 // use a file (ULM_FAKE_LOGIN_ITEM) so they never touch the developer's real login items.
@@ -261,7 +267,7 @@ function createPopover(): BrowserWindow {
     // A pinned window sits behind other apps' focus; without this the first click on it only
     // activates the app. The first click now also reaches the page: the top bar drag, buttons.
     acceptFirstMouse: true,
-    title: '사용량 한도 모니터',
+    title: t('app.name'),
     // macOS's translucent popover material behind the page (developer, 2026-11-05), kept active
     // so a pinned window does not turn flat grey when another app is in front.
     backgroundColor: '#00000000',
@@ -381,6 +387,37 @@ ipcMain.handle('window:menu-bar', (_event, cli: unknown, shown: unknown) => {
   menuBarTitle.setHidden(settings.menuBarHidden);
   return settings;
 });
+/**
+ * The menu bar item's tooltip and «종료» menu, and the app menu, in the chosen language. ⌘Q quits
+ * while the popover is open; the Edit menu keeps copy and paste in the popover, which Electron's
+ * default menu gave before this one replaced it.
+ */
+function applyLanguageToShell(): void {
+  tray?.setToolTip(t('app.name'));
+  quitMenu = Menu.buildFromTemplate([quitItem()]);
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      { label: t('app.name'), submenu: [{ ...quitItem(), accelerator: 'Command+Q' }] },
+      { role: 'editMenu' },
+    ]),
+  );
+  popover?.setTitle(t('app.name'));
+}
+
+/**
+ * 설정 › 언어 (developer, 2026-11-12). The menus and the menu bar title change at once; values are
+ * read again so their messages come in the new language. A notice already shown keeps its words.
+ */
+ipcMain.handle('window:language', async (_event, language: unknown) => {
+  if (!isLanguage(language)) return windowSettings.current;
+  const settings = windowSettings.setLanguage(language);
+  setLanguage(language);
+  applyLanguageToShell();
+  menuBarTitle.setHidden(settings.menuBarHidden);
+  await Promise.all([collectors.claude.refresh(), collectors.codex.refresh()]);
+  void resets.refreshStatus();
+  return settings;
+});
 ipcMain.handle('window:collapse', (_event, card: unknown, collapsed: unknown) =>
   usageCards.includes(card as UsageCard) && typeof collapsed === 'boolean'
     ? windowSettings.setCollapsed(card as UsageCard, collapsed)
@@ -407,8 +444,7 @@ app.whenReady().then(() => {
   applyWindowSettings();
 
   tray = new Tray(clockImage(null));
-  tray.setToolTip('사용량 한도 모니터');
-  quitMenu = Menu.buildFromTemplate([quitItem]);
+  applyLanguageToShell();
   // A click opens 사용량 현황 as before; a right click or Control-click opens the «종료» menu
   // (developer, 2026-10-30, comment on LHS-5). Not tray.setContextMenu: macOS would then open the
   // menu on every click.
@@ -417,14 +453,6 @@ app.whenReady().then(() => {
     return popover?.isVisible() ? popover.hide() : showPopover();
   });
   tray.on('right-click', () => tray?.popUpContextMenu(quitMenu));
-  // ⌘Q quits while the popover is open. The Edit menu keeps copy and paste in the popover, which
-  // Electron's default menu gave before this one replaced it.
-  Menu.setApplicationMenu(
-    Menu.buildFromTemplate([
-      { label: '사용량 한도 모니터', submenu: [{ ...quitItem, accelerator: 'Command+Q' }] },
-      { role: 'editMenu' },
-    ]),
-  );
 
   collectors.claude.start();
   collectors.codex.start();

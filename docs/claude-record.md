@@ -46,7 +46,8 @@ or when the record is newer than the last answer.
   `mergeRecord` in `src/shared/claude-record.ts`.
 - The hook writes to a temporary file and renames it over the record, so the reader never sees half
   a file. If the record exists and is not writable, the hook does not replace it: it writes
-  `claude-hook-error.json` (`{ at, message }`) instead, which the 연동 안내 screen shows (LHS-2 검증 9).
+  `claude-hook-error.json` (`{ at, message, code, path }`; `code` and `path` since 2026-11-12, so the
+  app can word the error in its language) instead, which the 연동 안내 screen shows (LHS-2 검증 9).
   The next successful write removes it.
 - The hook then runs the previous status line command saved in `statusline-integration.json` with the
   same input, so the person's status line looks as before (PR-P017).

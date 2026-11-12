@@ -7,7 +7,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
+import { _electron as electron, expect, type ElectronApplication, type Page } from '@playwright/test';
 
 export interface Fixture {
   root: string;
@@ -129,4 +129,20 @@ export async function watchTray(app: ElectronApplication, page: Page): Promise<v
 
 export function trayTitle(app: ElectronApplication): Promise<string | null> {
   return app.evaluate(() => (globalThis as unknown as { tray?: Electron.Tray }).tray?.getTitle() ?? null);
+}
+
+/** The setup guide, reached through 도움말 since 2026-11-12 (it left the usage screen). */
+export async function openSetup(page: Page): Promise<void> {
+  await page.getByRole('button', { name: '도움말', exact: true }).click();
+  await page.getByRole('button', { name: /Claude Code 연동 안내/ }).click();
+  await expect(page.locator('h1')).toHaveText('Claude Code 연동 안내');
+}
+
+/** Back to 사용량 현황, one screen at a time (the setup guide goes back to 도움말 first). */
+export async function backToUsage(page: Page): Promise<void> {
+  for (let step = 0; step < 3; step += 1) {
+    if ((await page.locator('h1').textContent()) === '사용량 현황') break;
+    await page.locator('button[data-action="back"]').click();
+  }
+  await expect(page.locator('h1')).toHaveText('사용량 현황');
 }

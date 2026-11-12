@@ -11,6 +11,7 @@ import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 
 import { formatClock } from '../shared/format';
+import { t } from '../shared/i18n';
 import type { CliUsage, UsageWindow } from '../shared/types';
 
 export interface ClaudeLogin {
@@ -22,12 +23,17 @@ export interface ClaudeLogin {
 /** The login, or null when there is none. Throws with a message a person can act on. */
 export type LoginSource = () => Promise<ClaudeLogin | null>;
 
-const noLogin = 'Claude Code 로그인 정보가 없어요';
+/** No login at all: the record-only setup (an API key user, or never signed in), not a failure. */
+class NoLoginError extends Error {
+  constructor() {
+    super(t('claude.noLogin'));
+  }
+}
 
 /** Anthropic answered 429. `retryAfterMs` is its Retry-After, when it sent one. */
 export class RateLimitedError extends Error {
   constructor(readonly retryAfterMs: number | null) {
-    super('Anthropic이 요청이 너무 잦다고 했어요 (429)');
+    super(t('claude.rateLimited'));
   }
 }
 
@@ -56,7 +62,7 @@ function parseLogin(text: string): ClaudeLogin | null {
   try {
     oauth = (JSON.parse(text) as { claudeAiOauth?: typeof oauth }).claudeAiOauth;
   } catch {
-    throw new Error('Claude Code 로그인 정보를 해석할 수 없어요');
+    throw new Error(t('claude.badLogin'));
   }
   if (typeof oauth?.accessToken !== 'string' || oauth.accessToken === '') return null;
   return {
@@ -77,7 +83,7 @@ export function keychainLogin(): LoginSource {
         (error, stdout) => {
           // Exit 44: no such item, so Claude Code has no login on this Mac.
           if (error && (error as { code?: unknown }).code === 44) resolve(null);
-          else if (error) reject(new Error('키체인에서 Claude Code 로그인 정보를 읽지 못했어요'));
+          else if (error) reject(new Error(t('claude.keychain')));
           else {
             try {
               resolve(parseLogin(stdout));
@@ -162,9 +168,8 @@ export interface AccountUsageOptions {
 export async function fetchAccountUsage(options: AccountUsageOptions): Promise<CliUsage> {
   const now = options.now ?? Date.now;
   const login = await options.login();
-  if (!login) throw new Error(noLogin);
-  if (login.expiresAt !== null && login.expiresAt <= now())
-    throw new Error('Claude Code 로그인이 만료됐어요. Claude Code를 실행하면 갱신돼요');
+  if (!login) throw new NoLoginError();
+  if (login.expiresAt !== null && login.expiresAt <= now()) throw new Error(t('claude.expired'));
 
   let response: Response;
   try {
@@ -177,25 +182,24 @@ export async function fetchAccountUsage(options: AccountUsageOptions): Promise<C
       signal: AbortSignal.timeout(15_000),
     });
   } catch {
-    throw new Error('Anthropic 사용량 서버에 연결하지 못했어요');
+    throw new Error(t('claude.offline'));
   }
-  if (response.status === 401 || response.status === 403)
-    throw new Error('Anthropic이 Claude Code 로그인을 받지 않았어요. Claude Code를 실행하면 갱신돼요');
+  if (response.status === 401 || response.status === 403) throw new Error(t('claude.refused'));
   if (response.status === 429)
     throw new RateLimitedError(parseRetryAfter(response.headers.get('retry-after'), now()));
-  if (!response.ok) throw new Error(`Anthropic 사용량을 받지 못했어요 (HTTP ${response.status})`);
+  if (!response.ok) throw new Error(t('claude.http', { status: response.status }));
 
   let body: { five_hour?: ApiWindow | null; seven_day?: ApiWindow | null; limits?: unknown };
   try {
     body = (await response.json()) as typeof body;
   } catch {
-    throw new Error('Anthropic 사용량 응답을 해석할 수 없어요');
+    throw new Error(t('claude.badAnswer'));
   }
   const windows = [
     toWindow('five_hour', 300, body.five_hour),
     toWindow('seven_day', 10080, body.seven_day),
   ].filter((w): w is UsageWindow => w !== null);
-  if (windows.length === 0) throw new Error('Anthropic 사용량 응답에 한도가 없어요');
+  if (windows.length === 0) throw new Error(t('claude.noLimits'));
   return { windows: [...windows, ...modelWindows(body.limits)], updatedAt: now(), source: 'account' };
 }
 
@@ -231,7 +235,7 @@ export interface ReadOptions {
 export function claudeSource(options: ClaudeSourceOptions): (read?: ReadOptions) => Promise<CliUsage | null> {
   const now = options.now ?? Date.now;
   let account: CliUsage | null = null;
-  let failure: { problem: string; retryAt: number | null } | null = null;
+  let failure: { problem: string; retryAt: number | null; noLogin: boolean } | null = null;
   let lastAskAt = -Infinity;
   let nextAskAt = 0;
   let rateLimited = 0;
@@ -251,11 +255,11 @@ export function claudeSource(options: ClaudeSourceOptions): (read?: ReadOptions)
         const wait = Math.max(error.retryAfterMs ?? 0, rateLimitBackoffMs(rateLimited));
         nextAskAt = at + Math.max(wait, options.minIntervalMs);
         retryAt = nextAskAt;
-        problem = `${problem} · ${formatClock(nextAskAt)}에 다시 물어봐요`;
+        problem = t('claude.askAgain', { problem, time: formatClock(nextAskAt) });
       } else {
         nextAskAt = at + options.minIntervalMs;
       }
-      failure = { problem, retryAt };
+      failure = { problem, retryAt, noLogin: error instanceof NoLoginError };
     }
   }
 
@@ -274,7 +278,7 @@ export function claudeSource(options: ClaudeSourceOptions): (read?: ReadOptions)
 
     // No login at all (an API key user, or never signed in) is the record-only setup, not a failure.
     // A fresh record is current, so an earlier failure to ask the account does not matter now.
-    const current = recordFresh || failure?.problem === noLogin ? null : failure;
+    const current = recordFresh || failure?.noLogin === true ? null : failure;
     // A 429 with a value to show is a pause, not a failure (developer, 2026-11-05: «just fix this»
     // on «계정 조회 실패 · 429»): the value is shown as usual with when the account is asked next.
     const note =

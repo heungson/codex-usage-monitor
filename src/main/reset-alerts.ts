@@ -14,7 +14,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-import { currentWatch, formatDateTime, watchName } from '../shared/format';
+import { currentWatch, formatDateTime, resetTypeName, watchName } from '../shared/format';
+import { t } from '../shared/i18n';
 import type { ResetEntry, ResetWatch } from '../shared/types';
 import type { Notifier } from './notifier';
 import { resetsSite, type ResetsApi } from './resets-api';
@@ -32,7 +33,9 @@ interface Store {
 /** A watch is told apart by its post, or by when it was posted when it names none. */
 const watchKey = (watch: ResetWatch) => watch.sourceUrl ?? `observed:${watch.observedAt}`;
 
-const typeNames: Record<string, string> = { regular: '전체 리셋', banked: '적립형 리셋' };
+/** The reset type as the notification names it; «리셋» for a type this app does not know. */
+const typeWord = (type: string) =>
+  type === 'regular' || type === 'banked' ? resetTypeName(type) : t('resetType.other');
 
 export class ResetAlerts {
   private store: Store;
@@ -145,10 +148,14 @@ export class ResetAlerts {
     const key = watchKey(watch);
     const seen = this.store.watches ?? [];
     if (seen.includes(key)) return;
-    const chance = watch.chancePercent === null ? '' : `가능성 ${watch.chancePercent}% · `;
+    const chance =
+      watch.chancePercent === null ? '' : `${t('watch.chance', { percent: watch.chancePercent })} · `;
     const result = await this.notifier.send({
-      title: `Codex ${watchName(watch)}가 떴어요`,
-      body: `${chance}${formatDateTime(watch.expiresAt)}까지 · 아직 공지된 리셋은 아니에요 · 출처: codex-resets.com`,
+      title: t('notify.watchTitle', { name: watchName(watch) }),
+      body: t('notify.watchBody', {
+        chance,
+        until: t('watch.until', { when: formatDateTime(watch.expiresAt) }),
+      }),
       url: resetsSite,
     });
     if (result !== 'shown') return;
@@ -162,8 +169,8 @@ export class ResetAlerts {
     let refused: { entry: ResetEntry; denied: boolean } | null = null;
     for (const entry of [...this.store.pending]) {
       const result = await this.notifier.send({
-        title: `Codex 사용량 한도가 리셋됐어요`,
-        body: `${typeNames[entry.type] ?? '리셋'} · ${formatDateTime(entry.announcedAt)} 공지 · 출처: codex-resets.com`,
+        title: t('notify.resetTitle'),
+        body: t('notify.resetBody', { type: typeWord(entry.type), when: formatDateTime(entry.announcedAt) }),
         url: resetsSite,
       });
       if (result !== 'shown') {
@@ -183,11 +190,14 @@ export class ResetAlerts {
       this.setNotice(null);
       return;
     }
-    const what = `${formatDateTime(refused.entry.announcedAt)}에 Codex ${typeNames[refused.entry.type] ?? '리셋'}이 공지됐어요.`;
+    const what = t('notice.resetWhat', {
+      when: formatDateTime(refused.entry.announcedAt),
+      type: typeWord(refused.entry.type),
+    });
     this.setNotice(
       refused.denied
-        ? `${what} macOS 알림이 꺼져 있어 알림으로 보내지 못했어요. 시스템 설정 › 알림 › ${this.appName}에서 허용하면 그때 한 번 보내요.`
-        : `${what} 알림을 보내지 못해 다음 확인 때 다시 보내요.`,
+        ? t('notice.resetDenied', { what, app: this.appName })
+        : t('notice.resetFailed', { what }),
     );
   }
 }

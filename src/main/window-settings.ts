@@ -5,6 +5,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
+import { isLanguage, type Language } from '../shared/i18n';
 import { isThemeId, type ThemeId } from '../shared/themes';
 import { usageCards, type CliId, type UsageCard, type WindowSettings } from '../shared/types';
 
@@ -14,6 +15,7 @@ export const defaultWindowSettings: WindowSettings = {
   theme: 'default',
   collapsed: [],
   menuBarHidden: [],
+  language: 'ko',
 };
 
 const clis: readonly CliId[] = ['claude', 'codex'];
@@ -62,6 +64,11 @@ export class WindowSettingsStore {
     return this.save({ ...this.value, menuBarHidden: next });
   }
 
+  /** 설정 › 언어 (developer, 2026-11-12). */
+  setLanguage(language: Language): WindowSettings {
+    return this.save({ ...this.value, language });
+  }
+
   private save(value: WindowSettings): WindowSettings {
     this.value = value;
     mkdirSync(dirname(this.file), { recursive: true });
@@ -84,6 +91,8 @@ export class WindowSettingsStore {
         menuBarHidden: Array.isArray(raw.menuBarHidden)
           ? clis.filter((c) => raw.menuBarHidden!.includes(c))
           : [],
+        // A file from before languages, or naming one this version lacks, is Korean.
+        language: isLanguage(raw.language) ? raw.language : 'ko',
       };
     } catch {
       return { ...defaultWindowSettings };

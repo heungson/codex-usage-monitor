@@ -1,5 +1,30 @@
 # Verification
 
+## 도움말 and 설정 › 언어 (2026-11-12)
+
+Asked for by the developer (decision of 2026-11-12 in `docs/decisions.md`). No PRS entry (servers
+not connected).
+
+- `npm run typecheck`, `npm run lint`, `npm run format:check`: passed. The type checker refuses a
+  language table with a missing or extra key.
+- `npm test`: 227 passed. New `test/i18n.test.ts`: every table has Korean's keys, none empty, the
+  same placeholders (a date picks from the fields given), 7 weekdays and 12 months; every theme has
+  a distinct name in each language; dates, durations, reset lines and window names in Korean (as
+  before), English, Japanese and Chinese. New in `test/window-settings.test.ts`: the language is
+  kept; a missing or unknown one reads as Korean.
+- `npm run test:e2e`: 85 passed, 2 skipped. The setup guide is now reached through 도움말
+  (`openSetup` and `backToUsage` in `e2e/app.ts`). New in `e2e/usage.spec.ts`: 사용량 현황 has no
+  setup entry or login note; 도움말 has them; back goes 연동 안내 → 도움말 → 사용량 현황. 설정 › 언어:
+  English changes the screen (`lang="en"`, «Usage», «5-hour limit», «23% used»), the app menu reads
+  «Usage Limit Monitor», the menu bar title is unchanged; after a restart it is still English and an
+  80% alert is «Claude Code 5-hour limit 85% used»; Japanese and Chinese show «5時間の上限» and
+  «5小时限额».
+- Captures opened: `tmp/e2e-shots/help-1.png`, `usage-english-1.png`, `usage-japanese-1.png`,
+  `usage-chinese-1.png`, `settings-english-1.png`, and the 설정 screens of 픽셀, 오락실, 고대비 and 옛 맥
+  in `tmp/screens/`. The first look showed full-width brackets in Japanese and Chinese reset lines
+  with wide gaps; they now use half-width brackets like the weekday.
+- Not checked: the installed app (not rebuilt yet); the translations by a native reader.
+
 ## Codex reset watch notification (2026-11-11)
 
 Asked for by the developer (decision of 2026-11-11 in `docs/decisions.md`). No PRS entry (servers

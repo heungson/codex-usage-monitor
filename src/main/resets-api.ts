@@ -1,6 +1,7 @@
 // The codex-resets.com public API (PR-P018): no key, nothing about the person is sent.
 // Data from it is shown with a link back to https://codex-resets.com, as the API terms ask.
 
+import { t } from '../shared/i18n';
 import type { ResetEntry, ResetStatus, ResetWatch, ScheduledReset } from '../shared/types';
 
 export const resetsSite = 'https://codex-resets.com';
@@ -21,7 +22,7 @@ interface RawEntry {
   source?: { url?: unknown } | null;
 }
 
-const formatError = () => new Error('codex-resets.com 응답 형식을 알 수 없어요');
+const formatError = () => new Error(t('resetsApi.badFormat'));
 
 function entryFrom(raw: unknown): ResetEntry | null {
   if (raw === null || raw === undefined) return null;
@@ -87,9 +88,9 @@ export function resetsApi(baseUrl: string, fetchImpl: typeof fetch = fetch): Res
         signal: AbortSignal.timeout(10_000),
       });
     } catch {
-      throw new Error('codex-resets.com에 연결하지 못했어요');
+      throw new Error(t('resetsApi.offline'));
     }
-    if (!response.ok) throw new Error(`codex-resets.com이 ${response.status} 오류로 응답했어요`);
+    if (!response.ok) throw new Error(t('resetsApi.http', { status: response.status }));
     try {
       return await response.json();
     } catch {

@@ -6,6 +6,7 @@
 // never shortened for space; macOS hides the item when the menu bar is full (LHS-5 개발 항목 5).
 
 import { claudeStale, currentPercent, isOverallWindow, shorterFirst } from '../shared/format';
+import { t } from '../shared/i18n';
 import type { AreaState, CliId, CliUsage, ResetStatus, SourceState, UsageSnapshot } from '../shared/types';
 import { shareStep, elapsedShare } from './tray-icon';
 
@@ -56,10 +57,10 @@ export function trayTitle(
 
 /** Time left, rounded down to whole days, else hours, else minutes; under a minute «1분 미만» (PR-P026). */
 export function timeLeft(ms: number): string {
-  if (ms >= day) return `${Math.floor(ms / day)}일`;
-  if (ms >= hour) return `${Math.floor(ms / hour)}시간`;
-  if (ms >= minute) return `${Math.floor(ms / minute)}분`;
-  return '1분 미만';
+  if (ms >= day) return t('short.days', { n: Math.floor(ms / day) });
+  if (ms >= hour) return t('short.hours', { n: Math.floor(ms / hour) });
+  if (ms >= minute) return t('short.minutes', { n: Math.floor(ms / minute) });
+  return t('short.lessThanMinute');
 }
 
 /**

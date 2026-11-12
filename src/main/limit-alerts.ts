@@ -14,6 +14,7 @@ import { dirname } from 'node:path';
 
 import type { CliId, CliUsage, UsageWindow } from '../shared/types';
 import { currentPercent, describeReset, formatDateTime, windowName } from '../shared/format';
+import { t } from '../shared/i18n';
 import { limitAlertPercent } from '../shared/limits';
 import { sameResetWindow as sameWindow } from '../shared/windows';
 import type { Notifier } from './notifier';
@@ -88,22 +89,27 @@ export class LimitAlerts {
       const label = windowName(window);
       const percent = Math.round(window.usedPercent);
       const result = await this.notifier.send({
-        title: `${cliNames[cli]} ${label} 한도 ${percent}% 사용`,
+        title: t('notify.limitTitle', { cli: cliNames[cli], window: label, percent }),
         body:
           window.resetsAt === null
-            ? '리셋 시각은 기록에 없어요.'
-            : `리셋: ${describeReset(window.resetsAt, this.now())}`,
+            ? t('notify.limitNoReset')
+            : t('notify.limitReset', { when: describeReset(window.resetsAt, this.now()) }),
         url: null,
       });
       if (result === 'shown') {
         this.setNotice(null);
         continue;
       }
-      const what = `${formatDateTime(at, this.now())}에 ${cliNames[cli]} ${label} 한도가 ${percent}%에 닿았지만`;
+      const what = t('notice.limitWhat', {
+        when: formatDateTime(at, this.now()),
+        cli: cliNames[cli],
+        window: label,
+        percent,
+      });
       const text =
         result === 'denied'
-          ? `${what} macOS 알림이 꺼져 있어 알리지 못했어요. 시스템 설정 › 알림 › ${this.appName}에서 알림을 허용해 주세요. 이 한도는 리셋될 때까지 다시 알리지 않아요.`
-          : `${what} 알림을 보내지 못했어요. 이 한도는 리셋될 때까지 다시 알리지 않아요.`;
+          ? t('notice.limitDenied', { what, app: this.appName })
+          : t('notice.limitFailed', { what });
       this.setNotice({ text, cli, key, resetsAt: window.resetsAt });
     }
   }

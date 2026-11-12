@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test } from '@playwright/test';
 
 import { statusLineInput } from '../test/helpers';
-import { capture, clickUpcomingArea, makeFixture } from './app';
+import { backToUsage, capture, clickUpcomingArea, makeFixture, openSetup } from './app';
 import { startFakeResets } from './fake-resets-server';
 
 test('standalone bundle launches after moving and runs its packaged hook', async () => {
@@ -41,8 +41,8 @@ test('standalone bundle launches after moving and runs its packaged hook', async
     await capture(page, 'packaged-usage');
     await clickUpcomingArea(page);
     await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
-    await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
-    await page.getByRole('button', { name: /Claude Code 연동 안내/ }).click();
+    await backToUsage(page);
+    await openSetup(page);
     await page.getByRole('button', { name: '연동 적용' }).click();
     await expect(page.getByRole('button', { name: '연동됨' })).toBeDisabled();
     const { statusLine } = JSON.parse(readFileSync(fixture.claudeSettings, 'utf8'));
@@ -57,7 +57,7 @@ test('standalone bundle launches after moving and runs its packaged hook', async
       encoding: 'utf8',
     });
     expect(result.status, result.stderr).toBe(0);
-    await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+    await backToUsage(page);
     await expect(page.locator('section[data-cli="claude"]')).toContainText('33% 사용');
   } finally {
     await app.close();

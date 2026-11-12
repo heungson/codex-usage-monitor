@@ -16,6 +16,7 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 
+import { t } from '../shared/i18n';
 import type { IntegrationStatus } from '../shared/types';
 import { dataFiles, type Paths } from './paths';
 
@@ -45,10 +46,21 @@ const quote = (value: string): string => `'${value.replace(/'/g, `'\\''`)}'`;
 /** A file system error in words a person can act on, with the file it is about. */
 function describeFsError(error: unknown, path: string): string {
   const code = (error as NodeJS.ErrnoException).code;
-  if (code === 'EACCES' || code === 'EPERM') return `${path}에 쓸 권한이 없어요`;
-  if (code === 'EROFS') return `${path}이(가) 읽기 전용 위치에 있어요`;
-  if (code === 'ENOSPC') return '디스크 공간이 부족해요';
+  if (code === 'EACCES' || code === 'EPERM') return t('fs.noWrite', { path });
+  if (code === 'EROFS') return t('fs.readOnly', { path });
+  if (code === 'ENOSPC') return t('fs.noSpace');
   return (error as Error).message;
+}
+
+/**
+ * The hook's write error in the chosen language. Since 2026-11-12 the hook leaves the error code
+ * and the file; a file from before has only its Korean words, shown as they are.
+ */
+function hookMessage(raw: { message: string; code?: string | null; path?: string }): string {
+  const path = raw.path ?? '';
+  if ((raw.code === 'EACCES' || raw.code === 'EPERM') && path) return t('fs.noWrite', { path });
+  if (raw.code === 'ENOSPC') return t('fs.noSpace');
+  return raw.message;
 }
 
 export function hookCommandLine(hook: HookCommand, dataDir: string): string {
@@ -113,10 +125,10 @@ export class Integration {
     }
     let hookError: IntegrationStatus['hookError'] = null;
     try {
-      const raw = readJson<{ at: string; message: string }>(
+      const raw = readJson<{ at: string; message: string; code?: string | null; path?: string }>(
         join(this.paths.dataDir, dataFiles.claudeHookError),
       );
-      if (raw) hookError = { message: raw.message, at: Date.parse(raw.at) };
+      if (raw) hookError = { message: hookMessage(raw), at: Date.parse(raw.at) };
     } catch {
       hookError = null;
     }
@@ -157,12 +169,12 @@ export class Integration {
       try {
         settings = JSON.parse(settingsText) as Record<string, unknown>;
       } catch {
-        throw new Error(`${settingsPath}을(를) JSON으로 읽을 수 없어 바꾸지 않았어요`);
+        throw new Error(t('integration.badJson', { path: settingsPath }));
       }
       const current = (settings.statusLine ?? null) as StatusLine | null;
       const repairing = isHookCommand(current?.command);
       if (repairing && missingHookFiles(current?.command as string).length === 0) {
-        this.lastApply = { ok: true, message: '이미 연동되어 있어요', at: now.getTime() };
+        this.lastApply = { ok: true, message: t('integration.already'), at: now.getTime() };
         return this.status();
       }
       // Replacing a broken hook: what ran before it is in the saved state, not in the settings file.
@@ -202,16 +214,15 @@ export class Integration {
       writeFileSync(settingsPath, `${JSON.stringify(next, null, 2)}\n`);
 
       const check = readJson<{ statusLine?: StatusLine }>(settingsPath);
-      if (!isHookCommand(check?.statusLine?.command))
-        throw new Error('설정 파일에 쓴 내용을 다시 읽어 확인하지 못했어요');
+      if (!isHookCommand(check?.statusLine?.command)) throw new Error(t('integration.verifyFailed'));
 
       this.lastApply = {
         ok: true,
         message: repairing
-          ? '다시 연동했어요. Claude Code가 다음에 상태 표시줄을 그릴 때부터 다시 기록돼요.'
+          ? t('integration.reapplied')
           : saved.previousCommand
-            ? '연동했어요. 기존 상태 표시줄 명령도 이어서 실행돼요.'
-            : '연동했어요. Claude Code가 다음에 상태 표시줄을 그릴 때부터 기록돼요.',
+            ? t('integration.appliedWithPrevious')
+            : t('integration.applied'),
         at: now.getTime(),
       };
     } catch (error) {
@@ -224,7 +235,7 @@ export class Integration {
       });
       this.lastApply = {
         ok: false,
-        message: `연동하지 못했어요: ${describeFsError(error, settingsPath)}. ${restored}`,
+        message: t('integration.failed', { reason: describeFsError(error, settingsPath), restored }),
         at: now.getTime(),
       };
     }
@@ -245,7 +256,7 @@ export class Integration {
         else if (existsSync(this.paths.claudeSettings)) unlinkSync(this.paths.claudeSettings);
       } catch (error) {
         problems.push(
-          `설정 파일을 되돌리지 못했어요(${(error as Error).message}). 백업: ${state.backupPath}`,
+          t('integration.restoreFailed', { message: (error as Error).message, backup: state.backupPath }),
         );
       }
     }
@@ -255,9 +266,9 @@ export class Integration {
           if (existsSync(this.savedPath)) unlinkSync(this.savedPath);
         } else writeFileSync(this.savedPath, state.savedBefore);
       } catch (error) {
-        problems.push(`앱 연동 기록을 되돌리지 못했어요(${(error as Error).message})`);
+        problems.push(t('integration.recordRestoreFailed', { message: (error as Error).message }));
       }
     }
-    return problems.length === 0 ? 'Claude Code 설정은 적용 전 상태 그대로예요.' : problems.join(' ');
+    return problems.length === 0 ? t('integration.restored') : problems.join(' ');
   }
 }

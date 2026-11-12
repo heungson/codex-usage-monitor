@@ -123,6 +123,37 @@ the developer:
 - The button takes no height in the title line (negative margins): with 20 px of its own, 고대비 no
   longer fit the popover (`e2e/look.spec.ts`).
 
+## 도움말 and 설정 › 언어 (developer, 2026-11-12)
+
+The developer, with a capture of 사용량 현황: «Claude Code 연동 안내 should be on a separate screen
+such as 도움말 and add to configure Language selection Korean, English, Japanese, and Chinese for
+now.» The plan is Korean only; this widens it. Settled in the coding session, to confirm with the
+developer:
+
+- **도움말**: a «?» button in 사용량 현황's top bar, beside the gear, opens it. It holds the entry to
+  Claude Code 연동 안내 and the note «Claude Code 로그인은 Anthropic 사용량 조회에만 써요.», both of which
+  stood under the usage cards, and a line on where reset information comes from. The setup guide
+  opened from 도움말 goes back to 도움말, then to 사용량 현황. The «연동 안내 열기» link on an empty
+  Claude Code card still opens the guide directly.
+- **언어**: 한국어, English, 日本語 and 简体中文 (Simplified Chinese was chosen for «Chinese»). 한국어 stays
+  the default, also for existing installs; the app does not follow the Mac's language, which on the
+  developer's Mac lists English first and would have switched the app unasked. The choice is the first
+  card on 설정, each language under its own name, the title «언어 · Language» (just «Language» in
+  English) so a person who cannot read the current language finds it. Kept as `language` in
+  `window-settings.json`.
+- Everything a person reads follows it: the screens, theme names and notes, dates and durations
+  («Fri, Nov 13, 17:00», «2 h 5 min»), the menu bar countdown, the app menu, the menu bar tooltip,
+  notifications, notices and error messages. Tables: `src/shared/messages/` (`ko.ts` is the source;
+  the others must have the same keys, which the type checker enforces, and the same placeholders,
+  checked in `test/i18n.test.ts`). The window and the main process each hold the language
+  (`src/shared/i18n.ts`); changing it reads the values again so their messages come in the new
+  language. A notice already on screen keeps the words it was made in.
+- The status line hook runs without the app, so it no longer words its write error: it leaves the
+  error code and the file (`claude-hook-error.json`), and the app words it. A file from before keeps
+  its Korean words.
+- «주말·공휴일 제외» still means Korean public holidays; the other languages say so.
+- The translations are this session's, not a translator's.
+
 ## Codex reset watch (developer, 2026-11-11)
 
 The developer, with codex-resets.com showing «Reset watch · Elevated signal · Possible reset within

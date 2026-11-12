@@ -33,6 +33,7 @@ const api: MonitorApi = {
   setTheme: (theme) => ipcRenderer.invoke('window:theme', theme),
   setCollapsed: (card, collapsed) => ipcRenderer.invoke('window:collapse', card, collapsed),
   setShownInMenuBar: (cli, shown) => ipcRenderer.invoke('window:menu-bar', cli, shown),
+  setLanguage: (language) => ipcRenderer.invoke('window:language', language),
   getLoginItem: () => ipcRenderer.invoke('login-item:get'),
   setOpenAtLogin: (on) => ipcRenderer.invoke('login-item:set', on),
   openLoginItemSettings: () => ipcRenderer.invoke('login-item:open-settings'),

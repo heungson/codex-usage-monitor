@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { parseRecord } from '../shared/claude-record';
+import { t } from '../shared/i18n';
 import type { CliUsage, UsageWindow } from '../shared/types';
 import { dataFiles } from './paths';
 
@@ -17,15 +18,14 @@ export function claudeReader(dataDir: string): () => Promise<CliUsage | null> {
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
       if (code === 'ENOENT') return null;
-      if (code === 'EACCES' || code === 'EPERM')
-        throw new Error('Claude Code 기록 파일을 읽을 권한이 없어요', { cause: error });
-      throw new Error(`Claude Code 기록 파일을 읽지 못했어요 (${code ?? 'unknown'})`, { cause: error });
+      if (code === 'EACCES' || code === 'EPERM') throw new Error(t('record.noAccess'), { cause: error });
+      throw new Error(t('record.readFailed', { code: code ?? 'unknown' }), { cause: error });
     }
     let record;
     try {
       record = parseRecord(text);
     } catch {
-      throw new Error('Claude Code 기록 파일이 손상되어 해석할 수 없어요');
+      throw new Error(t('record.corrupt'));
     }
     const windows: UsageWindow[] = [];
     if (record.fiveHour)

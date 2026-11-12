@@ -16,6 +16,7 @@ describe('WindowSettingsStore', () => {
       theme: 'default',
       collapsed: [],
       menuBarHidden: [],
+      language: 'ko',
     });
   });
 
@@ -30,6 +31,7 @@ describe('WindowSettingsStore', () => {
       theme: 'default',
       collapsed: [],
       menuBarHidden: [],
+      language: 'ko',
     });
   });
 
@@ -49,6 +51,7 @@ describe('WindowSettingsStore', () => {
       theme: 'default',
       collapsed: [],
       menuBarHidden: [],
+      language: 'ko',
     });
     // A file from before the setting existed reads as off.
     writeFileSync(file, JSON.stringify({ alwaysOnTop: true }));
@@ -92,5 +95,15 @@ describe('WindowSettingsStore', () => {
     expect(new WindowSettingsStore(file).current.menuBarHidden).toEqual(['codex']);
     writeFileSync(file, JSON.stringify({}));
     expect(new WindowSettingsStore(file).current.menuBarHidden).toEqual([]);
+  });
+
+  it('keeps the chosen language, and reads a missing or unknown one as Korean (developer, 2026-11-12)', () => {
+    const file = join(tempDir(), 'window-settings.json');
+    new WindowSettingsStore(file).setLanguage('ja');
+    expect(new WindowSettingsStore(file).current.language).toBe('ja');
+    writeFileSync(file, JSON.stringify({ language: 'fr' }));
+    expect(new WindowSettingsStore(file).current.language).toBe('ko');
+    writeFileSync(file, JSON.stringify({ alwaysOnTop: true }));
+    expect(new WindowSettingsStore(file).current.language).toBe('ko');
   });
 });

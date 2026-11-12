@@ -1,5 +1,6 @@
 // Shapes shared by the main process, the preload bridge and the renderer.
 
+import type { Language } from './i18n';
 import type { ThemeId } from './themes';
 
 export type CliId = 'claude' | 'codex';
@@ -161,7 +162,7 @@ export interface ResetsSnapshot {
   refreshing: { status: boolean; history: boolean };
 }
 
-export type View = 'usage' | 'claude-setup' | 'resets' | 'settings';
+export type View = 'usage' | 'claude-setup' | 'resets' | 'settings' | 'help';
 
 /** The usage screen's three cards, each of which can be folded to its title line (developer, 2026-11-11). */
 export type UsageCard = 'claude' | 'codex' | 'upcoming';
@@ -189,6 +190,8 @@ export interface WindowSettings {
    * None until one is turned off on the 설정 screen.
    */
   menuBarHidden: CliId[];
+  /** The app's language (developer, 2026-11-12); 한국어 until another is chosen on 설정. */
+  language: Language;
 }
 
 /** «로그인 시 자동 실행» on the 설정 screen, as macOS reports it (developer, 2026-11-04). */
@@ -231,6 +234,7 @@ export interface MonitorApi {
   setTheme(theme: ThemeId): Promise<WindowSettings>;
   setCollapsed(card: UsageCard, collapsed: boolean): Promise<WindowSettings>;
   setShownInMenuBar(cli: CliId, shown: boolean): Promise<WindowSettings>;
+  setLanguage(language: Language): Promise<WindowSettings>;
   getLoginItem(): Promise<LoginItemStatus>;
   setOpenAtLogin(on: boolean): Promise<LoginItemStatus>;
   /** System Settings › General › Login Items, where macOS asks to allow the item. */

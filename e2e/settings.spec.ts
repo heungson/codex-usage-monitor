@@ -8,7 +8,7 @@ import { expect, test } from '@playwright/test';
 
 import { themeGroups, themes } from '../src/shared/themes';
 import { codexLine } from '../test/helpers';
-import { capture, launch, makeFixture } from './app';
+import { backToUsage, capture, launch, makeFixture } from './app';
 import { startFakeResets, type FakeServer } from './fake-resets-server';
 
 let server: FakeServer;
@@ -47,7 +47,7 @@ test('the gear opens 설정; «로그인 시 자동 실행» starts off, turns o
   await expect(loginSwitch(page)).not.toBeChecked();
   expect(JSON.parse(readFileSync(fixture.loginItemFile, 'utf8')).openAtLogin).toBe(false);
 
-  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await backToUsage(page);
   await expect(page.locator('h1')).toHaveText('사용량 현황');
   await app.close();
 });
@@ -107,7 +107,7 @@ test("«주말·공휴일 제외» starts off, changes the 7일 mark's tip, and 
   await workdays(page).check({ force: true });
   await expect(workdays(page)).toBeChecked();
   await capture(page, 'settings-workdays-on');
-  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await backToUsage(page);
   expect(await markLabel(page)).toContain('주말과 공휴일에는 멈춰요');
 
   await app.close();

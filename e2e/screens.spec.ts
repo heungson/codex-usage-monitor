@@ -9,7 +9,16 @@ import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 
 import { statusLineInput } from '../test/helpers';
-import { capture, clickUpcomingArea, launch, makeFixture, openedLinks, type Fixture } from './app';
+import {
+  backToUsage,
+  capture,
+  clickUpcomingArea,
+  type Fixture,
+  launch,
+  makeFixture,
+  openedLinks,
+  openSetup,
+} from './app';
 import { startFakeResets, type FakeServer } from './fake-resets-server';
 
 let server: FakeServer;
@@ -29,11 +38,6 @@ const mode = (value: object) =>
 /** Runs the status line command exactly as Claude Code would: through the shell, input on stdin. */
 function runStatusLine(command: string, input: string) {
   return spawnSync('/bin/sh', ['-c', command], { input, encoding: 'utf8' });
-}
-
-async function openSetup(page: Page) {
-  await page.getByRole('button', { name: /Claude Code 연동 안내/ }).click();
-  await expect(page.locator('h1')).toHaveText('Claude Code 연동 안내');
 }
 
 test('apply keeps the existing status line command, which still runs (LHS-2 검증 1)', async () => {
@@ -62,7 +66,7 @@ test('apply keeps the existing status line command, which still runs (LHS-2 검�
   );
   expect(result.stdout.trim()).toBe('my line');
 
-  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await backToUsage(page);
   await expect(page.locator('section[data-cli="claude"]')).toContainText('33% 사용', { timeout: 10_000 });
   await expect(page.locator('section[data-cli="claude"]')).toContainText('70% 사용');
   await app.close();
@@ -99,7 +103,7 @@ test('a hook from a moved install shows 연동 끊김 and 다시 연동 replaces
     command,
     statusLineInput({ used_percentage: 21, resets_at: Math.floor(Date.now() / 1000) + 3600 }, null),
   );
-  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await backToUsage(page);
   await expect(page.locator('section[data-cli="claude"]')).toContainText('21% 사용', { timeout: 10_000 });
   await app.close();
 });
@@ -115,7 +119,7 @@ test('a failed apply is rolled back and explained, and 돌아가기 works (LHS-2
   await expect(page.getByText(/적용 전 상태 그대로예요/)).toBeVisible();
   expect(readFileSync(fixture.claudeSettings, 'utf8')).toBe(original);
   await capture(page, 'setup-failed');
-  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await backToUsage(page);
   await expect(page.locator('h1')).toHaveText('사용량 현황');
   chmodSync(fixture.claudeSettings, 0o644);
   await app.close();
@@ -136,7 +140,7 @@ test('a record that cannot be written after applying shows on the setup screen (
   chmodSync(record, 0o444);
   runStatusLine(command, input);
   expect(existsSync(join(fixture.dataDir, 'claude-hook-error.json'))).toBe(true);
-  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await backToUsage(page);
   await openSetup(page);
   await expect(
     page.getByText(/한도 기록을 남기지 못했어요: .*claude-rate-limits\.json에 쓸 권한이 없어요/),
@@ -201,7 +205,7 @@ test('status and history load on open, without polling, from the keyless API (LH
     'https://x.com/thsottiaux/status/2114588174249071110',
   ]);
 
-  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await backToUsage(page);
   await expect(page.locator('h1')).toHaveText('사용량 현황');
 
   // Reopening shows the known values at once, asks again and shows what the server says now
@@ -229,7 +233,7 @@ test('only the status failing keeps the history area as it is (LHS-7 검증 5)',
   });
   await openResets(page);
   await expect(statusCard(page)).toContainText('최근 전체 리셋');
-  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await backToUsage(page);
   mode({ status: 'fail' });
   await openResets(page);
   await expect(statusCard(page)).toContainText('최신 정보 아님');
@@ -258,7 +262,7 @@ test('a failing area keeps its last value, retries with growing gaps and stops (
   });
   await openResets(page);
   await expect(historyCard(page).locator('li')).toHaveCount(5);
-  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await backToUsage(page);
 
   mode({ history: 'fail' });
   await openResets(page);

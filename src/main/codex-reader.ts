@@ -10,6 +10,7 @@ import { constants } from 'node:fs';
 import { access, open, readdir, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 
+import { t } from '../shared/i18n';
 import type { CliUsage, UsageWindow } from '../shared/types';
 
 const lookbackMs = 8 * 24 * 60 * 60 * 1000;
@@ -42,7 +43,7 @@ function eventFromLine(line: string, file: string): LimitEvent | null {
   try {
     value = JSON.parse(line) as typeof value;
   } catch {
-    throw new FileError(`Codex 세션 기록을 해석할 수 없어요 (${basename(file)})`);
+    throw new FileError(t('codex.badRecord', { file: basename(file) }));
   }
   const limits = value.payload?.rate_limits;
   if (!limits || typeof limits !== 'object') return null;
@@ -51,7 +52,7 @@ function eventFromLine(line: string, file: string): LimitEvent | null {
   const secondary = (limits.secondary ?? null) as RateWindow | null;
   if (primary === null && secondary === null) return null;
   const at = typeof value.timestamp === 'string' ? Date.parse(value.timestamp) : NaN;
-  if (Number.isNaN(at)) throw new FileError(`Codex 세션 기록의 시각을 해석할 수 없어요 (${basename(file)})`);
+  if (Number.isNaN(at)) throw new FileError(t('codex.badTime', { file: basename(file) }));
   return { at, primary, secondary, planType: typeof limits.plan_type === 'string' ? limits.plan_type : null };
 }
 
@@ -112,9 +113,8 @@ export function codexReader(
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
       if (code === 'ENOENT') return null;
-      if (code === 'EACCES' || code === 'EPERM')
-        throw new Error('Codex 세션 폴더를 읽을 권한이 없어요', { cause: error });
-      throw new Error(`Codex 세션 폴더를 읽지 못했어요 (${code ?? 'unknown'})`, { cause: error });
+      if (code === 'EACCES' || code === 'EPERM') throw new Error(t('codex.noDirAccess'), { cause: error });
+      throw new Error(t('codex.dirFailed', { code: code ?? 'unknown' }), { cause: error });
     }
 
     const cutoff = now() - lookbackMs;
@@ -137,7 +137,7 @@ export function codexReader(
       try {
         await access(file, constants.R_OK);
       } catch {
-        throw new Error(`Codex 세션 기록을 읽을 권한이 없어요 (${basename(file)})`);
+        throw new Error(t('codex.noFileAccess', { file: basename(file) }));
       }
 
       let entry = cache.get(file);
@@ -151,8 +151,8 @@ export function codexReader(
             error instanceof FileError
               ? error.message
               : code === 'EACCES' || code === 'EPERM'
-                ? `Codex 세션 기록을 읽을 권한이 없어요 (${basename(file)})`
-                : `Codex 세션 기록을 읽지 못했어요 (${basename(file)})`;
+                ? t('codex.noFileAccess', { file: basename(file) })
+                : t('codex.fileFailed', { file: basename(file) });
         }
         cache.set(file, entry);
       }

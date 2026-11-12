@@ -6,6 +6,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
+import { t } from '../shared/i18n';
 import type { LoginItemStatus } from '../shared/types';
 
 /** What macOS says about the app as a login item (Electron's LoginItemSettings, the parts used). */
@@ -92,15 +93,13 @@ export class LoginItem {
     try {
       this.backend.write(openAtLogin);
     } catch (error) {
-      this.lastError = `로그인 항목을 바꾸지 못했어요: ${message(error)}`;
+      this.lastError = t('loginItem.failed', { message: message(error) });
       return this.status();
     }
     const after = this.status();
     // Waiting for approval is not a failure: the screen says where to approve it.
     if (after.openAtLogin !== openAtLogin && !(openAtLogin && after.needsApproval)) {
-      this.lastError = openAtLogin
-        ? 'macOS가 로그인 항목 추가를 받아들이지 않았어요.'
-        : 'macOS가 로그인 항목 제거를 받아들이지 않았어요.';
+      this.lastError = openAtLogin ? t('loginItem.addRefused') : t('loginItem.removeRefused');
       return this.status();
     }
     return after;

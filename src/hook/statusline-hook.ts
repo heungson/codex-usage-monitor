@@ -79,18 +79,14 @@ function main(): number {
       const errorFile = join(dataDir, files.hookError);
       if (existsSync(errorFile)) unlinkSync(errorFile);
     } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      const target = join(dataDir, files.record);
-      const message =
-        code === 'EACCES' || code === 'EPERM'
-          ? `${target}에 쓸 권한이 없어요`
-          : code === 'ENOSPC'
-            ? '디스크 공간이 부족해요'
-            : (error as Error).message;
+      // The code and the file go with the message, so the app words it in its own language
+      // (developer, 2026-11-12); the hook runs without the app and does not know it.
+      const code = (error as NodeJS.ErrnoException).code ?? null;
+      const path = join(dataDir, files.record);
       try {
         writeFileSync(
           join(dataDir, files.hookError),
-          JSON.stringify({ at: new Date().toISOString(), message }),
+          JSON.stringify({ at: new Date().toISOString(), message: (error as Error).message, code, path }),
         );
       } catch {
         // The data folder itself is not writable; the reader reports that instead.

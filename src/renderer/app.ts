@@ -1,7 +1,19 @@
 // The popover page: 사용량 현황 (WF-S001), Claude Code 연동 안내 (WF-S002), Codex 전체 리셋 (WF-S003),
-// and 설정 (developer, 2026-11-04; no PRS screen).
+// 설정 (developer, 2026-11-04; no PRS screen) and 도움말 (developer, 2026-11-12). Every word comes from
+// src/shared/messages in the chosen language (developer, 2026-11-12).
+// Messages marked HTML in ko.ts get HTML fills; every other fill is escaped first.
 // Built from plan v3: the layout and elements follow the wireframe; the look is the app's own CSS.
 
+import {
+  isLanguage,
+  languageNames,
+  languages,
+  languageTags,
+  setLanguage,
+  t,
+  type Language,
+  type MessageKey,
+} from '../shared/i18n';
 import { isThemeId, themeGroups, themes, type Theme } from '../shared/themes';
 import {
   claudeStale,
@@ -14,6 +26,7 @@ import {
   formatDateTime,
   formatDuration,
   resetPassed,
+  resetTypeName,
   shorterFirst,
   windowName,
   isOverallWindow,
@@ -52,6 +65,7 @@ const root = document.getElementById('app')!;
 /** While the popover is open the usage screen re-reads every 30 seconds (LHS-5 개발 항목 1; owner 2026-10-30). */
 const usageRefreshMs = 30_000;
 const resetsSite = 'https://codex-resets.com';
+const resetsLink = `<button class="link" data-action="external" data-url="${resetsSite}">codex-resets.com</button>`;
 
 const state: {
   view: View;
@@ -64,6 +78,8 @@ const state: {
   loginItem: LoginItemStatus | null;
   /** A login item change is being asked of macOS; the switch waits for the answer. */
   savingLoginItem: boolean;
+  /** The screens to go back through: 도움말 › Claude Code 연동 안내 goes back to 도움말 (2026-11-12). */
+  backStack: View[];
 } = {
   view: 'usage',
   usage: null,
@@ -71,9 +87,17 @@ const state: {
   integration: null,
   applying: false,
   resets: null,
-  window: { alwaysOnTop: false, workdaysOnly: false, theme: 'default', collapsed: [], menuBarHidden: [] },
+  window: {
+    alwaysOnTop: false,
+    workdaysOnly: false,
+    theme: 'default',
+    collapsed: [],
+    menuBarHidden: [],
+    language: 'ko',
+  },
   loginItem: null,
   savingLoginItem: false,
+  backStack: [],
 };
 
 const escapeHtml = (value: string) =>
@@ -108,21 +132,21 @@ const skeleton = '<div class="skeleton"></div><div class="skeleton short"></div>
 function evenMark(expected: number, workdays: boolean): string {
   const at = expected.toFixed(1);
   // With «주말·공휴일 제외» the mark stands still on days off; say so where it is explained.
-  const days = workdays ? ' 주말과 공휴일에는 멈춰요.' : '';
-  const text = `시간이 흐를수록 이 표시는 오른쪽으로 움직여 리셋 시각에 끝에 이르러요.${days} 지금은 ${Math.round(expected)}%예요. 사용량 막대가 이 표시를 앞서면 리셋 전에 한도에 닿을 수 있어요.`;
+  const daysOff = workdays ? t('even.daysOff') : '';
+  const text = escapeHtml(t('even.tip', { daysOff, percent: Math.round(expected) }));
   return `<div class="even" style="left:${at}%" role="img" aria-label="${text}"></div>
     <div class="even-tip" style="--at:${at}%" aria-hidden="true">${text}</div>`;
 }
 
 /** «리셋 내일 09:00 (3시간 뒤)»; once passed, «오늘 17:20에 리셋됨 · 새 기록을 기다려요». */
 function resetLine(w: UsageWindow, now: number): string {
-  if (w.resetsAt === null) return '리셋 시각이 기록에 없어요';
-  if (resetPassed(w, now)) return `${formatDateTime(w.resetsAt, now)}에 리셋됨 · 새 기록을 기다려요`;
-  return `리셋 ${describeReset(w.resetsAt, now)}`;
+  if (w.resetsAt === null) return t('reset.noTime');
+  if (resetPassed(w, now)) return t('reset.happened', { when: formatDateTime(w.resetsAt, now) });
+  return t('reset.line', { when: describeReset(w.resetsAt, now) });
 }
 
 function windowsHtml(usage: CliUsage, now = Date.now()): string {
-  if (usage.windows.length === 0) return '<p class="empty">기록에 한도 값이 없어요.</p>';
+  if (usage.windows.length === 0) return `<p class="empty">${t('usage.noValues')}</p>`;
   return [...usage.windows]
     .sort(shorterFirst)
     .map((w) => {
@@ -138,11 +162,11 @@ function windowsHtml(usage: CliUsage, now = Date.now()): string {
       return `
         <div class="window">
           <div class="window-top">
-            <span class="window-name">${escapeHtml(windowName(w))} 한도</span>
-            <span class="window-percent ${tone}"><span class="num">${Math.round(used)}%</span> 사용</span>
+            <span class="window-name">${escapeHtml(t('usage.limit', { name: windowName(w) }))}</span>
+            <span class="window-percent ${tone}">${t('usage.used', { percent: `<span class="num">${Math.round(used)}%</span>` })}</span>
           </div>
           <div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(percent)}"
-               aria-label="${escapeHtml(windowName(w))} 한도 사용 비율">
+               aria-label="${escapeHtml(t('usage.usedRatio', { name: windowName(w) }))}">
             <div class="fill ${tone}" style="width:${percent}%"></div>${even}
           </div>
           <div class="sub">${resetLine(w, now)}</div>
@@ -157,11 +181,13 @@ function windowsHtml(usage: CliUsage, now = Date.now()): string {
  */
 function freshnessHtml(cli: CliId, usage: CliUsage | null, now = Date.now()): string {
   if (!usage) return '';
-  const age = usage.updatedAt ? `${formatDuration(now - usage.updatedAt)} 전` : '알 수 없음';
+  const age = usage.updatedAt
+    ? t('time.agoShort', { duration: formatDuration(now - usage.updatedAt) })
+    : t('usage.unknownAge');
   const full = usage.updatedAt ? ` title="${describePast(usage.updatedAt, now)}"` : '';
-  if (cli === 'codex') return `<p class="card-sub"${full}>가장 최근 Codex 기록 ${age}</p>`;
-  const from = usage.source === 'account' ? 'Anthropic 계정' : '상태 표시줄 기록';
-  return `<p class="card-sub"${full}>마지막 갱신 ${age} · ${from}</p>`;
+  if (cli === 'codex') return `<p class="card-sub"${full}>${t('usage.codexFresh', { age })}</p>`;
+  const from = t(usage.source === 'account' ? 'usage.fromAccount' : 'usage.fromStatusline');
+  return `<p class="card-sub"${full}>${t('usage.claudeFresh', { age, from })}</p>`;
 }
 
 /**
@@ -172,36 +198,33 @@ function freshnessHtml(cli: CliId, usage: CliUsage | null, now = Date.now()): st
 function accountProblemHtml(usage: CliUsage, now = Date.now()): string {
   let line = '';
   if (usage.accountProblem)
-    line = `<p class="card-note">계정에서 받지 못했어요: ${escapeHtml(usage.accountProblem)}.</p>`;
+    line = `<p class="card-note">${t('usage.accountProblem', { problem: escapeHtml(usage.accountProblem) })}</p>`;
   else if (usage.accountRetryAt)
-    line = `<p class="card-note quiet">Anthropic이 잠시 조회를 막았어요 (429) · ${formatClock(usage.accountRetryAt)}에 다시 물어봐요.</p>`;
+    line = `<p class="card-note quiet">${t('usage.accountPaused', { time: formatClock(usage.accountRetryAt) })}</p>`;
   if (!claudeStale(usage, now) || usage.updatedAt === null) return line;
-  const why =
-    usage.source === 'statusline'
-      ? ' Claude 앱과 VS Code에서 쓴 양은 상태 표시줄 기록에 들어가지 않아요.'
-      : '';
-  return `${line}<p class="card-note">${formatDuration(now - usage.updatedAt)} 전 값이라 지금과 다를 수 있어요.${why}</p>`;
+  const why = usage.source === 'statusline' ? t('usage.staleWhy') : '';
+  return `${line}<p class="card-note">${t('usage.stale', { duration: formatDuration(now - usage.updatedAt), why })}</p>`;
 }
 
 function waitingHtml(cli: CliId): string {
   return cli === 'claude'
-    ? `<div class="empty"><p>아직 Claude Code 기록이 없어요.</p>
-         <p>Claude Code에 로그인하면 계정에서 받아오고, 상태 표시줄 연동을 적용하면 Claude Code를 쓸 때도 기록돼요.
-         <button class="link" data-action="go" data-view="claude-setup">연동 안내 열기</button></p></div>`
-    : `<div class="empty"><p>아직 Codex 기록이 없어요.</p>
-         <p>최근 8일 안에 Codex CLI를 쓴 기록이 생기면 자동으로 보여요.</p></div>`;
+    ? `<div class="empty"><p>${t('usage.waitingClaude')}</p>
+         <p>${t('usage.waitingClaudeHow')}
+         <button class="link" data-action="go" data-view="claude-setup">${t('usage.openSetup')}</button></p></div>`
+    : `<div class="empty"><p>${t('usage.waitingCodex')}</p>
+         <p>${t('usage.waitingCodexHow')}</p></div>`;
 }
 
 /** The same words as the reset areas (areaError): 자동 재시도 중 while the automatic re-read runs (LHS-6 검증 10). */
 function retryLine(cli: CliId, source: Extract<SourceState, { kind: 'error' }>): string {
-  const when = source.nextRetryAt ? ` · 다음 시도 ${formatClock(source.nextRetryAt)}` : '';
+  const next = source.nextRetryAt ? t('retry.next', { time: formatClock(source.nextRetryAt) }) : '';
   return `<div class="row-actions">
-      <button class="small" data-action="retry" data-cli="${cli}" data-key="retry-${cli}">다시 시도</button>
-      <span>${source.retrying ? '자동 재시도 중' : `자동으로 다시 시도해요${when}`}</span>
+      <button class="small" data-action="retry" data-cli="${cli}" data-key="retry-${cli}">${t('retry.button')}</button>
+      <span>${source.retrying ? t('retry.running') : t('retry.auto', { next })}</span>
     </div>`;
 }
 
-const cardNames: Record<UsageCard, string> = { ...cliNames, upcoming: 'Codex 예정 리셋' };
+const cardName = (card: UsageCard) => (card === 'upcoming' ? t('card.upcoming') : cliNames[card]);
 
 const isCollapsed = (card: UsageCard) => state.window.collapsed.includes(card);
 
@@ -212,7 +235,7 @@ const isCollapsed = (card: UsageCard) => state.window.collapsed.includes(card);
  */
 function collapseButton(card: UsageCard): string {
   const collapsed = isCollapsed(card);
-  const label = `${cardNames[card]} ${collapsed ? '펼치기' : '접기'}`;
+  const label = escapeHtml(t(collapsed ? 'card.expand' : 'card.collapse', { name: cardName(card) }));
   return `<button class="icon-button collapse-toggle" data-action="collapse" data-card="${card}"
             data-key="collapse-${card}" aria-expanded="${!collapsed}" aria-label="${label}" title="${label}">
             ${chevronDown}</button>`;
@@ -236,44 +259,46 @@ function sourceCard(cli: CliId, source: SourceState): string {
   let stale = false;
   switch (source.kind) {
     case 'loading':
-      badge = chip('불러오는 중');
+      badge = chip(t('chip.loading'));
       body = skeleton;
       break;
     case 'waiting':
-      badge = chip('수집 대기');
+      badge = chip(t('chip.waiting'));
       body = waitingHtml(cli);
       break;
     case 'ok':
       // The record shown because the account could not be asked may be hours old: say so.
       badge = source.usage.accountProblem
-        ? chip('계정 조회 실패', 'warn')
+        ? chip(t('chip.accountFailed'), 'warn')
         : claudeStale(source.usage)
-          ? chip('오래된 값', 'warn')
-          : chip('정상', 'ok');
+          ? chip(t('chip.stale'), 'warn')
+          : chip(t('chip.ok'), 'ok');
       body = windowsHtml(source.usage) + accountProblemHtml(source.usage);
       break;
     case 'error':
       if (source.lastGood) {
-        badge = chip('최신 정보 아님', 'warn');
+        badge = chip(t('chip.notCurrent'), 'warn');
         stale = true;
         body = `
           <div class="notice warn" role="alert">
-            <p>${escapeHtml(source.message)}. 아래는 마지막으로 읽은 값이에요.</p>
+            <p>${t('usage.lastGood', { message: escapeHtml(source.message) })}</p>
             ${retryLine(cli, source)}
           </div>
           <div class="stale">${windowsHtml(source.lastGood)}</div>`;
       } else {
-        badge = chip(source.retrying ? '자동 재시도 중' : '확인 불가', 'error');
+        badge = chip(t(source.retrying ? 'retry.running' : 'chip.unavailable'), 'error');
         body = `
           <div class="notice error" role="alert">
-            <p>${escapeHtml(source.message)}. 읽은 적이 없어 보여 줄 값이 없어요.</p>
+            <p>${t('usage.neverRead', { message: escapeHtml(source.message) })}</p>
             ${retryLine(cli, source)}
           </div>`;
       }
       break;
   }
   const shown = source.kind === 'ok' ? source.usage : source.kind === 'error' ? source.lastGood : null;
-  const plan = shown?.planType ? `<span class="head-note">요금제 ${escapeHtml(shown.planType)}</span>` : '';
+  const plan = shown?.planType
+    ? `<span class="head-note">${t('usage.plan', { plan: escapeHtml(shown.planType) })}</span>`
+    : '';
   const collapsed = isCollapsed(cli);
   return `
     <section class="card${stale ? ' is-stale' : ''}${collapsed ? ' is-collapsed' : ''}" data-cli="${cli}" aria-label="${cliNames[cli]}">
@@ -283,8 +308,7 @@ function sourceCard(cli: CliId, source: SourceState): string {
     </section>`;
 }
 
-const resetTypeNames: Record<string, string> = { regular: '전체 리셋', banked: '적립형 리셋' };
-const typeName = (type: string) => resetTypeNames[type] ?? type;
+const typeName = resetTypeName;
 const firstLine = (text: string) => text.split('\n')[0] ?? '';
 
 /**
@@ -293,11 +317,12 @@ const firstLine = (text: string) => text.split('\n')[0] ?? '';
  * when it holds, and the post it comes from. It is a hint, not a scheduled reset, so it says so.
  */
 function watchBody(watch: ResetWatch): string {
-  const chance = watch.chancePercent === null ? '' : ` · 가능성 ${watch.chancePercent}%`;
-  const line = `${formatDateTime(watch.observedAt)} 신호${watch.text ? ` · ${escapeHtml(firstLine(watch.text))}` : ''}`;
-  return `<p class="upcoming-main"><span>${watchName(watch)}${chance}</span><span class="due">${formatDateTime(watch.expiresAt)}까지</span></p>
+  const chance =
+    watch.chancePercent === null ? '' : ` · ${t('watch.chance', { percent: watch.chancePercent })}`;
+  const line = `${t('watch.signal', { when: formatDateTime(watch.observedAt) })}${watch.text ? ` · ${escapeHtml(firstLine(watch.text))}` : ''}`;
+  return `<p class="upcoming-main"><span>${watchName(watch)}${chance}</span><span class="due">${t('watch.until', { when: formatDateTime(watch.expiresAt) })}</span></p>
     <p class="sub one-line" title="${line}">${line}</p>
-    <p class="sub">공지된 리셋은 아직 없어요.</p>`;
+    <p class="sub">${t('watch.notAnnounced')}</p>`;
 }
 
 /** The scheduled reset only; the rest of the status is on the reset screen (PR-P015, FC-F008). */
@@ -306,14 +331,14 @@ function upcomingBody(value: ResetStatus): string {
   if (!next) {
     const watch = currentWatch(value);
     if (watch) return watchBody(watch);
-    return `<p class="upcoming-main">예정 리셋 없음</p>
-      <p class="sub">새 리셋이 공지되면 알림으로 알려 드려요.</p>`;
+    return `<p class="upcoming-main">${t('upcoming.none')}</p>
+      <p class="sub">${t('upcoming.noneNote')}</p>`;
   }
   // The due time when the announcement gives one, the same time the menu bar counts down to (LHS-5 검증 16).
   const due =
     next.scheduledFor === null ? '' : `<span class="due">${formatDateTime(next.scheduledFor)}</span>`;
-  const line = `${formatDateTime(next.announcedAt)} 공지${next.text ? ` · ${escapeHtml(firstLine(next.text))}` : ''}`;
-  return `<p class="upcoming-main"><span>${escapeHtml(typeName(next.type))} 예정</span>${due}</p>
+  const line = `${t('upcoming.announced', { when: formatDateTime(next.announcedAt) })}${next.text ? ` · ${escapeHtml(firstLine(next.text))}` : ''}`;
+  return `<p class="upcoming-main"><span>${t('upcoming.scheduled', { type: escapeHtml(typeName(next.type)) })}</span>${due}</p>
     <p class="sub one-line" title="${line}">${line}</p>`;
 }
 
@@ -331,34 +356,34 @@ function upcomingCard(): string {
   let badge: string;
   let content: string;
   if (!s || s.kind === 'idle' || s.kind === 'loading') {
-    badge = chip('불러오는 중');
+    badge = chip(t('chip.loading'));
     content = '<div class="skeleton short"></div>';
   } else if (s.kind === 'ok') {
-    badge = refreshing ? chip('새로 고치는 중') : '';
+    badge = refreshing ? chip(t('chip.refreshing')) : '';
     content = upcomingBody(s.value);
   } else if (s.kind === 'empty') {
-    badge = refreshing ? chip('새로 고치는 중') : chip('결과 없음');
-    content = '<p class="upcoming-main muted">예정 리셋 정보 없음</p>';
+    badge = refreshing ? chip(t('chip.refreshing')) : chip(t('chip.empty'));
+    content = `<p class="upcoming-main muted">${t('upcoming.noInfo')}</p>`;
   } else {
-    badge = refreshing ? chip('새로 고치는 중') : errorChip(s);
+    badge = refreshing ? chip(t('chip.refreshing')) : errorChip(s);
     content =
-      areaError('status', s, '예정 리셋') +
+      areaError('status', s, t('upcoming.label')) +
       (s.lastGood ? `<div class="stale">${upcomingBody(s.lastGood)}</div>` : '');
   }
   const collapsed = isCollapsed('upcoming');
   return `
-    <section class="card upcoming${collapsed ? ' is-collapsed' : ''}" data-area="upcoming" data-action="go" data-view="resets" aria-label="Codex 예정 리셋">
+    <section class="card upcoming${collapsed ? ' is-collapsed' : ''}" data-area="upcoming" data-action="go" data-view="resets" aria-label="${t('card.upcoming')}">
       <button class="upcoming-open" data-action="go" data-view="resets" data-key="open-resets"
-              aria-label="Codex 전체 리셋 자세히 보기" title="Codex 전체 리셋 자세히 보기"></button>
+              aria-label="${t('upcoming.open')}" title="${t('upcoming.open')}"></button>
       <div class="card-head">
-        <h2>Codex 예정 리셋</h2>
+        <h2>${t('card.upcoming')}</h2>
         <span class="head-end">${badge}<span class="chevron" aria-hidden="true">${chevronRight}</span>${collapseButton('upcoming')}</span>
       </div>
       ${
         collapsed
           ? ''
           : `${content}
-      <p class="source">출처 <button class="link" data-action="external" data-url="${resetsSite}">codex-resets.com</button></p>`
+      <p class="source">${t('source.label')} ${resetsLink}</p>`
       }
     </section>`;
 }
@@ -372,23 +397,44 @@ function usageView(): string {
       ${
         usage.alertNotice
           ? `<div class="notice warn" role="alert"><p>${escapeHtml(usage.alertNotice)}</p>
-               <div class="row-actions"><button class="small" data-action="dismiss-alert">닫기</button></div></div>`
+               <div class="row-actions"><button class="small" data-action="dismiss-alert">${t('notice.close')}</button></div></div>`
           : ''
       }
       ${
         usage.resetNotice
           ? `<div class="notice warn" role="alert"><p>${escapeHtml(usage.resetNotice)}</p>
-               <div class="row-actions"><button class="small" data-action="dismiss-reset">닫기</button></div></div>`
+               <div class="row-actions"><button class="small" data-action="dismiss-reset">${t('notice.close')}</button></div></div>`
           : ''
       }
-      ${bothFailed ? '<div class="notice error" role="alert"><p>두 CLI의 기록을 모두 읽지 못했어요.</p></div>' : ''}
+      ${bothFailed ? `<div class="notice error" role="alert"><p>${t('usage.bothFailed')}</p></div>` : ''}
       ${sourceCard('claude', usage.claude)}
       ${sourceCard('codex', usage.codex)}
       ${upcomingCard()}
-      <footer class="foot">
-        <button class="text-button" data-action="go" data-view="claude-setup" data-key="open-setup">Claude Code 연동 안내${chevronRight}</button>
-        <p class="footnote">Claude Code 로그인은 Anthropic 사용량 조회에만 써요.</p>
-      </footer>
+    </main>`;
+}
+
+// ---------- 도움말 ----------
+
+/**
+ * 도움말 (developer, 2026-11-12: «Claude Code 연동 안내 should be on a separate screen such as
+ * 도움말»): the setup guide's entry and the login note, which stood under the usage cards, and where
+ * the reset information comes from.
+ */
+function helpView(): string {
+  return `
+    <main>
+      <section class="card" data-area="help-claude" aria-label="${t('help.claudeTitle')}">
+        <div class="card-head"><h2>${t('help.claudeTitle')}</h2></div>
+        <p class="sub">${t('help.claudeBody')}</p>
+        <div class="card-actions">
+          <button class="text-button" data-action="go" data-view="claude-setup" data-key="open-setup">${t('view.claudeSetup')}${chevronRight}</button>
+        </div>
+        <p class="sub">${t('help.loginNote')}</p>
+      </section>
+      <section class="card" data-area="help-resets" aria-label="${t('help.resetsTitle')}">
+        <div class="card-head"><h2>${t('help.resetsTitle')}</h2></div>
+        <p class="sub">${t('help.resetsBody', { link: resetsLink })}</p>
+      </section>
     </main>`;
 }
 
@@ -399,22 +445,22 @@ function claudeSetupView(): string {
   if (!status) return `<main><section class="card">${skeleton}</section></main>`;
   const result = status.lastApply;
   const existing = status.previousCommand
-    ? `<p>지금 쓰는 상태 표시줄 명령 <code>${escapeHtml(status.previousCommand)}</code>은(는) 지우지 않아요. 이 앱이 한도를 기록한 뒤 그 명령을 같은 입력으로 이어서 실행하므로 상태 표시줄 모양은 그대로예요.</p>`
-    : '<p>지금 설정된 상태 표시줄 명령은 없어요. 연동 후에도 Claude Code 상태 표시줄에는 아무것도 표시되지 않아요.</p>';
+    ? `<p>${t('setup.existing', { command: `<code>${escapeHtml(status.previousCommand)}</code>` })}</p>`
+    : `<p>${t('setup.noExisting')}</p>`;
   return `
     <main>
       <section class="card">
-        <div class="card-head"><h2>상태 표시줄 연동</h2>
-          ${status.applied ? chip('연동됨', 'ok') : status.missingFiles.length > 0 ? chip('연동 끊김', 'error') : chip('연동 안 됨')}
+        <div class="card-head"><h2>${t('setup.title')}</h2>
+          ${status.applied ? chip(t('setup.applied'), 'ok') : status.missingFiles.length > 0 ? chip(t('setup.broken'), 'error') : chip(t('setup.notApplied'))}
         </div>
         <div class="prose">
-          <p>Claude Code는 상태 표시줄 명령에 5시간·7일 한도의 사용 비율과 리셋 시각을 넘겨 줘요. 연동하면 그 값을 이 컴퓨터의 파일에 남기고, 사용량 현황에서 읽어요.</p>
+          <p>${t('setup.intro')}</p>
           ${existing}
-          <p class="sub">바뀌는 파일: <code>${escapeHtml(status.settingsPath)}</code>의 <code>statusLine</code> 항목 하나예요. 적용에 실패하면 적용 전 상태로 되돌려요.</p>
+          <p class="sub">${t('setup.changes', { path: `<code>${escapeHtml(status.settingsPath)}</code>`, key: '<code>statusLine</code>' })}</p>
         </div>
         <div class="card-actions">
           <button class="primary" data-action="apply" data-key="apply" ${status.applied || state.applying ? 'disabled' : ''}>
-            ${state.applying ? '적용하는 중…' : status.applied ? '연동됨' : status.missingFiles.length > 0 ? '다시 연동' : '연동 적용'}
+            ${t(state.applying ? 'setup.applying' : status.applied ? 'setup.applied' : status.missingFiles.length > 0 ? 'setup.reapply' : 'setup.apply')}
           </button>
         </div>
       </section>
@@ -426,21 +472,21 @@ function claudeSetupView(): string {
       }
       ${
         status.missingFiles.length > 0
-          ? `<div class="notice error" role="alert"><p>상태 표시줄 명령이 가리키는 파일이 없어서 Claude Code가 한도를 기록하지 못하고 있어요: ${status.missingFiles.map((path) => `<code>${escapeHtml(path)}</code>`).join(', ')}.</p><p>앱을 옮기거나 지운 뒤에 생겨요. 그동안 사용량 현황에는 마지막으로 남긴 기록이 보여요. «다시 연동»을 누르면 지금 이 앱으로 연결해요.</p></div>`
+          ? `<div class="notice error" role="alert"><p>${t('setup.missing', { paths: status.missingFiles.map((path) => `<code>${escapeHtml(path)}</code>`).join(', ') })}</p><p>${t('setup.missingWhy')}</p></div>`
           : ''
       }
       ${
         status.hookError
-          ? `<div class="notice error" role="alert"><p>${formatDateTime(status.hookError.at)}에 한도 기록을 남기지 못했어요: ${escapeHtml(status.hookError.message)}.</p><p>그 파일의 쓰기 권한을 확인해 주세요. 그동안 사용량 현황에는 마지막으로 남긴 기록이 보여요.</p></div>`
+          ? `<div class="notice error" role="alert"><p>${t('setup.hookError', { when: formatDateTime(status.hookError.at), message: escapeHtml(status.hookError.message) })}</p><p>${t('setup.hookErrorWhy')}</p></div>`
           : ''
       }
 
       <section class="card">
-        <div class="card-head"><h2>읽는 것과 보내는 곳</h2></div>
+        <div class="card-head"><h2>${t('setup.readsTitle')}</h2></div>
         <ul class="list">
-          <li><span class="list-label">읽는 것</span><span>Claude Code가 상태 표시줄 명령에 넘기는 입력, <code>~/.codex/sessions</code>의 Codex 기록, codex-resets.com 공개 API</span></li>
-          <li><span class="list-label">로그인</span><span>키체인의 Claude Code 로그인을 읽어 <code>api.anthropic.com</code>에만 보내 사용량을 받아요. 로그인을 갱신하거나 저장하지 않아요.</span></li>
-          <li><span class="list-label">최신성</span><span>Claude Code 로그인이 유효하면 1분마다 계정에서 받아와요. 로그인이 만료되면 Claude Code를 실행할 때까지 상태 표시줄 기록을 보여요. 사용량 현황의 «마지막 갱신»으로 확인하세요.</span></li>
+          <li><span class="list-label">${t('setup.readsLabel')}</span><span>${t('setup.reads', { codexDir: '<code>~/.codex/sessions</code>' })}</span></li>
+          <li><span class="list-label">${t('setup.loginLabel')}</span><span>${t('setup.login', { host: '<code>api.anthropic.com</code>' })}</span></li>
+          <li><span class="list-label">${t('setup.freshLabel')}</span><span>${t('setup.fresh')}</span></li>
         </ul>
       </section>
     </main>`;
@@ -449,8 +495,8 @@ function claudeSetupView(): string {
 // ---------- Codex 전체 리셋 ----------
 
 function errorChip<T>(s: Extract<AreaState<T>, { kind: 'error' }>): string {
-  if (s.lastGood) return chip('최신 정보 아님', 'warn');
-  return chip(s.retry?.running ? '자동 재시도 중' : '불러오기 실패', 'error');
+  if (s.lastGood) return chip(t('chip.notCurrent'), 'warn');
+  return chip(t(s.retry?.running ? 'retry.running' : 'chip.loadFailed'), 'error');
 }
 
 function areaError<T>(
@@ -460,15 +506,19 @@ function areaError<T>(
 ): string {
   const retry = s.retry
     ? s.retry.running
-      ? `자동 재시도 중 (${s.retry.of}번 중 ${s.retry.attempt}번째)`
-      : `${formatClock(s.retry.at)}에 자동으로 다시 시도해요 (${s.retry.of}번 중 ${s.retry.attempt}번째)`
-    : '자동 재시도 횟수를 다 써서 멈췄어요. 다시 시도를 눌러 주세요.';
+      ? t('area.retryRunning', { of: s.retry.of, attempt: s.retry.attempt })
+      : t('area.retryAt', { time: formatClock(s.retry.at), of: s.retry.of, attempt: s.retry.attempt })
+    : t('area.retryStopped');
   const lead = s.lastGood
-    ? `${escapeHtml(s.message)}. 아래는 ${s.lastGoodAt ? formatDateTime(s.lastGoodAt) : '이전'}에 불러온 ${label}이라 최신 정보가 아닐 수 있어요.`
-    : `${label}을 불러오지 못했어요: ${escapeHtml(s.message)}.`;
+    ? t('area.lastGood', {
+        message: escapeHtml(s.message),
+        when: s.lastGoodAt ? formatDateTime(s.lastGoodAt) : t('area.previously'),
+        label,
+      })
+    : t('area.failed', { label, message: escapeHtml(s.message) });
   return `<div class="notice ${s.lastGood ? 'warn' : 'error'}" role="alert">
       <p>${lead}</p>
-      <div class="row-actions"><button class="small" data-action="retry-resets" data-area="${area}" data-key="retry-${area}">다시 시도</button><span>${retry}</span></div>
+      <div class="row-actions"><button class="small" data-action="retry-resets" data-area="${area}" data-key="retry-${area}">${t('retry.button')}</button><span>${retry}</span></div>
     </div>`;
 }
 
@@ -478,33 +528,41 @@ const otherType = (type: string) => (type === 'regular' ? '' : `<span class="typ
 function statusBody(value: ResetStatus): string {
   const latest = value.latest
     ? `${formatDateTime(value.latest.announcedAt)}${otherType(value.latest.type)}`
-    : '기록 없음';
+    : t('resets.noRecord');
+  const scheduledAt = value.scheduled
+    ? value.scheduled.scheduledFor === null
+      ? t('resets.announcedOnly', { when: formatDateTime(value.scheduled.announcedAt) })
+      : formatDateTime(value.scheduled.scheduledFor)
+    : '';
   const scheduled = value.scheduled
-    ? `${formatDateTime(value.scheduled.scheduledFor ?? value.scheduled.announcedAt)}${value.scheduled.scheduledFor === null ? ' 공지' : ''}${otherType(value.scheduled.type)}`
-    : '<span class="muted">예정된 리셋 없음</span>';
-  const average = value.avgIntervalDays === null ? '알 수 없음' : `약 ${value.avgIntervalDays.toFixed(1)}일`;
+    ? `${scheduledAt}${otherType(value.scheduled.type)}`
+    : `<span class="muted">${t('resets.noScheduled')}</span>`;
+  const average =
+    value.avgIntervalDays === null
+      ? t('resets.unknown')
+      : t('resets.average', { days: value.avgIntervalDays.toFixed(1) });
   const since =
     value.daysSinceLast === null
       ? ''
-      : `<p class="sub facts-note">마지막 리셋 후 ${formatDuration(value.daysSinceLast * 86_400_000)} 지났어요 · 지금까지 ${value.total}번</p>`;
+      : `<p class="sub facts-note">${t('resets.since', { duration: formatDuration(value.daysSinceLast * 86_400_000), total: value.total })}</p>`;
   const watch = currentWatch(value);
   const watchRow = watch
-    ? `<div><dt>${watchName(watch)}</dt><dd>${watch.chancePercent === null ? '' : `가능성 ${watch.chancePercent}% · `}${formatDateTime(watch.expiresAt)}까지${
+    ? `<div><dt>${watchName(watch)}</dt><dd>${watch.chancePercent === null ? '' : `${t('watch.chance', { percent: watch.chancePercent })} · `}${t('watch.until', { when: formatDateTime(watch.expiresAt) })}${
         watch.sourceUrl
-          ? ` <button class="link small-link" data-action="external" data-url="${escapeHtml(watch.sourceUrl)}">원문</button>`
+          ? ` <button class="link small-link" data-action="external" data-url="${escapeHtml(watch.sourceUrl)}">${t('resets.post')}</button>`
           : ''
       }</dd></div>`
     : '';
   return `<dl class="facts">
-      <div><dt>최근 전체 리셋</dt><dd>${latest}</dd></div>
-      <div><dt>예정된 전체 리셋</dt><dd>${scheduled}</dd></div>${watchRow}
-      <div><dt>리셋 간 평균 간격</dt><dd>${average}</dd></div>
+      <div><dt>${t('resets.latest')}</dt><dd>${latest}</dd></div>
+      <div><dt>${t('resets.scheduled')}</dt><dd>${scheduled}</dd></div>${watchRow}
+      <div><dt>${t('resets.interval')}</dt><dd>${average}</dd></div>
     </dl>${since}`;
 }
 
 function historyRow(entry: ResetEntry): string {
   const original = entry.sourceUrl
-    ? `<button class="link small-link" data-action="external" data-url="${escapeHtml(entry.sourceUrl)}">원문 공지</button>`
+    ? `<button class="link small-link" data-action="external" data-url="${escapeHtml(entry.sourceUrl)}">${t('resets.announcement')}</button>`
     : '';
   return `<li>
       <div class="row-top"><strong>${formatDateTime(entry.announcedAt)}</strong>
@@ -517,11 +575,11 @@ function historyBody(value: ResetHistory): string {
   const refreshing = state.resets?.refreshing.history ?? false;
   const more = value.nextCursor
     ? `<div class="card-actions">
-         <button class="small" data-action="more" data-key="more" ${value.loadingMore || refreshing ? 'disabled' : ''}>${value.loadingMore ? '불러오는 중…' : '이력 더 보기'}</button>
+         <button class="small" data-action="more" data-key="more" ${value.loadingMore || refreshing ? 'disabled' : ''}>${t(value.loadingMore ? 'resets.loadingMore' : 'resets.more')}</button>
        </div>`
-    : '<p class="sub end-note">이력을 끝까지 불러왔어요.</p>';
+    : `<p class="sub end-note">${t('resets.allLoaded')}</p>`;
   const moreError = value.moreError
-    ? `<div class="notice error" role="alert"><p>이력을 더 불러오지 못했어요: ${escapeHtml(value.moreError)}.</p></div>`
+    ? `<div class="notice error" role="alert"><p>${t('resets.moreFailed', { message: escapeHtml(value.moreError) })}</p></div>`
     : '';
   return `<ul class="history">${value.entries.map(historyRow).join('')}</ul>${moreError}${more}`;
 }
@@ -535,18 +593,18 @@ function areaCard<T>(
   emptyText: string,
 ): string {
   const refreshing = state.resets?.refreshing[area] ?? false;
-  let badge = refreshing ? chip('새로 고치는 중') : '';
+  let badge = refreshing ? chip(t('chip.refreshing')) : '';
   let content: string;
   if (!s || s.kind === 'idle' || s.kind === 'loading') {
-    badge = chip('불러오는 중');
+    badge = chip(t('chip.loading'));
     content = skeleton;
   } else if (s.kind === 'ok') {
     content = body(s.value);
   } else if (s.kind === 'empty') {
-    badge ||= chip('결과 없음');
+    badge ||= chip(t('chip.empty'));
     content = `<p class="empty">${emptyText}</p>`;
   } else {
-    badge = refreshing ? chip('새로 고치는 중') : errorChip(s);
+    badge = refreshing ? chip(t('chip.refreshing')) : errorChip(s);
     content = areaError(area, s, label) + (s.lastGood ? `<div class="stale">${body(s.lastGood)}</div>` : '');
   }
   return `<section class="card" data-area="${area}" aria-label="${title}">
@@ -557,9 +615,9 @@ function resetsView(): string {
   const snapshot = state.resets;
   return `
     <main>
-      ${areaCard('status', '전체 리셋 현황', '현황', snapshot?.status, statusBody, 'codex-resets.com에 아직 리셋 정보가 없어요.')}
-      ${areaCard('history', '전체 리셋 이력', '이력', snapshot?.history, historyBody, '표시할 리셋 이력이 없어요.')}
-      <p class="footnote">데이터 출처 <button class="link" data-action="external" data-url="${resetsSite}">codex-resets.com</button> · OpenAI 공지를 모아 보여 주는 비공식 사이트예요.</p>
+      ${areaCard('status', t('resets.statusTitle'), t('resets.statusLabel'), snapshot?.status, statusBody, t('resets.statusEmpty'))}
+      ${areaCard('history', t('resets.historyTitle'), t('resets.historyLabel'), snapshot?.history, historyBody, t('resets.historyEmpty'))}
+      <p class="footnote">${t('resets.footnote', { link: resetsLink })}</p>
     </main>`;
 }
 
@@ -574,14 +632,15 @@ function settingsView(): string {
   if (!item) return `<main><section class="card">${skeleton}</section></main>`;
   const disabled = !item.supported || state.savingLoginItem;
   const note = !item.supported
-    ? '<p class="sub">소스 폴더에서 실행한 앱(npm start)에서는 켤 수 없어요. 설치한 앱에서 켜 주세요.</p>'
-    : '<p class="sub">Mac에 로그인하면 메뉴 막대에 이 앱이 자동으로 나타나요.</p>';
+    ? `<p class="sub">${t('settings.sourceOnly')}</p>`
+    : `<p class="sub">${t('settings.loginNote')}</p>`;
   return `
     <main>
-      <section class="card" data-area="login-item" aria-label="시작">
-        <div class="card-head"><h2>시작</h2></div>
+      ${languageCard()}
+      <section class="card" data-area="login-item" aria-label="${t('settings.start')}">
+        <div class="card-head"><h2>${t('settings.start')}</h2></div>
         <div class="setting-row">
-          <span class="setting-name" id="login-item-name">로그인 시 자동 실행</span>
+          <span class="setting-name" id="login-item-name">${t('settings.openAtLogin')}</span>
           <label class="switch">
             <input type="checkbox" role="switch" data-key="login-item" aria-labelledby="login-item-name"
                    ${item.openAtLogin ? 'checked' : ''} ${disabled ? 'disabled' : ''} />
@@ -592,22 +651,22 @@ function settingsView(): string {
       </section>
       ${
         item.needsApproval
-          ? `<div class="notice warn" role="status"><p>macOS의 허용을 기다리고 있어요. 시스템 설정 › 일반 › 로그인 항목에서 이 앱을 허용해 주세요.</p>
-               <div class="row-actions"><button class="small" data-action="open-login-items" data-key="open-login-items">시스템 설정 열기</button></div></div>`
+          ? `<div class="notice warn" role="status"><p>${t('settings.needsApproval')}</p>
+               <div class="row-actions"><button class="small" data-action="open-login-items" data-key="open-login-items">${t('settings.openSystemSettings')}</button></div></div>`
           : ''
       }
       ${item.error ? `<div class="notice error" role="alert"><p>${escapeHtml(item.error)}</p></div>` : ''}
-      <section class="card" data-area="workdays" aria-label="사용 속도 표시">
-        <div class="card-head"><h2>사용 속도 표시</h2></div>
+      <section class="card" data-area="workdays" aria-label="${t('settings.pace')}">
+        <div class="card-head"><h2>${t('settings.pace')}</h2></div>
         <div class="setting-row">
-          <span class="setting-name" id="workdays-name">주말·공휴일 제외</span>
+          <span class="setting-name" id="workdays-name">${t('settings.workdays')}</span>
           <label class="switch">
             <input type="checkbox" role="switch" data-key="workdays" aria-labelledby="workdays-name"
                    ${state.window.workdaysOnly ? 'checked' : ''} />
             <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
           </label>
         </div>
-        <p class="sub">켜면 7일 한도 막대의 세로 표시가 토·일요일과 공휴일에는 멈추고, 평일에만 움직여 리셋 시각에 끝에 이르러요. 5시간 한도는 그대로예요.</p>
+        <p class="sub">${t('settings.workdaysNote')}</p>
       </section>
       ${menuBarCard()}
       ${themeCard()}
@@ -625,10 +684,33 @@ function menuBarCard(): string {
             <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
           </label>
         </div>`;
-  return `<section class="card" data-area="menu-bar" aria-label="메뉴 막대">
-      <div class="card-head"><h2>메뉴 막대</h2></div>
+  return `<section class="card" data-area="menu-bar" aria-label="${t('settings.menuBar')}">
+      <div class="card-head"><h2>${t('settings.menuBar')}</h2></div>
       ${row('claude')}${row('codex')}
-      <p class="sub">끄면 메뉴 막대 글자에서 빠져요. Codex를 끄면 예정 리셋까지 남은 시간도 빠져요. 사용량 화면과 알림은 그대로예요.</p>
+      <p class="sub">${t('settings.menuBarNote')}</p>
+    </section>`;
+}
+
+/**
+ * 언어 (developer, 2026-11-12): one radio group, each language under its own name; the screen
+ * changes at once. The title also says «Language» when the chosen language is not English, so a
+ * person who cannot read it still finds the setting. First on 설정 for the same reason.
+ */
+function languageCard(): string {
+  const current = state.window.language;
+  const title = current === 'en' ? t('settings.language') : `${t('settings.language')} · Language`;
+  const options = languages
+    .map(
+      (language) => `<label class="theme-option language-option">
+          <input type="radio" name="language" value="${language}" data-key="language-${language}"
+                 lang="${languageTags[language]}" ${current === language ? 'checked' : ''} />
+          <span class="theme-name" lang="${languageTags[language]}">${languageNames[language]}</span>
+        </label>`,
+    )
+    .join('');
+  return `<section class="card" data-area="language" aria-label="${title}">
+      <div class="card-head"><h2 id="language-name">${title}</h2></div>
+      <div class="theme-grid language-grid" role="radiogroup" aria-labelledby="language-name">${options}</div>
     </section>`;
 }
 
@@ -662,38 +744,49 @@ function themeCard(): string {
         </div>`,
     )
     .join('');
-  return `<section class="card" data-area="theme" aria-label="테마">
-      <div class="card-head"><h2 id="theme-name">테마</h2></div>
+  return `<section class="card" data-area="theme" aria-label="${t('settings.theme')}">
+      <div class="card-head"><h2 id="theme-name">${t('settings.theme')}</h2></div>
       <div role="radiogroup" aria-labelledby="theme-name">${groups}</div>
     </section>`;
 }
 
 // ---------- shell ----------
 
-const titles: Record<View, string> = {
-  usage: '사용량 현황',
-  'claude-setup': 'Claude Code 연동 안내',
-  resets: 'Codex 전체 리셋',
-  settings: '설정',
+const titleKeys: Record<View, MessageKey> = {
+  usage: 'view.usage',
+  'claude-setup': 'view.claudeSetup',
+  resets: 'view.resets',
+  settings: 'view.settings',
+  help: 'view.help',
 };
 
 /** «창 항상 위에 표시»: one setting, the same switch right of every screen's title (FC-F019, PR-P025). */
 function pinSwitch(): string {
   const on = state.window.alwaysOnTop;
-  return `<label class="switch" title="창 항상 위에 표시">
-      <span class="switch-label">항상 위</span>
-      <input type="checkbox" role="switch" data-key="pin" aria-label="창 항상 위에 표시" ${on ? 'checked' : ''} />
+  return `<label class="switch" title="${t('top.pinTitle')}">
+      <span class="switch-label">${t('top.pin')}</span>
+      <input type="checkbox" role="switch" data-key="pin" aria-label="${t('top.pinTitle')}" ${on ? 'checked' : ''} />
       <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
     </label>`;
 }
 
+const helpIcon =
+  '<svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25" /><path d="M6.1 6.2a1.95 1.95 0 1 1 2.65 1.82c-.45.18-.75.6-.75 1.08v.4" /><path d="M8 11.6v.05" /></svg>';
+
+/** Where «back» leads: the screen this one was opened from (도움말 for the setup guide opened there). */
+const backTarget = (): View => state.backStack[state.backStack.length - 1] ?? 'usage';
+
 function render(): void {
+  setLanguage(state.window.language);
   document.documentElement.dataset.theme = state.window.theme;
+  document.documentElement.lang = languageTags[state.window.language];
+  document.title = t('app.name');
+  const backLabel = t(backTarget() === 'help' ? 'back.help' : 'back.usage');
   const back =
     state.view === 'usage'
       ? ''
-      : `<button class="icon-button back" data-action="go" data-view="usage" data-key="back"
-                 aria-label="사용량 현황으로 돌아가기" title="사용량 현황으로 돌아가기">${chevronLeft}</button>`;
+      : `<button class="icon-button back" data-action="back" data-key="back"
+                 aria-label="${backLabel}" title="${backLabel}">${chevronLeft}</button>`;
   // «새로 고침» (developer, 2026-11-03): re-reads both local records and asks for the reset status
   // at once, the same as the screen's own 30-second timer and «다시 시도». While a read runs it shows
   // the spinner and cannot be pressed again.
@@ -701,26 +794,32 @@ function render(): void {
   const refreshing =
     state.view !== 'usage'
       ? ''
-      : `<button class="icon-button" data-action="refresh" data-key="refresh" title="새로 고침"
-                 aria-label="${state.refreshing ? '새로 고치는 중' : '새로 고침'}" aria-disabled="${state.refreshing}">
+      : `<button class="icon-button" data-action="refresh" data-key="refresh" title="${t('top.refresh')}"
+                 aria-label="${t(state.refreshing ? 'top.refreshing' : 'top.refresh')}" aria-disabled="${state.refreshing}">
            ${state.refreshing ? '<span class="spinner"></span>' : refreshIcon}</button>`;
-  // 설정 (developer, 2026-11-04): a gear in the usage screen's top bar, beside «새로 고침».
+  // 도움말 (developer, 2026-11-12) and 설정 (developer, 2026-11-04): beside «새로 고침» on the usage screen.
+  const help =
+    state.view !== 'usage'
+      ? ''
+      : `<button class="icon-button" data-action="go" data-view="help" data-key="open-help"
+                 aria-label="${t('view.help')}" title="${t('view.help')}">${helpIcon}</button>`;
   const settings =
     state.view !== 'usage'
       ? ''
       : `<button class="icon-button" data-action="go" data-view="settings" data-key="open-settings"
-                 aria-label="설정" title="설정">${gearIcon}</button>`;
+                 aria-label="${t('view.settings')}" title="${t('view.settings')}">${gearIcon}</button>`;
   const views: Record<View, () => string> = {
     usage: usageView,
     'claude-setup': claudeSetupView,
     resets: resetsView,
     settings: settingsView,
+    help: helpView,
   };
   const body = views[state.view]();
   const focused = (document.activeElement as HTMLElement | null)?.dataset?.key;
   const scroll = window.scrollY;
   document.body.classList.toggle('pinned', state.window.alwaysOnTop);
-  root.innerHTML = `<header class="topbar">${back}<h1>${titles[state.view]}</h1>${refreshing}${settings}${pinSwitch()}</header>${body}`;
+  root.innerHTML = `<header class="topbar">${back}<h1>${t(titleKeys[state.view])}</h1>${refreshing}${help}${settings}${pinSwitch()}</header>${body}`;
   window.scrollTo(0, scroll);
   // innerHTML replaces every element; keep the keyboard where it was.
   if (focused) root.querySelector<HTMLElement>(`[data-key="${focused}"]`)?.focus();
@@ -740,8 +839,14 @@ async function refreshUsage(automatic = false): Promise<void> {
   }
 }
 
-async function go(view: View): Promise<void> {
+/**
+ * Opens a screen. Going forward remembers where from, so «back» returns there; the usage screen
+ * forgets the way, and `back` is the step back itself (developer, 2026-11-12: 도움말 › 연동 안내).
+ */
+async function go(view: View, how: 'forward' | 'back' = 'forward'): Promise<void> {
   const changed = view !== state.view;
+  if (view === 'usage') state.backStack = [];
+  else if (how === 'forward' && changed) state.backStack.push(state.view);
   state.view = view;
   if (changed) window.scrollTo(0, 0);
   render();
@@ -771,6 +876,7 @@ root.addEventListener('click', (event) => {
   if (!target) return;
   const { action } = target.dataset;
   if (action === 'go') void go(target.dataset.view as View);
+  if (action === 'back') void go(state.backStack.pop() ?? 'usage', 'back');
   if (action === 'collapse' && target.dataset.card) {
     const card = target.dataset.card as UsageCard;
     void monitor.setCollapsed(card, !isCollapsed(card)).then((settings) => {
@@ -851,6 +957,19 @@ root.addEventListener('change', (event) => {
     });
     return;
   }
+  if (input.name === 'language') {
+    if (!isLanguage(input.value)) return;
+    const language: Language = input.value;
+    // The screen changes at once; the main process then words its own texts (menus, messages) anew.
+    state.window = { ...state.window, language };
+    render();
+    void monitor.setLanguage(language).then(async (settings) => {
+      state.window = settings;
+      state.usage = await monitor.getUsage();
+      render();
+    });
+    return;
+  }
   if (input.dataset.key === 'menu-bar') {
     void monitor.setShownInMenuBar(input.dataset.cli as CliId, input.checked).then((settings) => {
       state.window = settings;
@@ -910,7 +1029,11 @@ monitor.onResets((snapshot) => {
   state.resets = snapshot;
   if (state.view !== 'claude-setup') render();
 });
-monitor.onNavigate((view) => void go(view));
+// Opening the popover starts over at the screen asked for.
+monitor.onNavigate((view) => {
+  state.backStack = [];
+  void go(view);
+});
 
 let refreshTimer: number | null = null;
 function syncRefreshTimer(): void {

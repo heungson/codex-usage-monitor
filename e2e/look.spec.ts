@@ -11,7 +11,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { themes } from '../src/shared/themes';
 import { codexLine } from '../test/helpers';
-import { capture, clickUpcomingArea, launch, makeFixture, type Fixture } from './app';
+import { backToUsage, capture, clickUpcomingArea, type Fixture, launch, makeFixture, openSetup } from './app';
 import { startFakeResets } from './fake-resets-server';
 
 const hour = 3_600_000;
@@ -76,18 +76,18 @@ for (const scheme of ['light', 'dark'] as const) {
     await page.getByRole('switch', { name: '창 항상 위에 표시' }).check({ force: true });
     await shot('usage-pin-on');
 
-    await page.getByRole('button', { name: /Claude Code 연동 안내/ }).click();
+    await openSetup(page);
     await expect(page.getByText('연동 안 됨')).toBeVisible();
     await shot('setup-pin-on');
     await page.getByRole('switch', { name: '창 항상 위에 표시' }).uncheck({ force: true });
     await shot('setup-pin-off');
 
-    await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+    await backToUsage(page);
     await page.getByRole('button', { name: '설정' }).click();
     await expect(page.getByRole('switch', { name: '로그인 시 자동 실행' })).toBeVisible();
     await shot('settings-pin-off');
 
-    await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+    await backToUsage(page);
     await clickUpcomingArea(page);
     await expect(page.locator('section[data-area="history"] li')).toHaveCount(5);
     await shot('resets-pin-off');
@@ -99,7 +99,7 @@ for (const scheme of ['light', 'dark'] as const) {
     await page.evaluate(() => window.monitor.retryResets('history'));
     await expect(page.locator('section[data-area="history"]')).toContainText('최신 정보 아님');
     await shot('resets-history-stale');
-    await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+    await backToUsage(page);
     await page.evaluate(() => window.monitor.retryResets('status'));
     await expect(page.locator('section[data-area="upcoming"]')).toContainText('최신 정보 아님');
     await shot('usage-upcoming-stale');
@@ -175,7 +175,7 @@ for (const { id: theme } of themes.slice(1)) {
       await page.mouse.move(0, 0);
       await page.getByRole('button', { name: '설정' }).click();
       await capture(page, `theme-${theme}-${scheme}-settings`, dir);
-      await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+      await backToUsage(page);
     }
     await app.close();
     await server.close();

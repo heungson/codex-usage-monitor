@@ -10,14 +10,16 @@ import { expect, test } from '@playwright/test';
 
 import { codexLine } from '../test/helpers';
 import {
+  backToUsage,
   capture,
   clickUpcomingArea,
+  type Fixture,
   launch,
   makeFixture,
   openedLinks,
+  openSetup,
   trayTitle,
   watchTray,
-  type Fixture,
 } from './app';
 import { startFakeResets, type FakeServer } from './fake-resets-server';
 
@@ -260,7 +262,7 @@ test('«새로 고침» re-reads both records and asks for the reset status at o
   await expect.poll(statusCalls, { timeout: 3_000 }).toBe(before + 1);
   await expect(page.getByRole('button', { name: '새로 고침', exact: true })).toBeVisible();
   // Only the usage screen has it; the others fetch when they open.
-  await page.getByRole('button', { name: /Claude Code 연동 안내/ }).click();
+  await openSetup(page);
   await expect(page.getByRole('button', { name: '새로 고침', exact: true })).toHaveCount(0);
   await app.close();
 });
@@ -426,7 +428,7 @@ test('each usage card folds to its title line, keeps its percentages, and stays 
   // The rest of a folded 예정 리셋 card still opens the reset screen.
   await clickUpcomingArea(page);
   await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
-  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await backToUsage(page);
   await unfold(page, 'Codex').click();
   await expect(card(page, 'codex')).toContainText('7일 한도');
   await app.close();
@@ -449,7 +451,7 @@ test('설정 › 메뉴 막대 leaves a CLI out of the menu bar title, and keeps
   await expect.poll(() => trayTitle(app)).toBe('CC 20/14%');
   await capture(page, 'settings-menu-bar');
   // The usage screen still shows Codex.
-  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await backToUsage(page);
   await expect(card(page, 'codex')).toContainText('44%');
 
   await app.close();
@@ -510,9 +512,9 @@ const upcoming = (page: import('@playwright/test').Page) => page.locator('sectio
 
 test('the two entries open their screens; no separate reset button (LHS-5 검증 7, v3 WF-S001)', async () => {
   const { app, page } = await launch(fixture, server.url);
-  await page.getByRole('button', { name: /Claude Code 연동 안내/ }).click();
+  await openSetup(page);
   await expect(page.locator('h1')).toHaveText('Claude Code 연동 안내');
-  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await backToUsage(page);
   await expect(page.locator('h1')).toHaveText('사용량 현황');
   await expect(page.locator('nav, button:text-is("Codex 전체 리셋")')).toHaveCount(0);
   await expect(upcoming(page)).toContainText('예정 리셋 없음');
@@ -572,7 +574,7 @@ test('the 예정 리셋 area shows the scheduled reset only, and opens the reset
   await clickUpcomingArea(page);
   await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
   await expect.poll(statusCalls).toBe(before + 1);
-  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await backToUsage(page);
   await expect(upcoming(page)).toContainText('예정 리셋을 불러오지 못했어요');
   mode({ status: 'scheduled' });
   await upcoming(page).getByRole('button', { name: '다시 시도' }).click();
@@ -614,7 +616,7 @@ test('the 예정 리셋 area itself takes the keyboard; › is only a sign (LHS-
   await capture(page, 'usage-upcoming-focused');
   await page.keyboard.press('Enter');
   await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
-  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await backToUsage(page);
   await open.focus();
   await page.keyboard.press('Space');
   await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
@@ -626,8 +628,8 @@ test('opening the usage screen asks for the status only when the last success is
   await expect(upcoming(page)).toContainText('예정 리셋 없음');
   const statusCalls = () => server.requests.filter((r) => r.startsWith('GET /api/v1/status')).length;
   expect(statusCalls()).toBe(1);
-  await page.getByRole('button', { name: /Claude Code 연동 안내/ }).click();
-  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await openSetup(page);
+  await backToUsage(page);
   await page.waitForTimeout(1000);
   expect(statusCalls()).toBe(1);
   await app.close();
@@ -646,9 +648,9 @@ test('«창 항상 위에 표시» is one switch on all three screens, off at fi
   await expect(pin(page)).toBeChecked();
   expect(await isOnTop(app)).toBe(true);
   await capture(page, 'usage-pin-on');
-  await page.getByRole('button', { name: /Claude Code 연동 안내/ }).click();
+  await openSetup(page);
   await expect(pin(page)).toBeChecked();
-  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await backToUsage(page);
   await clickUpcomingArea(page);
   await expect(page.locator('h1')).toHaveText('Codex 전체 리셋');
   await expect(pin(page)).toBeChecked();
@@ -854,4 +856,76 @@ test("with no reset announced, the 예정 리셋 card and the reset screen show 
   const again = await launch(fixture, server.url);
   await expect(upcoming(again.page)).toContainText('예정 리셋 없음');
   await again.app.close();
+});
+
+test('도움말 holds the Claude Code setup guide; back goes 연동 안내 → 도움말 → 사용량 현황 (developer 2026-11-12)', async () => {
+  writeClaude(fixture, 23, 61);
+  writeCodex(fixture, 44);
+  const { app, page } = await launch(fixture, server.url);
+  await expect(card(page, 'claude')).toContainText('23% 사용');
+  // The usage screen no longer has the entry or the login note.
+  await expect(page.getByRole('button', { name: /Claude Code 연동 안내/ })).toHaveCount(0);
+  await expect(page.getByText('Claude Code 로그인은 Anthropic 사용량 조회에만 써요.')).toHaveCount(0);
+  await page.getByRole('button', { name: '도움말', exact: true }).click();
+  await expect(page.locator('h1')).toHaveText('도움말');
+  await expect(page.getByText('Claude Code 로그인은 Anthropic 사용량 조회에만 써요.')).toBeVisible();
+  await capture(page, 'help');
+  await page.getByRole('button', { name: /Claude Code 연동 안내/ }).click();
+  await expect(page.locator('h1')).toHaveText('Claude Code 연동 안내');
+  await page.getByRole('button', { name: '도움말로 돌아가기' }).click();
+  await expect(page.locator('h1')).toHaveText('도움말');
+  await page.getByRole('button', { name: '사용량 현황으로 돌아가기' }).click();
+  await expect(page.locator('h1')).toHaveText('사용량 현황');
+  await app.close();
+});
+
+test('설정 › 언어 changes the screens, notifications and menus, and is kept after a restart (developer 2026-11-12)', async () => {
+  writeClaude(fixture, 23, 61);
+  writeCodex(fixture, 44);
+  const language = (page: import('@playwright/test').Page, name: string) =>
+    page.locator('section[data-area="language"]').getByRole('radio', { name });
+  let { app, page } = await launch(fixture, server.url);
+  await watchTray(app, page);
+  await page.getByRole('button', { name: '설정' }).click();
+  await expect(page.locator('section[data-area="language"]')).toContainText('언어 · Language');
+  await expect(language(page, '한국어')).toBeChecked();
+  await language(page, 'English').check({ force: true });
+  await expect(page.locator('h1')).toHaveText('Settings');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await capture(page, 'settings-english');
+  await page.getByRole('button', { name: 'Back to Usage' }).click();
+  await expect(page.locator('h1')).toHaveText('Usage');
+  await expect(card(page, 'claude')).toContainText('5-hour limit');
+  await expect(card(page, 'claude')).toContainText('23% used');
+  await expect(upcoming(page)).toContainText('No upcoming reset');
+  // The menu bar title has no words; the app menu does.
+  await expect.poll(() => trayTitle(app)).toMatch(/^CC 23\/61% · CX 44%/);
+  const menu = await app.evaluate(({ Menu }) => Menu.getApplicationMenu()?.items[0]?.label ?? null);
+  expect(menu).toBe('Usage Limit Monitor');
+  await capture(page, 'usage-english');
+  await app.close();
+
+  // Kept after a restart; an 80% alert comes in English too.
+  writeClaude(fixture, 85, 61);
+  ({ app, page } = await launch(fixture, server.url));
+  await expect(page.locator('h1')).toHaveText('Usage');
+  const log = () =>
+    existsSync(join(fixture.dataDir, 'notifications.log'))
+      ? readFileSync(join(fixture.dataDir, 'notifications.log'), 'utf8')
+      : '';
+  await expect.poll(log, { timeout: 10_000 }).toContain('Claude Code 5-hour limit 85% used');
+
+  // Japanese and Chinese look: each screen fits the popover and reads in that language.
+  for (const [name, title, limit] of [
+    ['日本語', '使用状況', '5時間の上限'],
+    ['简体中文', '用量概况', '5小时限额'],
+  ] as const) {
+    await page.locator('button[data-action="go"][data-view="settings"]').click();
+    await language(page, name).check({ force: true });
+    await page.locator('button[data-action="back"]').click();
+    await expect(page.locator('h1')).toHaveText(title);
+    await expect(card(page, 'claude')).toContainText(limit);
+    await capture(page, `usage-${name === '日本語' ? 'japanese' : 'chinese'}`);
+  }
+  await app.close();
 });
