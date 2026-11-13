@@ -1,5 +1,20 @@
 # Verification
 
+## No focus ring after a click (2026-11-13)
+
+Asked for by the developer (decision of 2026-11-13 in `docs/decisions.md`). No PRS entry (servers
+not connected).
+
+- A probe in the test window (clicked 새로 고침, then closed and opened the popover from the menu
+  bar) showed 새로 고침 still focused but no ring there: that window opens without taking focus, so the
+  ring itself could not be reproduced in a check.
+- `npm run typecheck`, `npm run lint`, `npm run format:check`: passed. `npm test`: 227 passed.
+- `npm run test:e2e`: 86 passed, 2 skipped. New in `e2e/usage.spec.ts`: after Tab the focused element has a
+  solid outline and `data-input="keyboard"`; after a click on 새로 고침 and a redraw it is focused with
+  no outline and `data-input="pointer"`; closing and opening from the menu bar leaves nothing
+  focused.
+- Not checked: the installed app's real popover (not rebuilt yet), where the ring appeared.
+
 ## 도움말 and 설정 › 언어 (2026-11-12)
 
 Asked for by the developer (decision of 2026-11-12 in `docs/decisions.md`). No PRS entry (servers

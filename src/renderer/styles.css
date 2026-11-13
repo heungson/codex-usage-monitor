@@ -1003,6 +1003,17 @@ code {
   outline-offset: 2px;
 }
 
+/*
+ * No focus ring after a click (developer, 2026-11-13: a yellow square on 새로 고침 after opening the
+ * popover from the menu bar). app.ts sets data-input; the keyboard brings the rings back.
+ */
+:root[data-input='pointer'] button:focus-visible,
+:root[data-input='pointer'] .link:focus-visible,
+:root[data-input='pointer'] .switch input:focus-visible + .switch-track,
+:root[data-input='pointer'] .theme-option:has(input:focus-visible) {
+  outline: none;
+}
+
 .theme-option input {
   position: absolute;
   opacity: 0;

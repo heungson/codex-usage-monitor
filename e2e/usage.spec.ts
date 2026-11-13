@@ -929,3 +929,36 @@ test('설정 › 언어 changes the screens, notifications and menus, and is kep
   }
   await app.close();
 });
+
+test('focus rings show after the keyboard only; opening from the menu bar clears focus (developer 2026-11-13)', async () => {
+  writeClaude(fixture, 23, 61);
+  writeCodex(fixture, 44);
+  const { app, page } = await launch(fixture, server.url);
+  await watchTray(app, page);
+  await expect(card(page, 'claude')).toContainText('23% 사용');
+  const focus = () =>
+    page.evaluate(() => {
+      const el = document.activeElement as HTMLElement;
+      return {
+        key: el.dataset.key ?? el.tagName,
+        input: document.documentElement.dataset.input,
+        outline: getComputedStyle(el).outlineStyle,
+      };
+    });
+  // The keyboard shows where focus is.
+  await page.keyboard.press('Tab');
+  expect(await focus()).toMatchObject({ input: 'keyboard', outline: 'solid' });
+  // A click focuses the button without a ring, also after the screen is drawn again.
+  await page.locator('button[data-key="refresh"]').click();
+  await page.evaluate(() => window.monitor.retryResets('status'));
+  expect(await focus()).toMatchObject({ key: 'refresh', input: 'pointer', outline: 'none' });
+  // Closing and opening from the menu bar starts with nothing focused.
+  const trayClick = () =>
+    app.evaluate(() =>
+      (globalThis as unknown as { tray: Electron.Tray }).tray.emit('click', { ctrlKey: false }, {}),
+    );
+  await trayClick();
+  await trayClick();
+  await expect.poll(async () => (await focus()).key).toBe('BODY');
+  await app.close();
+});

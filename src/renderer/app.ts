@@ -1029,11 +1029,35 @@ monitor.onResets((snapshot) => {
   state.resets = snapshot;
   if (state.view !== 'claude-setup') render();
 });
-// Opening the popover starts over at the screen asked for.
+// Opening the popover starts over at the screen asked for, with nothing focused: a button focused
+// by an earlier click came back with a keyboard focus ring when the popover opened (developer,
+// 2026-11-13, «why does it show yellow square on reload button after I clicked the icon on the menu
+// bar?»).
 monitor.onNavigate((view) => {
   state.backStack = [];
+  (document.activeElement as HTMLElement | null)?.blur();
+  inputMode('pointer');
   void go(view);
 });
+
+/**
+ * Focus rings only after the keyboard is used (2026-11-13). Each render puts focus back on the button
+ * that had it, and Chromium draws the ring for that restored focus once the window is activated, so
+ * :focus-visible alone showed it after mouse clicks too. `data-input` on <html> says which was used
+ * last; styles.css hides the rings while it is «pointer». Tab and the arrow keys bring them back.
+ */
+function inputMode(mode: 'pointer' | 'keyboard'): void {
+  document.documentElement.dataset.input = mode;
+}
+document.addEventListener('pointerdown', () => inputMode('pointer'), true);
+document.addEventListener(
+  'keydown',
+  (event) => {
+    if (!['Meta', 'Control', 'Alt', 'Shift'].includes(event.key)) inputMode('keyboard');
+  },
+  true,
+);
+inputMode('pointer');
 
 let refreshTimer: number | null = null;
 function syncRefreshTimer(): void {

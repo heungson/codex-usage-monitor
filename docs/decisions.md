@@ -123,6 +123,19 @@ the developer:
 - The button takes no height in the title line (negative margins): with 20 px of its own, 고대비 no
   longer fit the popover (`e2e/look.spec.ts`).
 
+## No focus ring after a click (developer, 2026-11-13)
+
+The developer, with a capture: «why does it show yellow square on reload button after I clicked the
+icon on the menu bar?» The square was the keyboard focus ring (the theme's accent). Each render
+replaces the page and puts focus back on the button that had it, here 새로 고침 from an earlier click;
+that is a focus by script, and once the popover window is activated Chromium draws the ring for it.
+The checks could not show it: their window opens without taking focus (ULM_DEV_DISPLAY).
+
+- Opening the popover from the menu bar starts with nothing focused.
+- The page notes whether the pointer or the keyboard was used last (`data-input` on `<html>`);
+  focus rings show only after the keyboard (Tab, arrows, any key but a modifier), so a pinned window
+  redrawn after a click shows none either. The four ring styles in `styles.css` are the only ones.
+
 ## 도움말 and 설정 › 언어 (developer, 2026-11-12)
 
 The developer, with a capture of 사용량 현황: «Claude Code 연동 안내 should be on a separate screen
